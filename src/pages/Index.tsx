@@ -1,16 +1,20 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import { CourseProvider } from '@/context/CourseContext';
+import { TopNav } from '@/components/authoring/TopNav';
+import { Toolbox } from '@/components/authoring/Toolbox';
+import { Canvas } from '@/components/authoring/Canvas';
+import { PropertiesPanel } from '@/components/authoring/PropertiesPanel';
 
-// IMPORTANT: Fully REPLACE this with your own code
-const PlaceholderIndex = () => {
-  // PLACEHOLDER: Replace this entire return statement with the user's app.
-  // The inline background color is intentionally not part of the design system.
-  return (
-    <div className="flex min-h-screen items-center justify-center" style={{ backgroundColor: '#fcfbf8' }}>
-      <img data-lovable-blank-page-placeholder="REMOVE_THIS" src="/placeholder.svg" alt="Your app will live here!" />
+const Index = () => (
+  <CourseProvider>
+    <div className="h-screen flex flex-col bg-background overflow-hidden">
+      <TopNav />
+      <div className="flex-1 flex min-h-0">
+        <Toolbox />
+        <Canvas />
+        <PropertiesPanel />
+      </div>
     </div>
-  );
-};
-
-const Index = PlaceholderIndex;
+  </CourseProvider>
+);
 
 export default Index;

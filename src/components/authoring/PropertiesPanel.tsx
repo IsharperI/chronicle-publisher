@@ -1,0 +1,124 @@
+import { useCourse } from '@/context/CourseContext';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
+import { Trash2 } from 'lucide-react';
+import type { SlideElement, TextElement, ImageElement, ShapeElement, ShapeType } from '@/types/course';
+
+function NumField({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
+  return (
+    <div className="space-y-1">
+      <Label className="text-xs">{label}</Label>
+      <Input type="number" value={value} onChange={(e) => onChange(Number(e.target.value))} className="h-8 text-xs" />
+    </div>
+  );
+}
+
+function ColorField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  return (
+    <div className="space-y-1">
+      <Label className="text-xs">{label}</Label>
+      <div className="flex gap-2">
+        <input type="color" value={value === 'transparent' ? '#ffffff' : value} onChange={(e) => onChange(e.target.value)} className="h-8 w-8 rounded border cursor-pointer" />
+        <Input value={value} onChange={(e) => onChange(e.target.value)} className="h-8 text-xs flex-1" />
+      </div>
+    </div>
+  );
+}
+
+export function PropertiesPanel() {
+  const { state, dispatch } = useCourse();
+  const activeSlide = state.slides[state.activeSlideIndex];
+  const activeElement = activeSlide?.elements.find((el) => el.id === state.activeElementId);
+
+  const update = (updates: Partial<SlideElement>) => {
+    if (!activeElement) return;
+    dispatch({ type: 'UPDATE_ELEMENT', id: activeElement.id, updates });
+  };
+
+  return (
+    <div className="w-[280px] border-l bg-card flex flex-col shrink-0">
+      <div className="p-3 border-b">
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Properties</p>
+      </div>
+      <div className="flex-1 overflow-y-auto p-3 space-y-4">
+        {!activeElement ? (
+          <p className="text-sm text-muted-foreground text-center mt-8">No element selected</p>
+        ) : (
+          <>
+            <p className="text-sm font-medium capitalize text-foreground">{activeElement.type} Element</p>
+
+            <div className="grid grid-cols-2 gap-2">
+              <NumField label="X" value={Math.round(activeElement.x)} onChange={(v) => update({ x: v })} />
+              <NumField label="Y" value={Math.round(activeElement.y)} onChange={(v) => update({ y: v })} />
+              <NumField label="Width" value={Math.round(activeElement.width)} onChange={(v) => update({ width: v })} />
+              <NumField label="Height" value={Math.round(activeElement.height)} onChange={(v) => update({ height: v })} />
+            </div>
+
+            {activeElement.type === 'text' && (
+              <>
+                <div className="space-y-1">
+                  <Label className="text-xs">Content</Label>
+                  <Textarea value={(activeElement as TextElement).content} onChange={(e) => update({ content: e.target.value } as Partial<TextElement>)} className="text-xs min-h-[60px]" />
+                </div>
+                <NumField label="Font Size" value={(activeElement as TextElement).fontSize} onChange={(v) => update({ fontSize: v } as Partial<TextElement>)} />
+                <div className="space-y-1">
+                  <Label className="text-xs">Font Weight</Label>
+                  <Select value={(activeElement as TextElement).fontWeight} onValueChange={(v) => update({ fontWeight: v } as Partial<TextElement>)}>
+                    <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="300">Light</SelectItem>
+                      <SelectItem value="400">Normal</SelectItem>
+                      <SelectItem value="600">Semi Bold</SelectItem>
+                      <SelectItem value="700">Bold</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <ColorField label="Text Color" value={(activeElement as TextElement).textColor} onChange={(v) => update({ textColor: v } as Partial<TextElement>)} />
+                <ColorField label="Background" value={(activeElement as TextElement).backgroundColor} onChange={(v) => update({ backgroundColor: v } as Partial<TextElement>)} />
+              </>
+            )}
+
+            {activeElement.type === 'image' && (
+              <>
+                <div className="space-y-1">
+                  <Label className="text-xs">Image URL</Label>
+                  <Input value={(activeElement as ImageElement).src} onChange={(e) => update({ src: e.target.value } as Partial<ImageElement>)} className="h-8 text-xs" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Alt Text</Label>
+                  <Input value={(activeElement as ImageElement).alt} onChange={(e) => update({ alt: e.target.value } as Partial<ImageElement>)} className="h-8 text-xs" />
+                </div>
+              </>
+            )}
+
+            {activeElement.type === 'shape' && (
+              <>
+                <div className="space-y-1">
+                  <Label className="text-xs">Shape Type</Label>
+                  <Select value={(activeElement as ShapeElement).shapeType} onValueChange={(v) => update({ shapeType: v as ShapeType } as Partial<ShapeElement>)}>
+                    <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="rectangle">Rectangle</SelectItem>
+                      <SelectItem value="circle">Circle</SelectItem>
+                      <SelectItem value="triangle">Triangle</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <ColorField label="Fill Color" value={(activeElement as ShapeElement).fillColor} onChange={(v) => update({ fillColor: v } as Partial<ShapeElement>)} />
+                <ColorField label="Border Color" value={(activeElement as ShapeElement).borderColor} onChange={(v) => update({ borderColor: v } as Partial<ShapeElement>)} />
+                <NumField label="Border Width" value={(activeElement as ShapeElement).borderWidth} onChange={(v) => update({ borderWidth: v } as Partial<ShapeElement>)} />
+              </>
+            )}
+
+            <Button variant="destructive" size="sm" className="w-full" onClick={() => dispatch({ type: 'DELETE_ELEMENT', id: activeElement.id })}>
+              <Trash2 className="h-4 w-4 mr-1" />Delete Element
+            </Button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
