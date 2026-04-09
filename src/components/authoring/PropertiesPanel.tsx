@@ -1,10 +1,11 @@
+import { useRef } from 'react';
 import { useCourse } from '@/context/CourseContext';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Trash2 } from 'lucide-react';
+import { Trash2, Upload } from 'lucide-react';
 import type { SlideElement, TextElement, ImageElement, ShapeElement, ShapeType } from '@/types/course';
 
 function NumField({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
@@ -30,12 +31,24 @@ function ColorField({ label, value, onChange }: { label: string; value: string; 
 
 export function PropertiesPanel() {
   const { state, dispatch } = useCourse();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const activeSlide = state.slides[state.activeSlideIndex];
   const activeElement = activeSlide?.elements.find((el) => el.id === state.activeElementId);
 
   const update = (updates: Partial<SlideElement>) => {
     if (!activeElement) return;
     dispatch({ type: 'UPDATE_ELEMENT', id: activeElement.id, updates });
+  };
+
+  const handleReplaceImage = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !activeElement) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      update({ src: ev.target?.result as string } as Partial<ImageElement>);
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
   };
 
   return (
@@ -84,8 +97,14 @@ export function PropertiesPanel() {
             {activeElement.type === 'image' && (
               <>
                 <div className="space-y-1">
-                  <Label className="text-xs">Image URL</Label>
-                  <Input value={(activeElement as ImageElement).src} onChange={(e) => update({ src: e.target.value } as Partial<ImageElement>)} className="h-8 text-xs" />
+                  <Label className="text-xs">Image</Label>
+                  {(activeElement as ImageElement).src && (
+                    <img src={(activeElement as ImageElement).src} alt="Preview" className="w-full h-24 object-contain rounded border bg-muted" />
+                  )}
+                  <Button variant="outline" size="sm" className="w-full" onClick={() => fileInputRef.current?.click()}>
+                    <Upload className="h-4 w-4 mr-1" />Replace Image
+                  </Button>
+                  <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleReplaceImage} />
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Alt Text</Label>

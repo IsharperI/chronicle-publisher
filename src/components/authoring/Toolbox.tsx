@@ -1,18 +1,14 @@
+import { useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Type, ImageIcon, Square, Plus, Trash2 } from 'lucide-react';
 import { useCourse } from '@/context/CourseContext';
 import type { TextElement, ImageElement, ShapeElement } from '@/types/course';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
-import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 
 export function Toolbox() {
   const { state, dispatch } = useCourse();
-  const [imageDialogOpen, setImageDialogOpen] = useState(false);
-  const [imageUrl, setImageUrl] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const addText = () => {
     const el: TextElement = {
@@ -24,16 +20,21 @@ export function Toolbox() {
     dispatch({ type: 'ADD_ELEMENT', element: el });
   };
 
-  const addImage = () => {
-    if (!imageUrl.trim()) return;
-    const el: ImageElement = {
-      id: crypto.randomUUID(), type: 'image',
-      x: 560, y: 240, width: 800, height: 600,
-      src: imageUrl.trim(), alt: 'Image',
+  const handleImageFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const base64 = ev.target?.result as string;
+      const el: ImageElement = {
+        id: crypto.randomUUID(), type: 'image',
+        x: 560, y: 240, width: 800, height: 600,
+        src: base64, alt: file.name,
+      };
+      dispatch({ type: 'ADD_ELEMENT', element: el });
     };
-    dispatch({ type: 'ADD_ELEMENT', element: el });
-    setImageUrl('');
-    setImageDialogOpen(false);
+    reader.readAsDataURL(file);
+    e.target.value = '';
   };
 
   const addShape = () => {
@@ -51,7 +52,8 @@ export function Toolbox() {
         <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wider">Toolbox</p>
         <div className="flex flex-col gap-1.5">
           <Button variant="outline" size="sm" className="justify-start" onClick={addText}><Type className="h-4 w-4 mr-2" />Add Text</Button>
-          <Button variant="outline" size="sm" className="justify-start" onClick={() => setImageDialogOpen(true)}><ImageIcon className="h-4 w-4 mr-2" />Add Image</Button>
+          <Button variant="outline" size="sm" className="justify-start" onClick={() => fileInputRef.current?.click()}><ImageIcon className="h-4 w-4 mr-2" />Add Image</Button>
+          <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageFile} />
           <Button variant="outline" size="sm" className="justify-start" onClick={addShape}><Square className="h-4 w-4 mr-2" />Add Shape</Button>
         </div>
       </div>
@@ -84,17 +86,6 @@ export function Toolbox() {
           </div>
         </ScrollArea>
       </div>
-
-      <Dialog open={imageDialogOpen} onOpenChange={setImageDialogOpen}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Add Image</DialogTitle></DialogHeader>
-          <div className="space-y-2">
-            <Label>Image URL</Label>
-            <Input value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder="https://example.com/image.jpg" onKeyDown={(e) => e.key === 'Enter' && addImage()} />
-          </div>
-          <DialogFooter><Button onClick={addImage} disabled={!imageUrl.trim()}>Add</Button></DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

@@ -44,4 +44,5 @@ export interface CourseState {
   slides: Slide[];
   activeSlideIndex: number;
   activeElementId: string | null;
+  previewMode: boolean;
 }

@@ -10,6 +10,7 @@ const initialState: CourseState = {
   slides: [createSlide()],
   activeSlideIndex: 0,
   activeElementId: null,
+  previewMode: false,
 };
 
 type Action =
@@ -19,7 +20,11 @@ type Action =
   | { type: 'ADD_ELEMENT'; element: SlideElement }
   | { type: 'UPDATE_ELEMENT'; id: string; updates: Partial<SlideElement> }
   | { type: 'DELETE_ELEMENT'; id: string }
-  | { type: 'SET_ACTIVE_ELEMENT'; id: string | null };
+  | { type: 'SET_ACTIVE_ELEMENT'; id: string | null }
+  | { type: 'LOAD_COURSE'; slides: Slide[] }
+  | { type: 'SET_PREVIEW_MODE'; enabled: boolean }
+  | { type: 'PREVIEW_NEXT' }
+  | { type: 'PREVIEW_PREV' };
 
 function courseReducer(state: CourseState, action: Action): CourseState {
   switch (action.type) {
@@ -66,6 +71,14 @@ function courseReducer(state: CourseState, action: Action): CourseState {
     }
     case 'SET_ACTIVE_ELEMENT':
       return { ...state, activeElementId: action.id };
+    case 'LOAD_COURSE':
+      return { ...initialState, slides: action.slides, activeSlideIndex: 0, activeElementId: null, previewMode: false };
+    case 'SET_PREVIEW_MODE':
+      return { ...state, previewMode: action.enabled, activeElementId: null, activeSlideIndex: action.enabled ? 0 : state.activeSlideIndex };
+    case 'PREVIEW_NEXT':
+      return { ...state, activeSlideIndex: Math.min(state.activeSlideIndex + 1, state.slides.length - 1) };
+    case 'PREVIEW_PREV':
+      return { ...state, activeSlideIndex: Math.max(state.activeSlideIndex - 1, 0) };
     default:
       return state;
   }
