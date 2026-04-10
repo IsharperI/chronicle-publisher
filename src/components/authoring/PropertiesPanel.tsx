@@ -1,12 +1,12 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { useCourse } from '@/context/CourseContext';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Trash2, Upload } from 'lucide-react';
-import type { SlideElement, TextElement, ImageElement, ShapeElement, ShapeType } from '@/types/course';
+import { Trash2, Upload, Plus, X } from 'lucide-react';
+import type { SlideElement, TextElement, ImageElement, ShapeElement, ShapeType, Trigger } from '@/types/course';
 
 function NumField({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
   return (
@@ -132,11 +132,72 @@ export function PropertiesPanel() {
               </>
             )}
 
+            {/* Timeline Properties */}
+            <div className="space-y-2 pt-2 border-t">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Timeline</p>
+              <div className="grid grid-cols-2 gap-2">
+                <NumField label="Start (ms)" value={activeElement.startTime} onChange={(v) => update({ startTime: Math.max(0, v) })} />
+                <NumField label="Duration (ms)" value={activeElement.duration} onChange={(v) => update({ duration: Math.max(100, v) })} />
+              </div>
+            </div>
+
+            {/* Triggers */}
+            <TriggersSection element={activeElement} onUpdate={update} />
+
             <Button variant="destructive" size="sm" className="w-full" onClick={() => dispatch({ type: 'DELETE_ELEMENT', id: activeElement.id })}>
               <Trash2 className="h-4 w-4 mr-1" />Delete Element
             </Button>
           </>
         )}
+      </div>
+    </div>
+  );
+}
+
+function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdate: (u: Partial<SlideElement>) => void }) {
+  const triggers = element.triggers ?? [];
+  const [newEvent, setNewEvent] = useState('onClick');
+  const [newAction, setNewAction] = useState('jumpToSlide');
+  const [newTarget, setNewTarget] = useState('');
+
+  const addTrigger = () => {
+    if (!newTarget) return;
+    const t: Trigger = { event: newEvent, action: newAction, targetId: newTarget };
+    onUpdate({ triggers: [...triggers, t] } as any);
+    setNewTarget('');
+  };
+
+  const removeTrigger = (idx: number) => {
+    onUpdate({ triggers: triggers.filter((_, i) => i !== idx) } as any);
+  };
+
+  return (
+    <div className="space-y-2 pt-2 border-t">
+      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Triggers</p>
+      {triggers.map((t, i) => (
+        <div key={i} className="flex items-center gap-1 text-[10px] bg-muted rounded p-1.5">
+          <span className="truncate flex-1">{t.event} → {t.action} ({t.targetId.slice(0, 8)})</span>
+          <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0" onClick={() => removeTrigger(i)}><X className="h-3 w-3" /></Button>
+        </div>
+      ))}
+      <div className="space-y-1.5">
+        <Select value={newEvent} onValueChange={setNewEvent}>
+          <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="onClick">onClick</SelectItem>
+            <SelectItem value="onHover">onHover</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={newAction} onValueChange={setNewAction}>
+          <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="jumpToSlide">Jump to Slide</SelectItem>
+            <SelectItem value="hideElement">Hide Element</SelectItem>
+            <SelectItem value="showElement">Show Element</SelectItem>
+          </SelectContent>
+        </Select>
+        <Input placeholder="Target ID" value={newTarget} onChange={(e) => setNewTarget(e.target.value)} className="h-7 text-xs" />
+        <Button variant="outline" size="sm" className="w-full h-7 text-xs" onClick={addTrigger}><Plus className="h-3 w-3 mr-1" />Add Trigger</Button>
       </div>
     </div>
   );
