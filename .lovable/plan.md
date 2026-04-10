@@ -1,49 +1,37 @@
 
 
-# eLearning Authoring Tool
+# Timeline & Triggers Implementation
 
-## Layout
-Three-panel layout with top navigation bar:
-- **Top Nav**: Course title, Save button, Preview/Present button, Undo/Redo
-- **Left Panel (~250px)**: Toolbox with element buttons (Text, Image, Shape) at top, slide thumbnails list at bottom with Add/Delete slide controls
-- **Center**: 16:9 canvas (scaled to fit) showing the active slide's elements
-- **Right Panel (~280px)**: Properties panel that dynamically shows fields for the selected element (position, size, content, styling)
+## 1. State Schema Updates (`src/types/course.ts`)
+- Add `startTime: number` (default 0) and `duration: number` (default 5000) to `BaseElement`
+- Add `triggers: Trigger[]` to `BaseElement`
+- New `Trigger` interface: `{ event: string; action: string; targetId: string }`
+- Update default element creation in `Toolbox.tsx` to include these new fields
 
-## State Management
-- Global `Course` state via React Context with useReducer
-- Course = array of Slides; each Slide = array of Elements
-- Element types: Text, Image, Shape — each with id, type, x, y, width, height, and type-specific content
-- Track `activeSlideIndex` and `activeElementId`
-- Initialize with one blank slide, no dummy data
+## 2. Context Updates (`src/context/CourseContext.tsx`)
+- Existing `UPDATE_ELEMENT` action already handles partial updates, so timeline property changes (startTime, duration) will work automatically through the properties panel and timeline UI
 
-## Slide Management
-- Bottom of left panel: scrollable slide thumbnail list showing mini previews
-- Click thumbnail to switch active slide
-- "Add Slide" button appends a new blank slide
-- "Delete Slide" button removes active slide (prevents deleting last slide)
-- Slide number labels on thumbnails
+## 3. Bottom Timeline Panel (`src/components/authoring/TimelinePanel.tsx`)
+- New collapsible panel at the bottom of the editor (hidden in preview mode)
+- **Left column (~200px)**: Lists element names/types for the active slide, clicking selects the element
+- **Right area**: Horizontal timeline tracks using `react-rnd` (already installed) for each element — bars are draggable (changes startTime) and resizable horizontally (changes duration)
+- Timeline scale: configurable, default showing ~10 seconds with tick marks
+- Bars color-coded by element type (text, image, shape)
+- Collapsible via a toggle button using Radix Collapsible (already available)
 
-## Canvas
-- Fixed 1920×1080 internal resolution, scaled with CSS transform to fit the center panel
-- Render all elements of the active slide
-- Use `react-rnd` for drag & resize of elements on canvas
-- Position/size changes update global state immediately
-- Click canvas background to deselect; click element to select it
-- Selected element shows resize handles and a highlight border
+## 4. Layout Update (`src/pages/Index.tsx`)
+- Insert `TimelinePanel` below the canvas area, inside the main flex column, outside the three-panel row
+- Only visible when not in preview mode
 
-## Toolbox (Left Panel Top)
-- Buttons: "Add Text", "Add Image", "Add Shape"
-- Clicking adds a new element to the center of the active slide with default dimensions
-- Image button opens a URL input dialog
+## 5. Properties Panel Update (`src/components/authoring/PropertiesPanel.tsx`)
+- Add startTime and duration number fields for all element types
+- Add a triggers section: list existing triggers with delete, button to add new trigger with dropdowns for event/action and an ID input for targetId
 
-## Properties Panel (Right)
-- Shows "No element selected" when nothing is active
-- For **Text**: editable text content (textarea), font size, font weight, text color, background color
-- For **Image**: image URL input, alt text
-- For **Shape**: shape type dropdown (rectangle, circle, triangle), fill color, border color, border width
-- For **All**: x, y, width, height number inputs
-- Changes update global state and canvas in real-time
-
-## Dependencies
-- `react-rnd` for drag and resize on canvas
+## Files Changed
+- `src/types/course.ts` — schema additions
+- `src/context/CourseContext.tsx` — no reducer changes needed (UPDATE_ELEMENT covers it)
+- `src/components/authoring/Toolbox.tsx` — add defaults for new fields
+- `src/components/authoring/TimelinePanel.tsx` — new component
+- `src/components/authoring/PropertiesPanel.tsx` — timeline + trigger fields
+- `src/pages/Index.tsx` — layout update
 
