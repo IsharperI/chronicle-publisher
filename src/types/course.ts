@@ -1,6 +1,12 @@
 export type ElementType = 'text' | 'image' | 'shape';
 export type ShapeType = 'rectangle' | 'circle' | 'triangle';
 
+export interface Trigger {
+  event: string;
+  action: string;
+  targetId: string;
+}
+
 export interface BaseElement {
   id: string;
   type: ElementType;
@@ -8,6 +14,9 @@ export interface BaseElement {
   y: number;
   width: number;
   height: number;
+  startTime: number;
+  duration: number;
+  triggers: Trigger[];
 }
 
 export interface TextElement extends BaseElement {
