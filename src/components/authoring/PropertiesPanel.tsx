@@ -58,7 +58,16 @@ export function PropertiesPanel() {
       </div>
       <div className="flex-1 overflow-y-auto p-3 space-y-4">
         {!activeElement ? (
-          <p className="text-sm text-muted-foreground text-center mt-8">No element selected</p>
+          /* Slide Properties when nothing selected */
+          <div className="space-y-4">
+            <p className="text-sm font-medium text-foreground">Slide Properties</p>
+            <NumField
+              label="Duration (ms)"
+              value={activeSlide?.duration ?? 5000}
+              onChange={(v) => dispatch({ type: 'UPDATE_SLIDE', index: state.activeSlideIndex, updates: { duration: Math.max(1000, v) } })}
+            />
+            <p className="text-xs text-muted-foreground">Sets the total timeline length for this slide.</p>
+          </div>
         ) : (
           <>
             <p className="text-sm font-medium capitalize text-foreground">{activeElement.type} Element</p>

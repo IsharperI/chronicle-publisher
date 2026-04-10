@@ -47,6 +47,7 @@ export type SlideElement = TextElement | ImageElement | ShapeElement;
 export interface Slide {
   id: string;
   elements: SlideElement[];
+  duration: number;
 }
 
 export interface CourseState {
@@ -54,4 +55,6 @@ export interface CourseState {
   activeSlideIndex: number;
   activeElementId: string | null;
   previewMode: boolean;
+  playheadTime: number;
+  isPlaying: boolean;
 }

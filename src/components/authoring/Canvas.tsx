@@ -36,6 +36,10 @@ function ElementRenderer({ element }: { element: SlideElement }) {
   return null;
 }
 
+function isElementVisible(el: SlideElement, playheadTime: number): boolean {
+  return playheadTime >= el.startTime && playheadTime < el.startTime + el.duration;
+}
+
 export function Canvas() {
   const { state, dispatch } = useCourse();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -59,9 +63,26 @@ export function Canvas() {
     return () => ro.disconnect();
   }, [updateScale]);
 
+  // Keyboard delete
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (!state.activeElementId || state.previewMode) return;
+      if (e.key !== 'Delete' && e.key !== 'Backspace') return;
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (e.target as HTMLElement)?.isContentEditable) return;
+      e.preventDefault();
+      dispatch({ type: 'DELETE_ELEMENT', id: state.activeElementId });
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [state.activeElementId, state.previewMode, dispatch]);
+
   const handleCanvasClick = (e: React.MouseEvent) => {
     if (!isPreview && e.target === e.currentTarget) dispatch({ type: 'SET_ACTIVE_ELEMENT', id: null });
   };
+
+  const visibleElements = activeSlide?.elements.filter(el => isElementVisible(el, state.playheadTime)) ?? [];
+  const editElements = activeSlide?.elements ?? [];
 
   return (
     <div ref={containerRef} className="flex-1 bg-muted/50 flex flex-col items-center justify-center overflow-hidden min-w-0">
@@ -70,32 +91,44 @@ export function Canvas() {
         className="relative bg-background shadow-lg border rounded"
         onClick={handleCanvasClick}
       >
-        {activeSlide?.elements.map((el) =>
-          isPreview ? (
-            <div key={el.id} style={{ position: 'absolute', left: el.x, top: el.y, width: el.width, height: el.height }}>
-              <ElementRenderer element={el} />
-            </div>
-          ) : (
-            <Rnd
-              key={el.id}
-              size={{ width: el.width, height: el.height }}
-              position={{ x: el.x, y: el.y }}
-              onDragStop={(_e, d) => dispatch({ type: 'UPDATE_ELEMENT', id: el.id, updates: { x: d.x, y: d.y } })}
-              onResizeStop={(_e, _dir, ref, _delta, position) => {
-                dispatch({
-                  type: 'UPDATE_ELEMENT', id: el.id,
-                  updates: { width: parseInt(ref.style.width), height: parseInt(ref.style.height), x: position.x, y: position.y },
-                });
-              }}
-              scale={scale}
-              bounds="parent"
-              onMouseDown={(e: MouseEvent) => { e.stopPropagation(); dispatch({ type: 'SET_ACTIVE_ELEMENT', id: el.id }); }}
-              style={{ outline: state.activeElementId === el.id ? '2px solid hsl(var(--primary))' : 'none', zIndex: state.activeElementId === el.id ? 10 : 1 }}
-            >
-              <ElementRenderer element={el} />
-            </Rnd>
-          )
-        )}
+        {isPreview
+          ? visibleElements.map((el) => (
+              <div key={el.id} style={{ position: 'absolute', left: el.x, top: el.y, width: el.width, height: el.height }}>
+                <ElementRenderer element={el} />
+              </div>
+            ))
+          : editElements.map((el) => {
+              const visible = isElementVisible(el, state.playheadTime);
+              return (
+                <Rnd
+                  key={el.id}
+                  size={{ width: el.width, height: el.height }}
+                  position={{ x: el.x, y: el.y }}
+                  onDragStop={(_e, d) => dispatch({ type: 'UPDATE_ELEMENT', id: el.id, updates: { x: d.x, y: d.y } })}
+                  onResizeStop={(_e, _dir, ref, _delta, position) => {
+                    dispatch({
+                      type: 'UPDATE_ELEMENT', id: el.id,
+                      updates: { width: parseInt(ref.style.width), height: parseInt(ref.style.height), x: position.x, y: position.y },
+                    });
+                  }}
+                  scale={scale}
+                  bounds="parent"
+                  onMouseDown={(e: MouseEvent) => { e.stopPropagation(); dispatch({ type: 'SET_ACTIVE_ELEMENT', id: el.id }); }}
+                  enableResizing={state.activeElementId === el.id}
+                  resizeHandleStyles={{
+                    top: handleStyle, bottom: handleStyle, left: handleStyle, right: handleStyle,
+                    topLeft: cornerStyle, topRight: cornerStyle, bottomLeft: cornerStyle, bottomRight: cornerStyle,
+                  }}
+                  style={{
+                    outline: state.activeElementId === el.id ? '2px solid hsl(var(--primary))' : 'none',
+                    zIndex: state.activeElementId === el.id ? 10 : 1,
+                    opacity: visible ? 1 : 0.3,
+                  }}
+                >
+                  <ElementRenderer element={el} />
+                </Rnd>
+              );
+            })}
       </div>
 
       {isPreview && (
@@ -114,3 +147,17 @@ export function Canvas() {
     </div>
   );
 }
+
+const handleStyle: React.CSSProperties = {
+  width: 10, height: 10,
+  background: 'hsl(var(--primary))',
+  border: '1px solid hsl(var(--primary-foreground))',
+  borderRadius: 1,
+};
+
+const cornerStyle: React.CSSProperties = {
+  width: 10, height: 10,
+  background: 'hsl(var(--primary))',
+  border: '1px solid hsl(var(--primary-foreground))',
+  borderRadius: 2,
+};

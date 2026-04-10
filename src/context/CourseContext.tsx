@@ -4,6 +4,7 @@ import type { CourseState, Slide, SlideElement } from '@/types/course';
 const createSlide = (): Slide => ({
   id: crypto.randomUUID(),
   elements: [],
+  duration: 5000,
 });
 
 const initialState: CourseState = {
@@ -11,6 +12,8 @@ const initialState: CourseState = {
   activeSlideIndex: 0,
   activeElementId: null,
   previewMode: false,
+  playheadTime: 0,
+  isPlaying: false,
 };
 
 type Action =
@@ -24,7 +27,10 @@ type Action =
   | { type: 'LOAD_COURSE'; slides: Slide[] }
   | { type: 'SET_PREVIEW_MODE'; enabled: boolean }
   | { type: 'PREVIEW_NEXT' }
-  | { type: 'PREVIEW_PREV' };
+  | { type: 'PREVIEW_PREV' }
+  | { type: 'UPDATE_SLIDE'; index: number; updates: Partial<Slide> }
+  | { type: 'SET_PLAYHEAD'; time: number }
+  | { type: 'SET_PLAYING'; playing: boolean };
 
 function courseReducer(state: CourseState, action: Action): CourseState {
   switch (action.type) {
@@ -39,7 +45,7 @@ function courseReducer(state: CourseState, action: Action): CourseState {
       return { ...state, slides: newSlides, activeSlideIndex: newIndex, activeElementId: null };
     }
     case 'SET_ACTIVE_SLIDE':
-      return { ...state, activeSlideIndex: action.index, activeElementId: null };
+      return { ...state, activeSlideIndex: action.index, activeElementId: null, playheadTime: 0, isPlaying: false };
     case 'ADD_ELEMENT': {
       const slides = state.slides.map((slide, i) =>
         i === state.activeSlideIndex
@@ -72,13 +78,23 @@ function courseReducer(state: CourseState, action: Action): CourseState {
     case 'SET_ACTIVE_ELEMENT':
       return { ...state, activeElementId: action.id };
     case 'LOAD_COURSE':
-      return { ...initialState, slides: action.slides, activeSlideIndex: 0, activeElementId: null, previewMode: false };
+      return { ...initialState, slides: action.slides.map(s => ({ ...s, duration: s.duration ?? 5000 })), activeSlideIndex: 0, activeElementId: null, previewMode: false };
     case 'SET_PREVIEW_MODE':
-      return { ...state, previewMode: action.enabled, activeElementId: null, activeSlideIndex: action.enabled ? 0 : state.activeSlideIndex };
+      return { ...state, previewMode: action.enabled, activeElementId: null, activeSlideIndex: action.enabled ? 0 : state.activeSlideIndex, playheadTime: 0, isPlaying: false };
     case 'PREVIEW_NEXT':
       return { ...state, activeSlideIndex: Math.min(state.activeSlideIndex + 1, state.slides.length - 1) };
     case 'PREVIEW_PREV':
       return { ...state, activeSlideIndex: Math.max(state.activeSlideIndex - 1, 0) };
+    case 'UPDATE_SLIDE': {
+      const slides = state.slides.map((slide, i) =>
+        i === action.index ? { ...slide, ...action.updates } : slide
+      );
+      return { ...state, slides };
+    }
+    case 'SET_PLAYHEAD':
+      return { ...state, playheadTime: action.time };
+    case 'SET_PLAYING':
+      return { ...state, isPlaying: action.playing };
     default:
       return state;
   }
