@@ -17,6 +17,7 @@ export function Toolbox() {
       content: 'Double-click to edit', fontSize: 32, fontWeight: '400',
       textColor: '#000000', backgroundColor: 'transparent',
       startTime: 0, duration: 5000, triggers: [],
+      animationIn: 'none', animationOut: 'none',
     };
     dispatch({ type: 'ADD_ELEMENT', element: el });
   };
@@ -32,6 +33,7 @@ export function Toolbox() {
         x: 560, y: 240, width: 800, height: 600,
         src: base64, alt: file.name,
         startTime: 0, duration: 5000, triggers: [],
+        animationIn: 'none', animationOut: 'none',
       };
       dispatch({ type: 'ADD_ELEMENT', element: el });
     };
@@ -45,6 +47,7 @@ export function Toolbox() {
       x: 760, y: 390, width: 400, height: 300,
       shapeType: 'rectangle', fillColor: '#3b82f6', borderColor: '#1e40af', borderWidth: 2,
       startTime: 0, duration: 5000, triggers: [],
+      animationIn: 'none', animationOut: 'none',
     };
     dispatch({ type: 'ADD_ELEMENT', element: el });
   };

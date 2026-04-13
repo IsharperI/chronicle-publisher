@@ -1,5 +1,7 @@
 export type ElementType = 'text' | 'image' | 'shape';
 export type ShapeType = 'rectangle' | 'circle' | 'triangle';
+export type AnimationIn = 'none' | 'fade' | 'fly-in-left' | 'fly-in-right';
+export type AnimationOut = 'none' | 'fade' | 'fly-out-left' | 'fly-out-right';
 
 export interface Trigger {
   event: string;
@@ -17,6 +19,8 @@ export interface BaseElement {
   startTime: number;
   duration: number;
   triggers: Trigger[];
+  animationIn: AnimationIn;
+  animationOut: AnimationOut;
 }
 
 export interface TextElement extends BaseElement {
@@ -26,6 +30,8 @@ export interface TextElement extends BaseElement {
   fontWeight: string;
   textColor: string;
   backgroundColor: string;
+  hoverTextColor?: string;
+  hoverBackgroundColor?: string;
 }
 
 export interface ImageElement extends BaseElement {
@@ -40,6 +46,8 @@ export interface ShapeElement extends BaseElement {
   fillColor: string;
   borderColor: string;
   borderWidth: number;
+  hoverFillColor?: string;
+  hoverBorderColor?: string;
 }
 
 export type SlideElement = TextElement | ImageElement | ShapeElement;

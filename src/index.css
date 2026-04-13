@@ -103,3 +103,36 @@ All colors MUST be HSL.
     @apply bg-background text-foreground;
   }
 }
+
+/* Element entrance/exit animations */
+@keyframes el-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes el-fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+@keyframes el-fly-in-left {
+  from { opacity: 0; transform: translateX(-120px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes el-fly-in-right {
+  from { opacity: 0; transform: translateX(120px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes el-fly-out-left {
+  from { opacity: 1; transform: translateX(0); }
+  to { opacity: 0; transform: translateX(-120px); }
+}
+@keyframes el-fly-out-right {
+  from { opacity: 1; transform: translateX(0); }
+  to { opacity: 0; transform: translateX(120px); }
+}
+
+.anim-fade-in { animation: el-fade-in 0.4s ease-out forwards; }
+.anim-fade-out { animation: el-fade-out 0.4s ease-in forwards; }
+.anim-fly-in-left { animation: el-fly-in-left 0.5s ease-out forwards; }
+.anim-fly-in-right { animation: el-fly-in-right 0.5s ease-out forwards; }
+.anim-fly-out-left { animation: el-fly-out-left 0.5s ease-in forwards; }
+.anim-fly-out-right { animation: el-fly-out-right 0.5s ease-in forwards; }
