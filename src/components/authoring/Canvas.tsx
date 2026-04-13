@@ -3,16 +3,64 @@ import { Rnd } from 'react-rnd';
 import { useCourse } from '@/context/CourseContext';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import type { SlideElement } from '@/types/course';
+import type { SlideElement, TextElement, ShapeElement, AnimationIn, AnimationOut } from '@/types/course';
 
 const CANVAS_W = 1920;
 const CANVAS_H = 1080;
 
-function ElementRenderer({ element }: { element: SlideElement }) {
+const ANIM_DURATION = 500; // ms for entrance/exit animations
+
+function getAnimInClass(anim: AnimationIn): string {
+  switch (anim) {
+    case 'fade': return 'anim-fade-in';
+    case 'fly-in-left': return 'anim-fly-in-left';
+    case 'fly-in-right': return 'anim-fly-in-right';
+    default: return '';
+  }
+}
+
+function getAnimOutClass(anim: AnimationOut): string {
+  switch (anim) {
+    case 'fade': return 'anim-fade-out';
+    case 'fly-out-left': return 'anim-fly-out-left';
+    case 'fly-out-right': return 'anim-fly-out-right';
+    default: return '';
+  }
+}
+
+function getAnimationPhase(el: SlideElement, playheadTime: number): 'before' | 'entering' | 'visible' | 'exiting' | 'after' {
+  const end = el.startTime + el.duration;
+  if (playheadTime < el.startTime) return 'before';
+  if (playheadTime < el.startTime + ANIM_DURATION && el.animationIn !== 'none') return 'entering';
+  if (playheadTime < end - ANIM_DURATION) return 'visible';
+  if (playheadTime < end && el.animationOut !== 'none') return 'exiting';
+  if (playheadTime >= end) return 'after';
+  return 'visible';
+}
+
+function ElementRenderer({ element, isPreview }: { element: SlideElement; isPreview?: boolean }) {
+  const [hovered, setHovered] = useState(false);
+
+  const hoverProps = isPreview ? {
+    onMouseEnter: () => setHovered(true),
+    onMouseLeave: () => setHovered(false),
+  } : {};
+
   if (element.type === 'text') {
+    const te = element as TextElement;
+    const bg = hovered && te.hoverBackgroundColor ? te.hoverBackgroundColor : te.backgroundColor;
+    const color = hovered && te.hoverTextColor ? te.hoverTextColor : te.textColor;
     return (
-      <div style={{ width: '100%', height: '100%', fontSize: element.fontSize, fontWeight: element.fontWeight, color: element.textColor, backgroundColor: element.backgroundColor, padding: 8, overflow: 'hidden', wordBreak: 'break-word' }}>
-        {element.content}
+      <div
+        {...hoverProps}
+        style={{
+          width: '100%', height: '100%', fontSize: te.fontSize, fontWeight: te.fontWeight,
+          color, backgroundColor: bg, padding: 8, overflow: 'hidden', wordBreak: 'break-word',
+          transition: isPreview ? 'color 0.2s, background-color 0.2s' : undefined,
+          cursor: isPreview && (te.hoverBackgroundColor || te.hoverTextColor) ? 'pointer' : undefined,
+        }}
+      >
+        {te.content}
       </div>
     );
   }
@@ -20,18 +68,45 @@ function ElementRenderer({ element }: { element: SlideElement }) {
     return <img src={element.src} alt={element.alt} style={{ width: '100%', height: '100%', objectFit: 'contain' }} draggable={false} />;
   }
   if (element.type === 'shape') {
-    const { shapeType, fillColor, borderColor, borderWidth } = element;
-    if (shapeType === 'circle') {
-      return <div style={{ width: '100%', height: '100%', borderRadius: '50%', backgroundColor: fillColor, border: `${borderWidth}px solid ${borderColor}` }} />;
-    }
-    if (shapeType === 'triangle') {
+    const se = element as ShapeElement;
+    const fill = hovered && se.hoverFillColor ? se.hoverFillColor : se.fillColor;
+    const border = hovered && se.hoverBorderColor ? se.hoverBorderColor : se.borderColor;
+
+    if (se.shapeType === 'circle') {
       return (
-        <svg viewBox="0 0 100 100" preserveAspectRatio="none" style={{ width: '100%', height: '100%' }}>
-          <polygon points="50,5 95,95 5,95" fill={fillColor} stroke={borderColor} strokeWidth={borderWidth * 2} />
+        <div
+          {...hoverProps}
+          style={{
+            width: '100%', height: '100%', borderRadius: '50%', backgroundColor: fill,
+            border: `${se.borderWidth}px solid ${border}`,
+            transition: isPreview ? 'background-color 0.2s, border-color 0.2s' : undefined,
+            cursor: isPreview && (se.hoverFillColor || se.hoverBorderColor) ? 'pointer' : undefined,
+          }}
+        />
+      );
+    }
+    if (se.shapeType === 'triangle') {
+      return (
+        <svg viewBox="0 0 100 100" preserveAspectRatio="none" style={{ width: '100%', height: '100%' }}
+          {...hoverProps}
+        >
+          <polygon points="50,5 95,95 5,95" fill={fill} stroke={border} strokeWidth={se.borderWidth * 2}
+            style={{ transition: isPreview ? 'fill 0.2s, stroke 0.2s' : undefined }}
+          />
         </svg>
       );
     }
-    return <div style={{ width: '100%', height: '100%', backgroundColor: fillColor, border: `${borderWidth}px solid ${borderColor}`, borderRadius: 4 }} />;
+    return (
+      <div
+        {...hoverProps}
+        style={{
+          width: '100%', height: '100%', backgroundColor: fill,
+          border: `${se.borderWidth}px solid ${border}`, borderRadius: 4,
+          transition: isPreview ? 'background-color 0.2s, border-color 0.2s' : undefined,
+          cursor: isPreview && (se.hoverFillColor || se.hoverBorderColor) ? 'pointer' : undefined,
+        }}
+      />
+    );
   }
   return null;
 }
@@ -81,7 +156,6 @@ export function Canvas() {
     if (!isPreview && e.target === e.currentTarget) dispatch({ type: 'SET_ACTIVE_ELEMENT', id: null });
   };
 
-  const visibleElements = activeSlide?.elements.filter(el => isElementVisible(el, state.playheadTime)) ?? [];
   const editElements = activeSlide?.elements ?? [];
 
   return (
@@ -92,11 +166,21 @@ export function Canvas() {
         onClick={handleCanvasClick}
       >
         {isPreview
-          ? visibleElements.map((el) => (
-              <div key={el.id} style={{ position: 'absolute', left: el.x, top: el.y, width: el.width, height: el.height }}>
-                <ElementRenderer element={el} />
-              </div>
-            ))
+          ? editElements.map((el) => {
+              const phase = getAnimationPhase(el, state.playheadTime);
+              if (phase === 'before' || phase === 'after') return null;
+              const animClass = phase === 'entering' ? getAnimInClass(el.animationIn)
+                : phase === 'exiting' ? getAnimOutClass(el.animationOut) : '';
+              return (
+                <div
+                  key={el.id}
+                  className={animClass}
+                  style={{ position: 'absolute', left: el.x, top: el.y, width: el.width, height: el.height }}
+                >
+                  <ElementRenderer element={el} isPreview />
+                </div>
+              );
+            })
           : editElements.map((el) => {
               const visible = isElementVisible(el, state.playheadTime);
               return (

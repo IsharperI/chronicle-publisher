@@ -6,7 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Trash2, Upload, Plus, X } from 'lucide-react';
-import type { SlideElement, TextElement, ImageElement, ShapeElement, ShapeType, Trigger } from '@/types/course';
+import type { SlideElement, TextElement, ImageElement, ShapeElement, ShapeType, Trigger, AnimationIn, AnimationOut } from '@/types/course';
 
 function NumField({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
   return (
@@ -58,7 +58,6 @@ export function PropertiesPanel() {
       </div>
       <div className="flex-1 overflow-y-auto p-3 space-y-4">
         {!activeElement ? (
-          /* Slide Properties when nothing selected */
           <div className="space-y-4">
             <p className="text-sm font-medium text-foreground">Slide Properties</p>
             <NumField
@@ -141,6 +140,14 @@ export function PropertiesPanel() {
               </>
             )}
 
+            {/* Animations */}
+            <AnimationsSection element={activeElement} onUpdate={update} />
+
+            {/* Hover States (text & shape only) */}
+            {(activeElement.type === 'text' || activeElement.type === 'shape') && (
+              <HoverStatesSection element={activeElement} onUpdate={update} />
+            )}
+
             {/* Timeline Properties */}
             <div className="space-y-2 pt-2 border-t">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Timeline</p>
@@ -161,6 +168,64 @@ export function PropertiesPanel() {
       </div>
     </div>
   );
+}
+
+function AnimationsSection({ element, onUpdate }: { element: SlideElement; onUpdate: (u: Partial<SlideElement>) => void }) {
+  return (
+    <div className="space-y-2 pt-2 border-t">
+      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Animations</p>
+      <div className="space-y-1">
+        <Label className="text-xs">Entrance</Label>
+        <Select value={element.animationIn ?? 'none'} onValueChange={(v) => onUpdate({ animationIn: v as AnimationIn } as any)}>
+          <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">None</SelectItem>
+            <SelectItem value="fade">Fade In</SelectItem>
+            <SelectItem value="fly-in-left">Fly In Left</SelectItem>
+            <SelectItem value="fly-in-right">Fly In Right</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="space-y-1">
+        <Label className="text-xs">Exit</Label>
+        <Select value={element.animationOut ?? 'none'} onValueChange={(v) => onUpdate({ animationOut: v as AnimationOut } as any)}>
+          <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">None</SelectItem>
+            <SelectItem value="fade">Fade Out</SelectItem>
+            <SelectItem value="fly-out-left">Fly Out Left</SelectItem>
+            <SelectItem value="fly-out-right">Fly Out Right</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+    </div>
+  );
+}
+
+function HoverStatesSection({ element, onUpdate }: { element: SlideElement; onUpdate: (u: Partial<SlideElement>) => void }) {
+  if (element.type === 'text') {
+    const te = element as TextElement;
+    return (
+      <div className="space-y-2 pt-2 border-t">
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Hover States</p>
+        <ColorField label="Hover Text Color" value={te.hoverTextColor ?? ''} onChange={(v) => onUpdate({ hoverTextColor: v } as any)} />
+        <ColorField label="Hover Background" value={te.hoverBackgroundColor ?? ''} onChange={(v) => onUpdate({ hoverBackgroundColor: v } as any)} />
+        <p className="text-xs text-muted-foreground">Colors applied on hover during preview.</p>
+      </div>
+    );
+  }
+  if (element.type === 'shape') {
+    const se = element as ShapeElement;
+    return (
+      <div className="space-y-2 pt-2 border-t">
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Hover States</p>
+        <ColorField label="Hover Fill Color" value={se.hoverFillColor ?? ''} onChange={(v) => onUpdate({ hoverFillColor: v } as any)} />
+        <ColorField label="Hover Border Color" value={se.hoverBorderColor ?? ''} onChange={(v) => onUpdate({ hoverBorderColor: v } as any)} />
+        <p className="text-xs text-muted-foreground">Colors applied on hover during preview.</p>
+      </div>
+    );
+  }
+  return null;
 }
 
 function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdate: (u: Partial<SlideElement>) => void }) {
