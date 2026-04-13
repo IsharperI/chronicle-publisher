@@ -107,6 +107,14 @@ export function TimelinePanel() {
     }
   }, []);
 
+  const playheadRef = useRef(state.playheadTime);
+  // Keep ref in sync when user scrubs or resets
+  useEffect(() => {
+    if (!state.isPlaying) {
+      playheadRef.current = state.playheadTime;
+    }
+  }, [state.playheadTime, state.isPlaying]);
+
   // Play/pause animation
   useEffect(() => {
     if (!state.isPlaying) {
@@ -114,21 +122,24 @@ export function TimelinePanel() {
       return;
     }
     lastFrameRef.current = performance.now();
+    playheadRef.current = Math.max(0, playheadRef.current);
     const tick = (now: number) => {
       const dt = now - lastFrameRef.current;
       lastFrameRef.current = now;
-      const next = state.playheadTime + dt;
+      const next = Math.max(0, playheadRef.current + dt);
       if (next >= slideDuration) {
+        playheadRef.current = slideDuration;
         dispatch({ type: 'SET_PLAYHEAD', time: slideDuration });
         dispatch({ type: 'SET_PLAYING', playing: false });
         return;
       }
+      playheadRef.current = next;
       dispatch({ type: 'SET_PLAYHEAD', time: next });
       animRef.current = requestAnimationFrame(tick);
     };
     animRef.current = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(animRef.current);
-  }, [state.isPlaying, state.playheadTime, slideDuration, dispatch]);
+  }, [state.isPlaying, slideDuration, dispatch]);
 
   const togglePlay = () => {
     if (state.isPlaying) {

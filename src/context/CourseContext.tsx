@@ -80,7 +80,7 @@ function courseReducer(state: CourseState, action: Action): CourseState {
     case 'LOAD_COURSE':
       return { ...initialState, slides: action.slides.map(s => ({ ...s, duration: s.duration ?? 5000 })), activeSlideIndex: 0, activeElementId: null, previewMode: false };
     case 'SET_PREVIEW_MODE':
-      return { ...state, previewMode: action.enabled, activeElementId: null, activeSlideIndex: action.enabled ? 0 : state.activeSlideIndex, playheadTime: 0, isPlaying: false };
+      return { ...state, previewMode: action.enabled, activeElementId: null, activeSlideIndex: action.enabled ? 0 : state.activeSlideIndex, playheadTime: 0, isPlaying: action.enabled };
     case 'PREVIEW_NEXT':
       return { ...state, activeSlideIndex: Math.min(state.activeSlideIndex + 1, state.slides.length - 1) };
     case 'PREVIEW_PREV':
