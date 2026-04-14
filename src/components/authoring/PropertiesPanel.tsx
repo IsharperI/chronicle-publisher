@@ -32,7 +32,11 @@ function ColorField({ label, value, onChange }: { label: string; value: string; 
 export function PropertiesPanel() {
   const { state, dispatch } = useCourse();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const activeSlide = state.slides[state.activeSlideIndex];
+
+  const isMasterMode = state.viewMode === 'master';
+  const activeSlide = isMasterMode
+    ? state.masterSlides[state.activeSlideIndex]
+    : state.slides[state.activeSlideIndex];
   const activeElement = activeSlide?.elements.find((el) => el.id === state.activeElementId);
 
   const update = (updates: Partial<SlideElement>) => {
@@ -59,13 +63,45 @@ export function PropertiesPanel() {
       <div className="flex-1 overflow-y-auto p-3 space-y-4">
         {!activeElement ? (
           <div className="space-y-4">
-            <p className="text-sm font-medium text-foreground">Slide Properties</p>
+            <p className="text-sm font-medium text-foreground">
+              {isMasterMode ? 'Master Slide Properties' : 'Slide Properties'}
+            </p>
             <NumField
               label="Duration (ms)"
               value={activeSlide?.duration ?? 5000}
               onChange={(v) => dispatch({ type: 'UPDATE_SLIDE', index: state.activeSlideIndex, updates: { duration: Math.max(1000, v) } })}
             />
             <p className="text-xs text-muted-foreground">Sets the total timeline length for this slide.</p>
+
+            {/* Master Slide Assignment (only in main mode) */}
+            {!isMasterMode && state.masterSlides.length > 0 && (
+              <div className="space-y-2 pt-2 border-t">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Master Slide</p>
+                <Select
+                  value={activeSlide?.masterId ?? 'none'}
+                  onValueChange={(v) => {
+                    dispatch({
+                      type: 'UPDATE_SLIDE',
+                      index: state.activeSlideIndex,
+                      updates: { masterId: v === 'none' ? undefined : v },
+                    });
+                  }}
+                >
+                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="None" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    {state.masterSlides.map((ms, i) => (
+                      <SelectItem key={ms.id} value={ms.id}>
+                        Master {i + 1} ({ms.elements.length} elements)
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Assigns a master slide as a locked background layer.
+                </p>
+              </div>
+            )}
           </div>
         ) : (
           <>
@@ -140,15 +176,12 @@ export function PropertiesPanel() {
               </>
             )}
 
-            {/* Animations */}
             <AnimationsSection element={activeElement} onUpdate={update} />
 
-            {/* Hover States (text & shape only) */}
             {(activeElement.type === 'text' || activeElement.type === 'shape') && (
               <HoverStatesSection element={activeElement} onUpdate={update} />
             )}
 
-            {/* Timeline Properties */}
             <div className="space-y-2 pt-2 border-t">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Timeline</p>
               <div className="grid grid-cols-2 gap-2">
@@ -157,7 +190,6 @@ export function PropertiesPanel() {
               </div>
             </div>
 
-            {/* Triggers */}
             <TriggersSection element={activeElement} onUpdate={update} />
 
             <Button variant="destructive" size="sm" className="w-full" onClick={() => dispatch({ type: 'DELETE_ELEMENT', id: activeElement.id })}>
