@@ -94,7 +94,9 @@ export function TimelinePanel() {
   const animRef = useRef<number>(0);
   const lastFrameRef = useRef<number>(0);
 
-  const activeSlide = state.slides[state.activeSlideIndex];
+  const activeSlide = state.viewMode === 'master'
+    ? state.masterSlides[state.activeSlideIndex]
+    : state.slides[state.activeSlideIndex];
   const elements = activeSlide?.elements ?? [];
   const slideDuration = activeSlide?.duration ?? 5000;
 
