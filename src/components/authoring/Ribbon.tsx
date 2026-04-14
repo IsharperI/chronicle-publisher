@@ -177,7 +177,7 @@ export function Ribbon() {
       {/* Slide thumbnails strip */}
       <div className="h-[52px] border-t bg-muted/20 flex items-center px-4 gap-2">
         <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mr-2 shrink-0">Slides</span>
-        <ScrollArea className="flex-1" orientation="horizontal">
+        <ScrollArea className="flex-1">
           <div className="flex gap-1.5 py-1">
             {state.slides.map((slide, i) => (
               <button
