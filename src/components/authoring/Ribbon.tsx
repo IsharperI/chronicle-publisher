@@ -1,8 +1,7 @@
 import { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Save, Upload, Play, X, Type, ImageIcon, Square, Plus, Trash2, Eye, Package } from 'lucide-react';
+import { Save, Upload, Play, X, Type, ImageIcon, Square, Eye, Package } from 'lucide-react';
 import { useCourse } from '@/context/CourseContext';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import type { TextElement, ImageElement, ShapeElement } from '@/types/course';
 import { Separator } from '@/components/ui/separator';
@@ -16,9 +15,8 @@ export function Ribbon() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
 
-  // ── File operations (from TopNav) ──
   const saveProject = () => {
-    const json = JSON.stringify({ slides: state.slides }, null, 2);
+    const json = JSON.stringify({ slides: state.slides, masterSlides: state.masterSlides }, null, 2);
     const blob = new Blob([json], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -36,7 +34,7 @@ export function Ribbon() {
       try {
         const data = JSON.parse(ev.target?.result as string);
         if (data.slides && Array.isArray(data.slides)) {
-          dispatch({ type: 'LOAD_COURSE', slides: data.slides });
+          dispatch({ type: 'LOAD_COURSE', slides: data.slides, masterSlides: data.masterSlides });
         }
       } catch {
         console.error('Invalid project file');
@@ -46,7 +44,6 @@ export function Ribbon() {
     e.target.value = '';
   };
 
-  // ── Insert operations (from Toolbox) ──
   const addText = () => {
     const el: TextElement = {
       id: crypto.randomUUID(), type: 'text',
@@ -122,13 +119,15 @@ export function Ribbon() {
             </button>
           ))}
         </div>
+        {state.viewMode === 'master' && (
+          <span className="ml-auto text-xs font-medium text-primary">Editing Master Slide</span>
+        )}
       </div>
 
       {/* Ribbon content area */}
       <div className="h-[72px] flex items-center px-4 gap-1">
         {activeTab === 'Home' && (
           <>
-            {/* File group */}
             <RibbonGroup label="File">
               <RibbonButton icon={Save} label="Save" onClick={saveProject} />
               <RibbonButton icon={Upload} label="Load" onClick={() => fileInputRef.current?.click()} />
@@ -137,20 +136,6 @@ export function Ribbon() {
 
             <Separator orientation="vertical" className="h-12 mx-2" />
 
-            {/* Slides group */}
-            <RibbonGroup label="Slides">
-              <RibbonButton icon={Plus} label="Add Slide" onClick={() => dispatch({ type: 'ADD_SLIDE' })} />
-              <RibbonButton
-                icon={Trash2}
-                label="Delete Slide"
-                onClick={() => dispatch({ type: 'DELETE_SLIDE', index: state.activeSlideIndex })}
-                disabled={state.slides.length <= 1}
-              />
-            </RibbonGroup>
-
-            <Separator orientation="vertical" className="h-12 mx-2" />
-
-            {/* Publish group */}
             <RibbonGroup label="Publish">
               <RibbonButton icon={Play} label="Preview" onClick={() => dispatch({ type: 'SET_PREVIEW_MODE', enabled: true })} />
               <RibbonButton icon={Package} label="Export SCORM" onClick={() => {}} disabled />
@@ -172,30 +157,6 @@ export function Ribbon() {
             <RibbonButton icon={Eye} label="Preview Mode" onClick={() => dispatch({ type: 'SET_PREVIEW_MODE', enabled: true })} />
           </RibbonGroup>
         )}
-      </div>
-
-      {/* Slide thumbnails strip */}
-      <div className="h-[52px] border-t bg-muted/20 flex items-center px-4 gap-2">
-        <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mr-2 shrink-0">Slides</span>
-        <ScrollArea className="flex-1">
-          <div className="flex gap-1.5 py-1">
-            {state.slides.map((slide, i) => (
-              <button
-                key={slide.id}
-                onClick={() => dispatch({ type: 'SET_ACTIVE_SLIDE', index: i })}
-                className={cn(
-                  'relative h-9 aspect-video rounded border-2 bg-background text-[9px] font-medium flex items-center justify-center transition-colors shrink-0',
-                  i === state.activeSlideIndex ? 'border-primary' : 'border-border hover:border-muted-foreground/50'
-                )}
-              >
-                <span className="text-muted-foreground">{i + 1}</span>
-                {slide.elements.length > 0 && (
-                  <span className="absolute bottom-0 right-0.5 text-[8px] text-muted-foreground">{slide.elements.length}</span>
-                )}
-              </button>
-            ))}
-          </div>
-        </ScrollArea>
       </div>
     </div>
   );

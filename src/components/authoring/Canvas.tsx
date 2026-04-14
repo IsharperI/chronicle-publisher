@@ -7,8 +7,7 @@ import type { SlideElement, TextElement, ShapeElement, AnimationIn, AnimationOut
 
 const CANVAS_W = 1920;
 const CANVAS_H = 1080;
-
-const ANIM_DURATION = 500; // ms for entrance/exit animations
+const ANIM_DURATION = 500;
 
 function getAnimInClass(anim: AnimationIn): string {
   switch (anim) {
@@ -120,8 +119,20 @@ export function Canvas() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0.5);
 
-  const activeSlide = state.slides[state.activeSlideIndex];
   const isPreview = state.previewMode;
+  const isMasterMode = state.viewMode === 'master';
+
+  // Get current slide based on view mode
+  const activeSlide = isMasterMode
+    ? state.masterSlides[state.activeSlideIndex]
+    : state.slides[state.activeSlideIndex];
+
+  // Get master slide elements for background layer (only in main mode)
+  const masterElements: SlideElement[] = (() => {
+    if (isMasterMode || !activeSlide?.masterId) return [];
+    const master = state.masterSlides.find(m => m.id === activeSlide.masterId);
+    return master?.elements ?? [];
+  })();
 
   const updateScale = useCallback(() => {
     if (!containerRef.current) return;
@@ -165,6 +176,34 @@ export function Canvas() {
         className="relative bg-background shadow-lg border rounded"
         onClick={handleCanvasClick}
       >
+        {/* Master slide background layer (locked, non-interactive) */}
+        {masterElements.map((el) => {
+          const visible = isElementVisible(el, state.playheadTime);
+          if (!visible && !isPreview) return (
+            <div
+              key={`master-${el.id}`}
+              style={{
+                position: 'absolute', left: el.x, top: el.y, width: el.width, height: el.height,
+                opacity: 0.15, pointerEvents: 'none',
+              }}
+            >
+              <ElementRenderer element={el} />
+            </div>
+          );
+          return (
+            <div
+              key={`master-${el.id}`}
+              style={{
+                position: 'absolute', left: el.x, top: el.y, width: el.width, height: el.height,
+                opacity: isPreview ? 1 : 0.6, pointerEvents: 'none',
+              }}
+            >
+              <ElementRenderer element={el} isPreview={isPreview} />
+            </div>
+          );
+        })}
+
+        {/* Regular slide elements */}
         {isPreview
           ? editElements.map((el) => {
               const phase = getAnimationPhase(el, state.playheadTime);
@@ -175,7 +214,7 @@ export function Canvas() {
                 <div
                   key={el.id}
                   className={animClass}
-                  style={{ position: 'absolute', left: el.x, top: el.y, width: el.width, height: el.height }}
+                  style={{ position: 'absolute', left: el.x, top: el.y, width: el.width, height: el.height, zIndex: 2 }}
                 >
                   <ElementRenderer element={el} isPreview />
                 </div>
@@ -205,7 +244,7 @@ export function Canvas() {
                   }}
                   style={{
                     outline: state.activeElementId === el.id ? '2px solid hsl(var(--primary))' : 'none',
-                    zIndex: state.activeElementId === el.id ? 10 : 1,
+                    zIndex: state.activeElementId === el.id ? 10 : 2,
                     opacity: visible ? 1 : 0.3,
                   }}
                 >
