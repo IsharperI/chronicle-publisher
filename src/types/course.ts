@@ -2,6 +2,7 @@ export type ElementType = 'text' | 'image' | 'shape';
 export type ShapeType = 'rectangle' | 'circle' | 'triangle';
 export type AnimationIn = 'none' | 'fade' | 'fly-in-left' | 'fly-in-right';
 export type AnimationOut = 'none' | 'fade' | 'fly-out-left' | 'fly-out-right';
+export type ViewMode = 'main' | 'master';
 
 export interface Trigger {
   event: string;
@@ -56,13 +57,16 @@ export interface Slide {
   id: string;
   elements: SlideElement[];
   duration: number;
+  masterId?: string;
 }
 
 export interface CourseState {
   slides: Slide[];
+  masterSlides: Slide[];
   activeSlideIndex: number;
   activeElementId: string | null;
   previewMode: boolean;
   playheadTime: number;
   isPlaying: boolean;
+  viewMode: ViewMode;
 }
