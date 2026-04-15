@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Save, Upload, Play, X, Type, ImageIcon, Square, Eye, Package } from 'lucide-react';
+import { exportScorm } from '@/lib/exportScorm';
 import { useCourse } from '@/context/CourseContext';
 import { cn } from '@/lib/utils';
 import type { TextElement, ImageElement, ShapeElement } from '@/types/course';
