@@ -5,6 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Trash2, Upload, Plus, X } from 'lucide-react';
 import type { SlideElement, TextElement, ImageElement, ShapeElement, ShapeType, Trigger, AnimationIn, AnimationOut } from '@/types/course';
 
@@ -57,12 +58,13 @@ export function PropertiesPanel() {
 
   return (
     <div className="w-[280px] border-l bg-card flex flex-col shrink-0">
-      <div className="p-3 border-b">
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Properties</p>
-      </div>
-      <div className="flex-1 overflow-y-auto p-3 space-y-4">
-        {!activeElement ? (
-          <div className="space-y-4">
+      {!activeElement ? (
+        /* Slide-level properties — no tabs needed */
+        <>
+          <div className="p-3 border-b">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Properties</p>
+          </div>
+          <div className="flex-1 overflow-y-auto p-3 space-y-4">
             <p className="text-sm font-medium text-foreground">
               {isMasterMode ? 'Master Slide Properties' : 'Slide Properties'}
             </p>
@@ -73,7 +75,6 @@ export function PropertiesPanel() {
             />
             <p className="text-xs text-muted-foreground">Sets the total timeline length for this slide.</p>
 
-            {/* Master Slide Assignment (only in main mode) */}
             {!isMasterMode && state.masterSlides.length > 0 && (
               <div className="space-y-2 pt-2 border-t">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Master Slide</p>
@@ -103,8 +104,18 @@ export function PropertiesPanel() {
               </div>
             )}
           </div>
-        ) : (
-          <>
+        </>
+      ) : (
+        /* Element selected — show tabbed Properties / Triggers */
+        <Tabs defaultValue="properties" className="flex flex-col flex-1 min-h-0">
+          <div className="p-2 border-b shrink-0">
+            <TabsList className="w-full">
+              <TabsTrigger value="properties" className="flex-1 text-xs">Properties</TabsTrigger>
+              <TabsTrigger value="triggers" className="flex-1 text-xs">Triggers</TabsTrigger>
+            </TabsList>
+          </div>
+
+          <TabsContent value="properties" className="flex-1 overflow-y-auto p-3 space-y-4 mt-0">
             <p className="text-sm font-medium capitalize text-foreground">{activeElement.type} Element</p>
 
             <div className="grid grid-cols-2 gap-2">
@@ -178,10 +189,6 @@ export function PropertiesPanel() {
 
             <AnimationsSection element={activeElement} onUpdate={update} />
 
-            {(activeElement.type === 'text' || activeElement.type === 'shape') && (
-              <HoverStatesSection element={activeElement} onUpdate={update} />
-            )}
-
             <div className="space-y-2 pt-2 border-t">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Timeline</p>
               <div className="grid grid-cols-2 gap-2">
@@ -190,14 +197,16 @@ export function PropertiesPanel() {
               </div>
             </div>
 
-            <TriggersSection element={activeElement} onUpdate={update} />
-
             <Button variant="destructive" size="sm" className="w-full" onClick={() => dispatch({ type: 'DELETE_ELEMENT', id: activeElement.id })}>
               <Trash2 className="h-4 w-4 mr-1" />Delete Element
             </Button>
-          </>
-        )}
-      </div>
+          </TabsContent>
+
+          <TabsContent value="triggers" className="flex-1 overflow-y-auto p-3 mt-0">
+            <TriggersSection element={activeElement} onUpdate={update} />
+          </TabsContent>
+        </Tabs>
+      )}
     </div>
   );
 }
@@ -234,32 +243,6 @@ function AnimationsSection({ element, onUpdate }: { element: SlideElement; onUpd
   );
 }
 
-function HoverStatesSection({ element, onUpdate }: { element: SlideElement; onUpdate: (u: Partial<SlideElement>) => void }) {
-  if (element.type === 'text') {
-    const te = element as TextElement;
-    return (
-      <div className="space-y-2 pt-2 border-t">
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Hover States</p>
-        <ColorField label="Hover Text Color" value={te.hoverTextColor ?? ''} onChange={(v) => onUpdate({ hoverTextColor: v } as any)} />
-        <ColorField label="Hover Background" value={te.hoverBackgroundColor ?? ''} onChange={(v) => onUpdate({ hoverBackgroundColor: v } as any)} />
-        <p className="text-xs text-muted-foreground">Colors applied on hover during preview.</p>
-      </div>
-    );
-  }
-  if (element.type === 'shape') {
-    const se = element as ShapeElement;
-    return (
-      <div className="space-y-2 pt-2 border-t">
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Hover States</p>
-        <ColorField label="Hover Fill Color" value={se.hoverFillColor ?? ''} onChange={(v) => onUpdate({ hoverFillColor: v } as any)} />
-        <ColorField label="Hover Border Color" value={se.hoverBorderColor ?? ''} onChange={(v) => onUpdate({ hoverBorderColor: v } as any)} />
-        <p className="text-xs text-muted-foreground">Colors applied on hover during preview.</p>
-      </div>
-    );
-  }
-  return null;
-}
-
 function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdate: (u: Partial<SlideElement>) => void }) {
   const triggers = element.triggers ?? [];
   const [newEvent, setNewEvent] = useState('onClick');
@@ -278,7 +261,7 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
   };
 
   return (
-    <div className="space-y-2 pt-2 border-t">
+    <div className="space-y-2">
       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Triggers</p>
       {triggers.map((t, i) => (
         <div key={i} className="flex items-center gap-1 text-[10px] bg-muted rounded p-1.5">
