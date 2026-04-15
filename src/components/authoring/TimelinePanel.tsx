@@ -1,10 +1,13 @@
 import { useCourse } from '@/context/CourseContext';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { ChevronUp, ChevronDown, Type, ImageIcon, Square, Play, Pause } from 'lucide-react';
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { cn } from '@/lib/utils';
-import type { SlideElement } from '@/types/course';
+import type { SlideElement, TextElement, ShapeElement } from '@/types/course';
 
 const TRACK_HEIGHT = 28;
 
@@ -24,6 +27,18 @@ function getElementLabel(el: SlideElement): string {
   if (el.type === 'text') return el.content.slice(0, 20) || 'Text';
   if (el.type === 'image') return el.alt || 'Image';
   return el.shapeType;
+}
+
+function ColorField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  return (
+    <div className="space-y-1">
+      <Label className="text-xs">{label}</Label>
+      <div className="flex gap-2">
+        <input type="color" value={value === 'transparent' ? '#ffffff' : value} onChange={(e) => onChange(e.target.value)} className="h-8 w-8 rounded border cursor-pointer" />
+        <Input value={value} onChange={(e) => onChange(e.target.value)} className="h-8 text-xs flex-1" />
+      </div>
+    </div>
+  );
 }
 
 function TimelineTrack({ element, timelineWidth, slideDuration }: { element: SlideElement; timelineWidth: number; slideDuration: number }) {
@@ -86,6 +101,76 @@ function TimelineTrack({ element, timelineWidth, slideDuration }: { element: Sli
   );
 }
 
+function StatesPanel() {
+  const { state, dispatch } = useCourse();
+  const isMasterMode = state.viewMode === 'master';
+  const activeSlide = isMasterMode
+    ? state.masterSlides[state.activeSlideIndex]
+    : state.slides[state.activeSlideIndex];
+  const activeElement = activeSlide?.elements.find((el) => el.id === state.activeElementId);
+
+  const [activeState, setActiveState] = useState<'normal' | 'hover'>('normal');
+
+  const update = (updates: Partial<SlideElement>) => {
+    if (!activeElement) return;
+    dispatch({ type: 'UPDATE_ELEMENT', id: activeElement.id, updates });
+  };
+
+  if (!activeElement || (activeElement.type !== 'text' && activeElement.type !== 'shape')) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <p className="text-xs text-muted-foreground">Select a shape or text element to view its states.</p>
+      </div>
+    );
+  }
+
+  if (activeElement.type === 'text') {
+    const te = activeElement as TextElement;
+    return (
+      <div className="p-3 space-y-3">
+        <div className="flex gap-2">
+          <Button variant={activeState === 'normal' ? 'default' : 'outline'} size="sm" className="text-xs h-7 flex-1" onClick={() => setActiveState('normal')}>Normal</Button>
+          <Button variant={activeState === 'hover' ? 'default' : 'outline'} size="sm" className="text-xs h-7 flex-1" onClick={() => setActiveState('hover')}>Hover</Button>
+        </div>
+        {activeState === 'normal' ? (
+          <>
+            <ColorField label="Text Color" value={te.textColor} onChange={(v) => update({ textColor: v } as any)} />
+            <ColorField label="Background" value={te.backgroundColor} onChange={(v) => update({ backgroundColor: v } as any)} />
+          </>
+        ) : (
+          <>
+            <ColorField label="Hover Text Color" value={te.hoverTextColor ?? ''} onChange={(v) => update({ hoverTextColor: v } as any)} />
+            <ColorField label="Hover Background" value={te.hoverBackgroundColor ?? ''} onChange={(v) => update({ hoverBackgroundColor: v } as any)} />
+            <p className="text-xs text-muted-foreground">Colors applied on hover during preview.</p>
+          </>
+        )}
+      </div>
+    );
+  }
+
+  const se = activeElement as ShapeElement;
+  return (
+    <div className="p-3 space-y-3">
+      <div className="flex gap-2">
+        <Button variant={activeState === 'normal' ? 'default' : 'outline'} size="sm" className="text-xs h-7 flex-1" onClick={() => setActiveState('normal')}>Normal</Button>
+        <Button variant={activeState === 'hover' ? 'default' : 'outline'} size="sm" className="text-xs h-7 flex-1" onClick={() => setActiveState('hover')}>Hover</Button>
+      </div>
+      {activeState === 'normal' ? (
+        <>
+          <ColorField label="Fill Color" value={se.fillColor} onChange={(v) => update({ fillColor: v } as any)} />
+          <ColorField label="Border Color" value={se.borderColor} onChange={(v) => update({ borderColor: v } as any)} />
+        </>
+      ) : (
+        <>
+          <ColorField label="Hover Fill Color" value={se.hoverFillColor ?? ''} onChange={(v) => update({ hoverFillColor: v } as any)} />
+          <ColorField label="Hover Border Color" value={se.hoverBorderColor ?? ''} onChange={(v) => update({ hoverBorderColor: v } as any)} />
+          <p className="text-xs text-muted-foreground">Colors applied on hover during preview.</p>
+        </>
+      )}
+    </div>
+  );
+}
+
 export function TimelinePanel() {
   const { state, dispatch } = useCourse();
   const [open, setOpen] = useState(true);
@@ -110,14 +195,12 @@ export function TimelinePanel() {
   }, []);
 
   const playheadRef = useRef(state.playheadTime);
-  // Keep ref in sync when user scrubs or resets
   useEffect(() => {
     if (!state.isPlaying) {
       playheadRef.current = state.playheadTime;
     }
   }, [state.playheadTime, state.isPlaying]);
 
-  // Play/pause animation
   useEffect(() => {
     if (!state.isPlaying) {
       cancelAnimationFrame(animRef.current);
@@ -190,7 +273,7 @@ export function TimelinePanel() {
         <CollapsibleTrigger asChild>
           <Button variant="ghost" size="sm" className="rounded-none h-7 text-xs gap-1 text-muted-foreground px-3">
             {open ? <ChevronDown className="h-3 w-3" /> : <ChevronUp className="h-3 w-3" />}
-            Timeline
+            Panel
           </Button>
         </CollapsibleTrigger>
         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={togglePlay}>
@@ -201,60 +284,73 @@ export function TimelinePanel() {
         </span>
       </div>
       <CollapsibleContent>
-        <div className="flex h-[180px] overflow-hidden">
-          {/* Labels */}
-          <div className="w-[180px] shrink-0 border-r overflow-y-auto">
-            {elements.map((el) => (
-              <button
-                key={el.id}
-                onClick={() => dispatch({ type: 'SET_ACTIVE_ELEMENT', id: el.id })}
-                className={cn(
-                  'w-full h-7 flex items-center gap-1.5 px-2 text-xs truncate hover:bg-accent/50 transition-colors',
-                  state.activeElementId === el.id && 'bg-accent text-accent-foreground'
-                )}
-              >
-                {typeIcons[el.type]}
-                <span className="truncate">{getElementLabel(el)}</span>
-              </button>
-            ))}
-            {elements.length === 0 && (
-              <p className="text-xs text-muted-foreground text-center py-4">No elements</p>
-            )}
+        <Tabs defaultValue="timeline" className="h-[180px]">
+          <div className="px-2 border-b">
+            <TabsList className="h-7">
+              <TabsTrigger value="timeline" className="text-xs h-5 px-3">Timeline</TabsTrigger>
+              <TabsTrigger value="states" className="text-xs h-5 px-3">States</TabsTrigger>
+            </TabsList>
           </div>
 
-          {/* Tracks */}
-          <div
-            className="flex-1 overflow-x-auto overflow-y-auto relative"
-            ref={measureWidth}
-            onMouseDown={handleScrubDrag}
-            onClick={handleScrub}
-          >
-            {/* Tick marks */}
-            <div className="relative h-5 border-b shrink-0" style={{ minWidth: trackWidth }}>
-              {ticks.map((s) => (
-                <span
-                  key={s}
-                  className="absolute text-[9px] text-muted-foreground top-0"
-                  style={{ left: (s / (slideDuration / 1000)) * trackWidth }}
+          <TabsContent value="timeline" className="mt-0 h-[calc(180px-36px)]">
+            <div className="flex h-full overflow-hidden">
+              {/* Labels */}
+              <div className="w-[180px] shrink-0 border-r overflow-y-auto">
+                {elements.map((el) => (
+                  <button
+                    key={el.id}
+                    onClick={() => dispatch({ type: 'SET_ACTIVE_ELEMENT', id: el.id })}
+                    className={cn(
+                      'w-full h-7 flex items-center gap-1.5 px-2 text-xs truncate hover:bg-accent/50 transition-colors',
+                      state.activeElementId === el.id && 'bg-accent text-accent-foreground'
+                    )}
+                  >
+                    {typeIcons[el.type]}
+                    <span className="truncate">{getElementLabel(el)}</span>
+                  </button>
+                ))}
+                {elements.length === 0 && (
+                  <p className="text-xs text-muted-foreground text-center py-4">No elements</p>
+                )}
+              </div>
+
+              {/* Tracks */}
+              <div
+                className="flex-1 overflow-x-auto overflow-y-auto relative"
+                ref={measureWidth}
+                onMouseDown={handleScrubDrag}
+                onClick={handleScrub}
+              >
+                <div className="relative h-5 border-b shrink-0" style={{ minWidth: trackWidth }}>
+                  {ticks.map((s) => (
+                    <span
+                      key={s}
+                      className="absolute text-[9px] text-muted-foreground top-0"
+                      style={{ left: (s / (slideDuration / 1000)) * trackWidth }}
+                    >
+                      {s}s
+                    </span>
+                  ))}
+                </div>
+                <div ref={trackAreaRef} style={{ minWidth: trackWidth }} onClick={(e) => e.stopPropagation()}>
+                  {elements.map((el) => (
+                    <TimelineTrack key={el.id} element={el} timelineWidth={trackWidth} slideDuration={slideDuration} />
+                  ))}
+                </div>
+                <div
+                  className="absolute top-0 bottom-0 w-0.5 bg-destructive pointer-events-none z-20"
+                  style={{ left: playheadLeft }}
                 >
-                  {s}s
-                </span>
-              ))}
+                  <div className="absolute -top-0.5 -left-1.5 w-3.5 h-3 bg-destructive rounded-sm" />
+                </div>
+              </div>
             </div>
-            <div ref={trackAreaRef} style={{ minWidth: trackWidth }} onClick={(e) => e.stopPropagation()}>
-              {elements.map((el) => (
-                <TimelineTrack key={el.id} element={el} timelineWidth={trackWidth} slideDuration={slideDuration} />
-              ))}
-            </div>
-            {/* Playhead */}
-            <div
-              className="absolute top-0 bottom-0 w-0.5 bg-destructive pointer-events-none z-20"
-              style={{ left: playheadLeft }}
-            >
-              <div className="absolute -top-0.5 -left-1.5 w-3.5 h-3 bg-destructive rounded-sm" />
-            </div>
-          </div>
-        </div>
+          </TabsContent>
+
+          <TabsContent value="states" className="mt-0 h-[calc(180px-36px)] overflow-y-auto">
+            <StatesPanel />
+          </TabsContent>
+        </Tabs>
       </CollapsibleContent>
     </Collapsible>
   );
