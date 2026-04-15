@@ -109,6 +109,8 @@ function StatesPanel() {
     : state.slides[state.activeSlideIndex];
   const activeElement = activeSlide?.elements.find((el) => el.id === state.activeElementId);
 
+  const [activeState, setActiveState] = useState<'normal' | 'hover'>('normal');
+
   const update = (updates: Partial<SlideElement>) => {
     if (!activeElement) return;
     dispatch({ type: 'UPDATE_ELEMENT', id: activeElement.id, updates });
@@ -121,8 +123,6 @@ function StatesPanel() {
       </div>
     );
   }
-
-  const [activeState, setActiveState] = useState<'normal' | 'hover'>('normal');
 
   if (activeElement.type === 'text') {
     const te = activeElement as TextElement;
