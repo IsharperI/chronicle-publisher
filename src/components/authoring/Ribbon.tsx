@@ -139,7 +139,7 @@ export function Ribbon() {
 
             <RibbonGroup label="Publish">
               <RibbonButton icon={Play} label="Preview" onClick={() => dispatch({ type: 'SET_PREVIEW_MODE', enabled: true })} />
-              <RibbonButton icon={Package} label="Export SCORM" onClick={() => {}} disabled />
+              <RibbonButton icon={Package} label="Export SCORM" onClick={() => exportScorm(state)} />
             </RibbonGroup>
           </>
         )}
