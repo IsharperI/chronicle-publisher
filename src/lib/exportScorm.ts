@@ -47,7 +47,7 @@ function buildPlayerHtml(state: CourseState): string {
 <title>eLearning Course</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{background:${ps.backgroundColor};display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;font-family:${ps.fontFamily};color:#fff}
+body{background-color:${ps.backgroundColor};${ps.backgroundImage ? `background-image:url(${ps.backgroundImage});${ps.backgroundMode === 'stretch' ? 'background-size:100% 100%;background-repeat:no-repeat;' : ps.backgroundMode === 'fit' ? 'background-size:contain;background-repeat:no-repeat;background-position:center;' : 'background-repeat:repeat;background-size:auto;'}` : ''}display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;font-family:${ps.fontFamily};color:#fff}
 #stage-wrapper{position:relative;width:90vw;max-width:960px;aspect-ratio:16/9;background:#fff;overflow:hidden;border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,.4)}
 #stage{position:absolute;inset:0;width:1920px;height:1080px;transform-origin:top left}
 .el{position:absolute;transition:all .2s ease}

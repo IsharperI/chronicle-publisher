@@ -1,11 +1,14 @@
+import { useRef } from 'react';
 import { useCourse } from '@/context/CourseContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
+import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import type { NavigationMode, PlayerSettings } from '@/types/course';
+import type { BackgroundMode, NavigationMode, PlayerSettings } from '@/types/course';
+import { ImageIcon, Trash2 } from 'lucide-react';
 
 const FONT_OPTIONS = [
   { value: 'system-ui, sans-serif', label: 'System Default' },
@@ -20,8 +23,30 @@ export function PlayerSettingsModal({ open, onOpenChange }: { open: boolean; onO
   const { state, dispatch } = useCourse();
   const ps = state.playerSettings;
 
+  const bgInputRef = useRef<HTMLInputElement>(null);
+
   const update = (patch: Partial<PlayerSettings>) => {
     dispatch({ type: 'UPDATE_PLAYER_SETTINGS', updates: patch });
+  };
+
+  const handleBgImage = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => update({ backgroundImage: ev.target?.result as string });
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  const bgStyle = (): React.CSSProperties => {
+    const s: React.CSSProperties = { backgroundColor: ps.backgroundColor };
+    if (ps.backgroundImage) {
+      s.backgroundImage = `url(${ps.backgroundImage})`;
+      if (ps.backgroundMode === 'stretch') { s.backgroundSize = '100% 100%'; s.backgroundRepeat = 'no-repeat'; }
+      else if (ps.backgroundMode === 'fit') { s.backgroundSize = 'contain'; s.backgroundRepeat = 'no-repeat'; s.backgroundPosition = 'center'; }
+      else { s.backgroundRepeat = 'repeat'; s.backgroundSize = 'auto'; }
+    }
+    return s;
   };
 
   return (
@@ -36,7 +61,7 @@ export function PlayerSettingsModal({ open, onOpenChange }: { open: boolean; onO
           <div className="flex-1 flex flex-col items-center justify-center rounded-lg border bg-muted/30 p-4 min-h-[400px]">
             <div
               className="w-full max-w-md aspect-video rounded-lg shadow-lg flex flex-col overflow-hidden"
-              style={{ backgroundColor: ps.backgroundColor, fontFamily: ps.fontFamily }}
+              style={{ ...bgStyle(), fontFamily: ps.fontFamily }}
             >
               {/* Faux stage */}
               <div className="flex-1 flex items-center justify-center">
@@ -86,6 +111,34 @@ export function PlayerSettingsModal({ open, onOpenChange }: { open: boolean; onO
           {/* Right — Controls */}
           <div className="w-[260px] shrink-0 overflow-y-auto space-y-5 pr-1">
             <ColorControl label="Background Color" value={ps.backgroundColor} onChange={(v) => update({ backgroundColor: v })} />
+            <div className="space-y-1.5">
+              <Label className="text-xs">Background Image</Label>
+              <div className="flex gap-2 items-center">
+                <Button variant="outline" size="sm" className="h-8 text-xs flex-1" onClick={() => bgInputRef.current?.click()}>
+                  <ImageIcon className="h-3.5 w-3.5 mr-1.5" />
+                  {ps.backgroundImage ? 'Change' : 'Upload'}
+                </Button>
+                {ps.backgroundImage && (
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => update({ backgroundImage: null })}>
+                    <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                  </Button>
+                )}
+                <input ref={bgInputRef} type="file" accept="image/*" className="hidden" onChange={handleBgImage} />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs">Image Fit</Label>
+              <Select value={ps.backgroundMode} onValueChange={(v) => update({ backgroundMode: v as BackgroundMode })}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="stretch">Stretch to Fill</SelectItem>
+                  <SelectItem value="fit">Fit to Screen</SelectItem>
+                  <SelectItem value="tile">Tile (Loop)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
             <ColorControl label="Button Color" value={ps.buttonColor} onChange={(v) => update({ buttonColor: v })} />
 
             <div className="space-y-1.5">

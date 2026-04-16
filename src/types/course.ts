@@ -61,6 +61,7 @@ export interface Slide {
 }
 
 export type NavigationMode = 'free' | 'restricted';
+export type BackgroundMode = 'stretch' | 'fit' | 'tile';
 
 export interface PlayerSettings {
   backgroundColor: string;
@@ -69,6 +70,8 @@ export interface PlayerSettings {
   fontFamily: string;
   showMenu: boolean;
   navigationMode: NavigationMode;
+  backgroundImage: string | null;
+  backgroundMode: BackgroundMode;
 }
 
 export const defaultPlayerSettings: PlayerSettings = {
@@ -78,6 +81,8 @@ export const defaultPlayerSettings: PlayerSettings = {
   fontFamily: 'system-ui, sans-serif',
   showMenu: false,
   navigationMode: 'free',
+  backgroundImage: null,
+  backgroundMode: 'stretch',
 };
 
 export interface CourseState {
