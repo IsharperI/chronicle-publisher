@@ -143,8 +143,15 @@ export function Ribbon() {
               <RibbonButton icon={Play} label="Preview" onClick={() => dispatch({ type: 'SET_PREVIEW_MODE', enabled: true })} />
               <RibbonButton icon={Package} label="Export SCORM" onClick={() => exportScorm(state)} />
             </RibbonGroup>
+
+            <Separator orientation="vertical" className="h-12 mx-2" />
+
+            <RibbonGroup label="Settings">
+              <RibbonButton icon={Settings} label="Player" onClick={() => setPlayerSettingsOpen(true)} />
+            </RibbonGroup>
           </>
         )}
+        <PlayerSettingsModal open={playerSettingsOpen} onOpenChange={setPlayerSettingsOpen} />
 
         {activeTab === 'Insert' && (
           <RibbonGroup label="Elements">
