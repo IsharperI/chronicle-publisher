@@ -60,6 +60,26 @@ export interface Slide {
   masterId?: string;
 }
 
+export type NavigationMode = 'free' | 'restricted';
+
+export interface PlayerSettings {
+  backgroundColor: string;
+  buttonColor: string;
+  buttonBorderRadius: number;
+  fontFamily: string;
+  showMenu: boolean;
+  navigationMode: NavigationMode;
+}
+
+export const defaultPlayerSettings: PlayerSettings = {
+  backgroundColor: '#1a1a2e',
+  buttonColor: '#3b82f6',
+  buttonBorderRadius: 6,
+  fontFamily: 'system-ui, sans-serif',
+  showMenu: false,
+  navigationMode: 'free',
+};
+
 export interface CourseState {
   slides: Slide[];
   masterSlides: Slide[];
@@ -69,4 +89,5 @@ export interface CourseState {
   playheadTime: number;
   isPlaying: boolean;
   viewMode: ViewMode;
+  playerSettings: PlayerSettings;
 }
