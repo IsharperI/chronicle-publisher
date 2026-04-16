@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useReducer, type Dispatch } from 'react';
-import type { CourseState, Slide, SlideElement, ViewMode } from '@/types/course';
+import type { CourseState, Slide, SlideElement, ViewMode, PlayerSettings, defaultPlayerSettings as _dps } from '@/types/course';
+import { defaultPlayerSettings } from '@/types/course';
 
 const createSlide = (): Slide => ({
   id: crypto.randomUUID(),
