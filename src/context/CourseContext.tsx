@@ -104,6 +104,7 @@ function courseReducer(state: CourseState, action: Action): CourseState {
         ...initialState,
         slides: action.slides.map(s => ({ ...s, duration: s.duration ?? 5000 })),
         masterSlides: (action.masterSlides ?? []).map(s => ({ ...s, duration: s.duration ?? 5000 })),
+        playerSettings: action.playerSettings ? { ...defaultPlayerSettings, ...action.playerSettings } : { ...defaultPlayerSettings },
         activeSlideIndex: 0,
         activeElementId: null,
         previewMode: false,
@@ -150,6 +151,8 @@ function courseReducer(state: CourseState, action: Action): CourseState {
     }
     case 'SET_ACTIVE_MASTER_SLIDE':
       return { ...state, viewMode: 'master', activeSlideIndex: action.index, activeElementId: null, playheadTime: 0, isPlaying: false };
+    case 'UPDATE_PLAYER_SETTINGS':
+      return { ...state, playerSettings: { ...state.playerSettings, ...action.updates } };
     default:
       return state;
   }
