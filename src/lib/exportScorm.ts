@@ -34,7 +34,10 @@ function buildPlayerHtml(state: CourseState): string {
   const courseData = JSON.stringify({
     slides: state.slides,
     masterSlides: state.masterSlides,
+    playerSettings: state.playerSettings,
   });
+
+  const ps = state.playerSettings;
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -44,20 +47,22 @@ function buildPlayerHtml(state: CourseState): string {
 <title>eLearning Course</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{background:#1a1a2e;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;font-family:system-ui,-apple-system,sans-serif;color:#fff}
+body{background:${ps.backgroundColor};display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;font-family:${ps.fontFamily};color:#fff}
 #stage-wrapper{position:relative;width:90vw;max-width:960px;aspect-ratio:16/9;background:#fff;overflow:hidden;border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,.4)}
 #stage{position:absolute;inset:0;width:1920px;height:1080px;transform-origin:top left}
 .el{position:absolute;transition:all .2s ease}
-.controls{margin-top:20px;display:flex;gap:12px;align-items:center}
-.controls button{padding:8px 24px;border:none;border-radius:6px;background:#3b82f6;color:#fff;font-size:14px;cursor:pointer;font-weight:500}
-.controls button:hover{background:#2563eb}
-.controls button:disabled{opacity:.4;cursor:default}
+.controls{margin-top:20px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;justify-content:center}
+.controls button{padding:8px 24px;border:none;border-radius:${ps.buttonBorderRadius}px;background:${ps.buttonColor};color:#fff;font-size:14px;cursor:pointer;font-weight:500;font-family:${ps.fontFamily}}
+.controls button:hover{filter:brightness(1.15)}
+.controls button:disabled{opacity:.4;cursor:default;filter:none}
 .controls span{font-size:14px;color:#aaa}
+.controls select{padding:6px 10px;border-radius:${ps.buttonBorderRadius}px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.1);color:#fff;font-size:13px;font-family:${ps.fontFamily};cursor:pointer}
 </style>
 </head>
 <body>
 <div id="stage-wrapper"><div id="stage"></div></div>
 <div class="controls">
+  ${ps.showMenu ? '<select id="slideMenu"></select>' : ''}
   <button id="prev">&#9664; Prev</button>
   <span id="info"></span>
   <button id="next">Next &#9654;</button>
