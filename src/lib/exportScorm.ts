@@ -63,7 +63,7 @@ body{background:#1a1a2e;display:flex;flex-direction:column;align-items:center;ju
   <button id="next">Next &#9654;</button>
 </div>
 <script>
-window.COURSE_DATA=${courseData};
+window.COURSE_DATA=${courseData.replace(/<\/script>/gi, '<\\/script>').replace(/<!--/g, '<\\!--')};
 (function(){
   var API=null;
   function findAPI(w){try{if(w.API)return w.API}catch(e){}try{if(w.parent&&w.parent!==w)return findAPI(w.parent)}catch(e){}try{if(w.top&&w.top.API)return w.top.API}catch(e){}return null}
