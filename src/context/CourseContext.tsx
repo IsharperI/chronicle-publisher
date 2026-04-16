@@ -17,6 +17,7 @@ const initialState: CourseState = {
   playheadTime: 0,
   isPlaying: false,
   viewMode: 'main',
+  playerSettings: { ...defaultPlayerSettings },
 };
 
 type Action =
@@ -37,7 +38,8 @@ type Action =
   | { type: 'SET_VIEW_MODE'; mode: ViewMode }
   | { type: 'ADD_MASTER_SLIDE' }
   | { type: 'DELETE_MASTER_SLIDE'; index: number }
-  | { type: 'SET_ACTIVE_MASTER_SLIDE'; index: number };
+  | { type: 'SET_ACTIVE_MASTER_SLIDE'; index: number }
+  | { type: 'UPDATE_PLAYER_SETTINGS'; updates: Partial<PlayerSettings> };
 
 function getActiveSlides(state: CourseState): Slide[] {
   return state.viewMode === 'master' ? state.masterSlides : state.slides;
