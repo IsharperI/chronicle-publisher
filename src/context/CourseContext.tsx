@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useReducer, type Dispatch } from 'react';
-import type { CourseState, Slide, SlideElement, ViewMode } from '@/types/course';
+import type { CourseState, Slide, SlideElement, ViewMode, PlayerSettings, defaultPlayerSettings as _dps } from '@/types/course';
+import { defaultPlayerSettings } from '@/types/course';
 
 const createSlide = (): Slide => ({
   id: crypto.randomUUID(),
@@ -16,6 +17,7 @@ const initialState: CourseState = {
   playheadTime: 0,
   isPlaying: false,
   viewMode: 'main',
+  playerSettings: { ...defaultPlayerSettings },
 };
 
 type Action =
@@ -26,7 +28,7 @@ type Action =
   | { type: 'UPDATE_ELEMENT'; id: string; updates: Partial<SlideElement> }
   | { type: 'DELETE_ELEMENT'; id: string }
   | { type: 'SET_ACTIVE_ELEMENT'; id: string | null }
-  | { type: 'LOAD_COURSE'; slides: Slide[]; masterSlides?: Slide[] }
+  | { type: 'LOAD_COURSE'; slides: Slide[]; masterSlides?: Slide[]; playerSettings?: Partial<PlayerSettings> }
   | { type: 'SET_PREVIEW_MODE'; enabled: boolean }
   | { type: 'PREVIEW_NEXT' }
   | { type: 'PREVIEW_PREV' }
@@ -36,7 +38,8 @@ type Action =
   | { type: 'SET_VIEW_MODE'; mode: ViewMode }
   | { type: 'ADD_MASTER_SLIDE' }
   | { type: 'DELETE_MASTER_SLIDE'; index: number }
-  | { type: 'SET_ACTIVE_MASTER_SLIDE'; index: number };
+  | { type: 'SET_ACTIVE_MASTER_SLIDE'; index: number }
+  | { type: 'UPDATE_PLAYER_SETTINGS'; updates: Partial<PlayerSettings> };
 
 function getActiveSlides(state: CourseState): Slide[] {
   return state.viewMode === 'master' ? state.masterSlides : state.slides;
@@ -101,6 +104,7 @@ function courseReducer(state: CourseState, action: Action): CourseState {
         ...initialState,
         slides: action.slides.map(s => ({ ...s, duration: s.duration ?? 5000 })),
         masterSlides: (action.masterSlides ?? []).map(s => ({ ...s, duration: s.duration ?? 5000 })),
+        playerSettings: action.playerSettings ? { ...defaultPlayerSettings, ...action.playerSettings } : { ...defaultPlayerSettings },
         activeSlideIndex: 0,
         activeElementId: null,
         previewMode: false,
@@ -147,6 +151,8 @@ function courseReducer(state: CourseState, action: Action): CourseState {
     }
     case 'SET_ACTIVE_MASTER_SLIDE':
       return { ...state, viewMode: 'master', activeSlideIndex: action.index, activeElementId: null, playheadTime: 0, isPlaying: false };
+    case 'UPDATE_PLAYER_SETTINGS':
+      return { ...state, playerSettings: { ...state.playerSettings, ...action.updates } };
     default:
       return state;
   }

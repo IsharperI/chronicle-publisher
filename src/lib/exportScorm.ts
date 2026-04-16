@@ -34,7 +34,10 @@ function buildPlayerHtml(state: CourseState): string {
   const courseData = JSON.stringify({
     slides: state.slides,
     masterSlides: state.masterSlides,
+    playerSettings: state.playerSettings,
   });
+
+  const ps = state.playerSettings;
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -44,20 +47,22 @@ function buildPlayerHtml(state: CourseState): string {
 <title>eLearning Course</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{background:#1a1a2e;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;font-family:system-ui,-apple-system,sans-serif;color:#fff}
+body{background:${ps.backgroundColor};display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;font-family:${ps.fontFamily};color:#fff}
 #stage-wrapper{position:relative;width:90vw;max-width:960px;aspect-ratio:16/9;background:#fff;overflow:hidden;border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,.4)}
 #stage{position:absolute;inset:0;width:1920px;height:1080px;transform-origin:top left}
 .el{position:absolute;transition:all .2s ease}
-.controls{margin-top:20px;display:flex;gap:12px;align-items:center}
-.controls button{padding:8px 24px;border:none;border-radius:6px;background:#3b82f6;color:#fff;font-size:14px;cursor:pointer;font-weight:500}
-.controls button:hover{background:#2563eb}
-.controls button:disabled{opacity:.4;cursor:default}
+.controls{margin-top:20px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;justify-content:center}
+.controls button{padding:8px 24px;border:none;border-radius:${ps.buttonBorderRadius}px;background:${ps.buttonColor};color:#fff;font-size:14px;cursor:pointer;font-weight:500;font-family:${ps.fontFamily}}
+.controls button:hover{filter:brightness(1.15)}
+.controls button:disabled{opacity:.4;cursor:default;filter:none}
 .controls span{font-size:14px;color:#aaa}
+.controls select{padding:6px 10px;border-radius:${ps.buttonBorderRadius}px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.1);color:#fff;font-size:13px;font-family:${ps.fontFamily};cursor:pointer}
 </style>
 </head>
 <body>
 <div id="stage-wrapper"><div id="stage"></div></div>
 <div class="controls">
+  ${ps.showMenu ? '<select id="slideMenu"></select>' : ''}
   <button id="prev">&#9664; Prev</button>
   <span id="info"></span>
   <button id="next">Next &#9654;</button>
@@ -74,11 +79,17 @@ window.COURSE_DATA=${courseData.replace(/<\/script>/gi, '<\\/script>').replace(/
   var data=window.COURSE_DATA;
   var slides=data.slides||[];
   var masters=data.masterSlides||[];
+  var ps=data.playerSettings||{};
+  var navMode=ps.navigationMode||"free";
+  var showMenu=!!ps.showMenu;
   var current=0;
+  var unlocked=false;
+  var timer=null;
   var stage=document.getElementById("stage");
   var info=document.getElementById("info");
   var prevBtn=document.getElementById("prev");
   var nextBtn=document.getElementById("next");
+  var menuEl=document.getElementById("slideMenu");
 
   function scaleStage(){
     var wrapper=document.getElementById("stage-wrapper");
@@ -87,6 +98,18 @@ window.COURSE_DATA=${courseData.replace(/<\/script>/gi, '<\\/script>').replace(/
   }
   window.addEventListener("resize",scaleStage);
   scaleStage();
+
+  function buildMenu(){
+    if(!menuEl||!showMenu)return;
+    menuEl.innerHTML="";
+    for(var i=0;i<slides.length;i++){
+      var opt=document.createElement("option");
+      opt.value=i;
+      opt.textContent="Slide "+(i+1);
+      if(i===current)opt.selected=true;
+      menuEl.appendChild(opt);
+    }
+  }
 
   function getMasterElements(slide){
     if(!slide.masterId)return[];
@@ -109,7 +132,6 @@ window.COURSE_DATA=${courseData.replace(/<\/script>/gi, '<\\/script>').replace(/
       d.style.overflow="hidden";
       d.style.wordWrap="break-word";
       d.textContent=el.content||"";
-
       if(el.hoverTextColor||el.hoverBackgroundColor){
         var baseTC=el.textColor||"#000",baseBG=el.backgroundColor||"transparent";
         d.addEventListener("mouseenter",function(){
@@ -117,9 +139,7 @@ window.COURSE_DATA=${courseData.replace(/<\/script>/gi, '<\\/script>').replace(/
           if(el.hoverBackgroundColor)d.style.backgroundColor=el.hoverBackgroundColor;
           d.style.cursor="pointer";
         });
-        d.addEventListener("mouseleave",function(){
-          d.style.color=baseTC;d.style.backgroundColor=baseBG;
-        });
+        d.addEventListener("mouseleave",function(){d.style.color=baseTC;d.style.backgroundColor=baseBG});
       }
     } else if(el.type==="image"){
       var img=document.createElement("img");
@@ -154,6 +174,21 @@ window.COURSE_DATA=${courseData.replace(/<\/script>/gi, '<\\/script>').replace(/
     return d;
   }
 
+  function setNavLock(locked){
+    if(navMode!=="restricted"){nextBtn.disabled=current===slides.length-1;if(menuEl)menuEl.disabled=false;return}
+    nextBtn.disabled=locked||current===slides.length-1;
+    if(menuEl)menuEl.disabled=locked;
+  }
+
+  function startRestrictionTimer(){
+    unlocked=false;
+    if(timer)clearTimeout(timer);
+    if(navMode!=="restricted"){unlocked=true;setNavLock(false);return}
+    setNavLock(true);
+    var dur=(slides[current]&&slides[current].duration)||5000;
+    timer=setTimeout(function(){unlocked=true;setNavLock(false)},dur);
+  }
+
   function render(){
     stage.innerHTML="";
     if(current<0||current>=slides.length)return;
@@ -163,12 +198,14 @@ window.COURSE_DATA=${courseData.replace(/<\/script>/gi, '<\\/script>').replace(/
     (slide.elements||[]).forEach(function(el){stage.appendChild(renderElement(el))});
     info.textContent="Slide "+(current+1)+" / "+slides.length;
     prevBtn.disabled=current===0;
-    nextBtn.disabled=current===slides.length-1;
+    buildMenu();
+    startRestrictionTimer();
     if(API){try{API.LMSSetValue("cmi.core.lesson_location",""+current)}catch(e){}}
   }
 
   prevBtn.onclick=function(){if(current>0){current--;render()}};
   nextBtn.onclick=function(){if(current<slides.length-1){current++;render()}};
+  if(menuEl){menuEl.onchange=function(){var v=parseInt(menuEl.value,10);if(!isNaN(v)&&v>=0&&v<slides.length){current=v;render()}}}
   render();
 })();
 </script>
