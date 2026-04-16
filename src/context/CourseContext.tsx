@@ -28,7 +28,7 @@ type Action =
   | { type: 'UPDATE_ELEMENT'; id: string; updates: Partial<SlideElement> }
   | { type: 'DELETE_ELEMENT'; id: string }
   | { type: 'SET_ACTIVE_ELEMENT'; id: string | null }
-  | { type: 'LOAD_COURSE'; slides: Slide[]; masterSlides?: Slide[] }
+  | { type: 'LOAD_COURSE'; slides: Slide[]; masterSlides?: Slide[]; playerSettings?: Partial<PlayerSettings> }
   | { type: 'SET_PREVIEW_MODE'; enabled: boolean }
   | { type: 'PREVIEW_NEXT' }
   | { type: 'PREVIEW_PREV' }
