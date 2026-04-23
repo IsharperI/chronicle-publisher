@@ -183,7 +183,35 @@ window.COURSE_DATA=${courseData.replace(/<\/script>/gi, '<\\/script>').replace(/
         });
       }
     }
+
+    // Apply entrance animation with custom duration
+    var animInMap={"fade":"anim-fade-in","fly-in-left":"anim-fly-in-left","fly-in-right":"anim-fly-in-right"};
+    if(el.animationIn&&animInMap[el.animationIn]){
+      d.classList.add(animInMap[el.animationIn]);
+      var entDur=(el.entranceDuration!=null?el.entranceDuration:500);
+      d.style.animationDuration=entDur+"ms";
+    }
     return d;
+  }
+
+  function applyExitAnimations(container,onDone){
+    var animOutMap={"fade":"anim-fade-out","fly-out-left":"anim-fly-out-left","fly-out-right":"anim-fly-out-right"};
+    var nodes=container.querySelectorAll("[data-anim-out]");
+    var maxDur=0;
+    for(var i=0;i<nodes.length;i++){
+      var node=nodes[i];
+      var key=node.getAttribute("data-anim-out");
+      var dur=parseInt(node.getAttribute("data-exit-dur")||"500",10);
+      if(animOutMap[key]){
+        // remove any entrance class first
+        node.className="el";
+        node.classList.add(animOutMap[key]);
+        node.style.animationDuration=dur+"ms";
+        if(dur>maxDur)maxDur=dur;
+      }
+    }
+    if(maxDur===0){onDone();return}
+    setTimeout(onDone,maxDur);
   }
 
   function setNavLock(locked){
