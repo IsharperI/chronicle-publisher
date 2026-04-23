@@ -247,9 +247,10 @@ window.COURSE_DATA=${courseData.replace(/<\/script>/gi, '<\\/script>').replace(/
     if(API){try{API.LMSSetValue("cmi.core.lesson_location",""+current)}catch(e){}}
   }
 
-  prevBtn.onclick=function(){if(current>0){current--;render()}};
-  nextBtn.onclick=function(){if(current<slides.length-1){current++;render()}};
-  if(menuEl){menuEl.onchange=function(){var v=parseInt(menuEl.value,10);if(!isNaN(v)&&v>=0&&v<slides.length){current=v;render()}}}
+  function goTo(idx){if(idx<0||idx>=slides.length||idx===current)return;applyExitAnimations(stage,function(){current=idx;render()})}
+  prevBtn.onclick=function(){if(current>0)goTo(current-1)};
+  nextBtn.onclick=function(){if(current<slides.length-1)goTo(current+1)};
+  if(menuEl){menuEl.onchange=function(){var v=parseInt(menuEl.value,10);if(!isNaN(v)&&v>=0&&v<slides.length)goTo(v)}}
   render();
 })();
 </script>
