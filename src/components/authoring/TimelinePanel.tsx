@@ -43,18 +43,34 @@ function ColorField({ label, value, onChange }: { label: string; value: string; 
 
 function TimelineTrack({ element, timelineWidth, slideDuration }: { element: SlideElement; timelineWidth: number; slideDuration: number }) {
   const { dispatch, state } = useCourse();
-  const [dragging, setDragging] = useState<'move' | 'resize-right' | null>(null);
-  const dragStart = useRef({ mouseX: 0, startTime: 0, duration: 0 });
+  const [dragging, setDragging] = useState<'move' | 'resize-right' | 'entrance' | 'exit' | null>(null);
+  const dragStart = useRef({ mouseX: 0, startTime: 0, duration: 0, entranceDuration: 0, exitDuration: 0 });
 
   const pxPerMs = timelineWidth / slideDuration;
   const barLeft = element.startTime * pxPerMs;
   const barWidth = Math.max(element.duration * pxPerMs, 8);
+  const entranceMs = element.entranceDuration ?? 500;
+  const exitMs = element.exitDuration ?? 500;
+  const hasEntrance = element.animationIn && element.animationIn !== 'none';
+  const hasExit = element.animationOut && element.animationOut !== 'none';
+  // Clamp overlay widths to bar width
+  const maxOverlay = Math.max(0, element.duration);
+  const entranceOverlayMs = Math.min(entranceMs, maxOverlay);
+  const exitOverlayMs = Math.min(exitMs, Math.max(0, maxOverlay - entranceOverlayMs));
+  const entranceWidth = entranceOverlayMs * pxPerMs;
+  const exitWidth = exitOverlayMs * pxPerMs;
 
-  const handleMouseDown = useCallback((e: React.MouseEvent, mode: 'move' | 'resize-right') => {
+  const handleMouseDown = useCallback((e: React.MouseEvent, mode: 'move' | 'resize-right' | 'entrance' | 'exit') => {
     e.stopPropagation();
     e.preventDefault();
     setDragging(mode);
-    dragStart.current = { mouseX: e.clientX, startTime: element.startTime, duration: element.duration };
+    dragStart.current = {
+      mouseX: e.clientX,
+      startTime: element.startTime,
+      duration: element.duration,
+      entranceDuration: entranceMs,
+      exitDuration: exitMs,
+    };
 
     const onMove = (ev: MouseEvent) => {
       const dx = ev.clientX - dragStart.current.mouseX;
@@ -62,9 +78,16 @@ function TimelineTrack({ element, timelineWidth, slideDuration }: { element: Sli
       if (mode === 'move') {
         const newStart = Math.max(0, Math.min(slideDuration - dragStart.current.duration, dragStart.current.startTime + dMs));
         dispatch({ type: 'UPDATE_ELEMENT', id: element.id, updates: { startTime: Math.round(newStart) } });
-      } else {
+      } else if (mode === 'resize-right') {
         const newDur = Math.max(200, Math.min(slideDuration - dragStart.current.startTime, dragStart.current.duration + dMs));
         dispatch({ type: 'UPDATE_ELEMENT', id: element.id, updates: { duration: Math.round(newDur) } });
+      } else if (mode === 'entrance') {
+        const newEntrance = Math.max(0, Math.min(dragStart.current.duration - dragStart.current.exitDuration, dragStart.current.entranceDuration + dMs));
+        dispatch({ type: 'UPDATE_ELEMENT', id: element.id, updates: { entranceDuration: Math.round(newEntrance) } });
+      } else if (mode === 'exit') {
+        // Dragging the inner edge of the exit overlay leftward grows exitDuration
+        const newExit = Math.max(0, Math.min(dragStart.current.duration - dragStart.current.entranceDuration, dragStart.current.exitDuration - dMs));
+        dispatch({ type: 'UPDATE_ELEMENT', id: element.id, updates: { exitDuration: Math.round(newExit) } });
       }
     };
     const onUp = () => {
@@ -74,7 +97,7 @@ function TimelineTrack({ element, timelineWidth, slideDuration }: { element: Sli
     };
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
-  }, [element, pxPerMs, dispatch, slideDuration]);
+  }, [element, pxPerMs, dispatch, slideDuration, entranceMs, exitMs]);
 
   const isSelected = state.activeElementId === element.id;
 
@@ -82,7 +105,7 @@ function TimelineTrack({ element, timelineWidth, slideDuration }: { element: Sli
     <div className="relative h-7 w-full">
       <div
         className={cn(
-          'absolute top-0.5 h-6 rounded cursor-grab flex items-center text-[10px] text-white font-medium select-none',
+          'absolute top-0.5 h-6 rounded cursor-grab flex items-center text-[10px] text-white font-medium select-none overflow-hidden',
           typeColors[element.type],
           isSelected && 'ring-2 ring-primary ring-offset-1 ring-offset-background',
           dragging === 'move' && 'cursor-grabbing'
@@ -91,9 +114,41 @@ function TimelineTrack({ element, timelineWidth, slideDuration }: { element: Sli
         onMouseDown={(e) => handleMouseDown(e, 'move')}
         onClick={(e) => { e.stopPropagation(); dispatch({ type: 'SET_ACTIVE_ELEMENT', id: element.id }); }}
       >
-        <span className="truncate px-1.5">{(element.startTime / 1000).toFixed(1)}s</span>
+        <span className="truncate px-1.5 relative z-10">{(element.startTime / 1000).toFixed(1)}s</span>
+
+        {/* Entrance overlay (left) */}
+        {hasEntrance && entranceWidth > 0 && (
+          <div
+            className="absolute left-0 top-0 h-full bg-white/30 pointer-events-none"
+            style={{ width: entranceWidth }}
+            title={`Entrance: ${(entranceMs / 1000).toFixed(1)}s`}
+          >
+            {/* Inner draggable edge */}
+            <div
+              className="absolute right-0 top-0 w-1.5 h-full cursor-ew-resize bg-white/60 pointer-events-auto hover:bg-white/90"
+              onMouseDown={(e) => handleMouseDown(e, 'entrance')}
+            />
+          </div>
+        )}
+
+        {/* Exit overlay (right) */}
+        {hasExit && exitWidth > 0 && (
+          <div
+            className="absolute right-0 top-0 h-full bg-black/30 pointer-events-none"
+            style={{ width: exitWidth }}
+            title={`Exit: ${(exitMs / 1000).toFixed(1)}s`}
+          >
+            {/* Inner draggable edge (on the left side of the right overlay) */}
+            <div
+              className="absolute left-0 top-0 w-1.5 h-full cursor-ew-resize bg-white/60 pointer-events-auto hover:bg-white/90"
+              onMouseDown={(e) => handleMouseDown(e, 'exit')}
+            />
+          </div>
+        )}
+
+        {/* Right resize handle for total duration */}
         <div
-          className="absolute right-0 top-0 w-2 h-full cursor-ew-resize hover:bg-white/30 rounded-r"
+          className="absolute right-0 top-0 w-2 h-full cursor-ew-resize hover:bg-white/30 rounded-r z-20"
           onMouseDown={(e) => handleMouseDown(e, 'resize-right')}
         />
       </div>
