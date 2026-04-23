@@ -57,6 +57,18 @@ body{background-color:${ps.backgroundColor};${ps.backgroundImage ? `background-i
 .controls button:disabled{opacity:.4;cursor:default;filter:none}
 .controls span{font-size:14px;color:#aaa}
 .controls select{padding:6px 10px;border-radius:${ps.buttonBorderRadius}px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.1);color:#fff;font-size:13px;font-family:${ps.fontFamily};cursor:pointer}
+@keyframes el-fade-in{from{opacity:0}to{opacity:1}}
+@keyframes el-fade-out{from{opacity:1}to{opacity:0}}
+@keyframes el-fly-in-left{from{opacity:0;transform:translateX(-120px)}to{opacity:1;transform:translateX(0)}}
+@keyframes el-fly-in-right{from{opacity:0;transform:translateX(120px)}to{opacity:1;transform:translateX(0)}}
+@keyframes el-fly-out-left{from{opacity:1;transform:translateX(0)}to{opacity:0;transform:translateX(-120px)}}
+@keyframes el-fly-out-right{from{opacity:1;transform:translateX(0)}to{opacity:0;transform:translateX(120px)}}
+.anim-fade-in{animation-name:el-fade-in;animation-fill-mode:forwards;animation-timing-function:ease-out}
+.anim-fade-out{animation-name:el-fade-out;animation-fill-mode:forwards;animation-timing-function:ease-in}
+.anim-fly-in-left{animation-name:el-fly-in-left;animation-fill-mode:forwards;animation-timing-function:ease-out}
+.anim-fly-in-right{animation-name:el-fly-in-right;animation-fill-mode:forwards;animation-timing-function:ease-out}
+.anim-fly-out-left{animation-name:el-fly-out-left;animation-fill-mode:forwards;animation-timing-function:ease-in}
+.anim-fly-out-right{animation-name:el-fly-out-right;animation-fill-mode:forwards;animation-timing-function:ease-in}
 </style>
 </head>
 <body>
