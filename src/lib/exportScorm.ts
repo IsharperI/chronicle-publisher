@@ -57,6 +57,18 @@ body{background-color:${ps.backgroundColor};${ps.backgroundImage ? `background-i
 .controls button:disabled{opacity:.4;cursor:default;filter:none}
 .controls span{font-size:14px;color:#aaa}
 .controls select{padding:6px 10px;border-radius:${ps.buttonBorderRadius}px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.1);color:#fff;font-size:13px;font-family:${ps.fontFamily};cursor:pointer}
+@keyframes el-fade-in{from{opacity:0}to{opacity:1}}
+@keyframes el-fade-out{from{opacity:1}to{opacity:0}}
+@keyframes el-fly-in-left{from{opacity:0;transform:translateX(-120px)}to{opacity:1;transform:translateX(0)}}
+@keyframes el-fly-in-right{from{opacity:0;transform:translateX(120px)}to{opacity:1;transform:translateX(0)}}
+@keyframes el-fly-out-left{from{opacity:1;transform:translateX(0)}to{opacity:0;transform:translateX(-120px)}}
+@keyframes el-fly-out-right{from{opacity:1;transform:translateX(0)}to{opacity:0;transform:translateX(120px)}}
+.anim-fade-in{animation-name:el-fade-in;animation-fill-mode:forwards;animation-timing-function:ease-out}
+.anim-fade-out{animation-name:el-fade-out;animation-fill-mode:forwards;animation-timing-function:ease-in}
+.anim-fly-in-left{animation-name:el-fly-in-left;animation-fill-mode:forwards;animation-timing-function:ease-out}
+.anim-fly-in-right{animation-name:el-fly-in-right;animation-fill-mode:forwards;animation-timing-function:ease-out}
+.anim-fly-out-left{animation-name:el-fly-out-left;animation-fill-mode:forwards;animation-timing-function:ease-in}
+.anim-fly-out-right{animation-name:el-fly-out-right;animation-fill-mode:forwards;animation-timing-function:ease-in}
 </style>
 </head>
 <body>
@@ -122,6 +134,10 @@ window.COURSE_DATA=${courseData.replace(/<\/script>/gi, '<\\/script>').replace(/
     d.className="el";
     d.style.left=el.x+"px";d.style.top=el.y+"px";
     d.style.width=el.width+"px";d.style.height=el.height+"px";
+    if(el.animationOut&&el.animationOut!=="none"){
+      d.setAttribute("data-anim-out",el.animationOut);
+      d.setAttribute("data-exit-dur",String(el.exitDuration!=null?el.exitDuration:500));
+    }
 
     if(el.type==="text"){
       d.style.fontSize=(el.fontSize||24)+"px";
@@ -171,7 +187,35 @@ window.COURSE_DATA=${courseData.replace(/<\/script>/gi, '<\\/script>').replace(/
         });
       }
     }
+
+    // Apply entrance animation with custom duration
+    var animInMap={"fade":"anim-fade-in","fly-in-left":"anim-fly-in-left","fly-in-right":"anim-fly-in-right"};
+    if(el.animationIn&&animInMap[el.animationIn]){
+      d.classList.add(animInMap[el.animationIn]);
+      var entDur=(el.entranceDuration!=null?el.entranceDuration:500);
+      d.style.animationDuration=entDur+"ms";
+    }
     return d;
+  }
+
+  function applyExitAnimations(container,onDone){
+    var animOutMap={"fade":"anim-fade-out","fly-out-left":"anim-fly-out-left","fly-out-right":"anim-fly-out-right"};
+    var nodes=container.querySelectorAll("[data-anim-out]");
+    var maxDur=0;
+    for(var i=0;i<nodes.length;i++){
+      var node=nodes[i];
+      var key=node.getAttribute("data-anim-out");
+      var dur=parseInt(node.getAttribute("data-exit-dur")||"500",10);
+      if(animOutMap[key]){
+        // remove any entrance class first
+        node.className="el";
+        node.classList.add(animOutMap[key]);
+        node.style.animationDuration=dur+"ms";
+        if(dur>maxDur)maxDur=dur;
+      }
+    }
+    if(maxDur===0){onDone();return}
+    setTimeout(onDone,maxDur);
   }
 
   function setNavLock(locked){
@@ -203,9 +247,10 @@ window.COURSE_DATA=${courseData.replace(/<\/script>/gi, '<\\/script>').replace(/
     if(API){try{API.LMSSetValue("cmi.core.lesson_location",""+current)}catch(e){}}
   }
 
-  prevBtn.onclick=function(){if(current>0){current--;render()}};
-  nextBtn.onclick=function(){if(current<slides.length-1){current++;render()}};
-  if(menuEl){menuEl.onchange=function(){var v=parseInt(menuEl.value,10);if(!isNaN(v)&&v>=0&&v<slides.length){current=v;render()}}}
+  function goTo(idx){if(idx<0||idx>=slides.length||idx===current)return;applyExitAnimations(stage,function(){current=idx;render()})}
+  prevBtn.onclick=function(){if(current>0)goTo(current-1)};
+  nextBtn.onclick=function(){if(current<slides.length-1)goTo(current+1)};
+  if(menuEl){menuEl.onchange=function(){var v=parseInt(menuEl.value,10);if(!isNaN(v)&&v>=0&&v<slides.length)goTo(v)}}
   render();
 })();
 </script>

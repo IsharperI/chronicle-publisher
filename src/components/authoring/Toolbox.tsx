@@ -18,6 +18,7 @@ export function Toolbox() {
       textColor: '#000000', backgroundColor: 'transparent',
       startTime: 0, duration: 5000, triggers: [],
       animationIn: 'none', animationOut: 'none',
+      entranceDuration: 500, exitDuration: 500,
     };
     dispatch({ type: 'ADD_ELEMENT', element: el });
   };
@@ -34,6 +35,7 @@ export function Toolbox() {
         src: base64, alt: file.name,
         startTime: 0, duration: 5000, triggers: [],
         animationIn: 'none', animationOut: 'none',
+        entranceDuration: 500, exitDuration: 500,
       };
       dispatch({ type: 'ADD_ELEMENT', element: el });
     };
@@ -48,6 +50,7 @@ export function Toolbox() {
       shapeType: 'rectangle', fillColor: '#3b82f6', borderColor: '#1e40af', borderWidth: 2,
       startTime: 0, duration: 5000, triggers: [],
       animationIn: 'none', animationOut: 'none',
+      entranceDuration: 500, exitDuration: 500,
     };
     dispatch({ type: 'ADD_ELEMENT', element: el });
   };

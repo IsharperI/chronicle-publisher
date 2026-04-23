@@ -18,6 +18,29 @@ function NumField({ label, value, onChange }: { label: string; value: number; on
   );
 }
 
+function SecondsField({ label, valueMs, onChangeMs, min = 0, step = 0.1 }: { label: string; valueMs: number; onChangeMs: (ms: number) => void; min?: number; step?: number }) {
+  const seconds = (valueMs / 1000).toFixed(1);
+  return (
+    <div className="space-y-1">
+      <Label className="text-xs">{label}</Label>
+      <div className="relative">
+        <Input
+          type="number"
+          step={step}
+          min={min / 1000}
+          value={seconds}
+          onChange={(e) => {
+            const sec = Number(e.target.value);
+            if (!Number.isNaN(sec)) onChangeMs(Math.max(min, Math.round(sec * 1000)));
+          }}
+          className="h-8 text-xs pr-6"
+        />
+        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground pointer-events-none">s</span>
+      </div>
+    </div>
+  );
+}
+
 function ColorField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
   return (
     <div className="space-y-1">
@@ -68,10 +91,11 @@ export function PropertiesPanel() {
             <p className="text-sm font-medium text-foreground">
               {isMasterMode ? 'Master Slide Properties' : 'Slide Properties'}
             </p>
-            <NumField
-              label="Duration (ms)"
-              value={activeSlide?.duration ?? 5000}
-              onChange={(v) => dispatch({ type: 'UPDATE_SLIDE', index: state.activeSlideIndex, updates: { duration: Math.max(1000, v) } })}
+            <SecondsField
+              label="Duration (s)"
+              valueMs={activeSlide?.duration ?? 5000}
+              onChangeMs={(v) => dispatch({ type: 'UPDATE_SLIDE', index: state.activeSlideIndex, updates: { duration: Math.max(1000, v) } })}
+              min={1000}
             />
             <p className="text-xs text-muted-foreground">Sets the total timeline length for this slide.</p>
 
@@ -192,8 +216,8 @@ export function PropertiesPanel() {
             <div className="space-y-2 pt-2 border-t">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Timeline</p>
               <div className="grid grid-cols-2 gap-2">
-                <NumField label="Start (ms)" value={activeElement.startTime} onChange={(v) => update({ startTime: Math.max(0, v) })} />
-                <NumField label="Duration (ms)" value={activeElement.duration} onChange={(v) => update({ duration: Math.max(100, v) })} />
+                <SecondsField label="Start (s)" valueMs={activeElement.startTime} onChangeMs={(v) => update({ startTime: Math.max(0, v) })} />
+                <SecondsField label="Duration (s)" valueMs={activeElement.duration} onChangeMs={(v) => update({ duration: Math.max(100, v) })} min={100} />
               </div>
             </div>
 
@@ -227,6 +251,12 @@ function AnimationsSection({ element, onUpdate }: { element: SlideElement; onUpd
           </SelectContent>
         </Select>
       </div>
+      <SecondsField
+        label="Entrance Duration (s)"
+        valueMs={element.entranceDuration ?? 500}
+        onChangeMs={(v) => onUpdate({ entranceDuration: Math.max(0, v) } as any)}
+        step={0.1}
+      />
       <div className="space-y-1">
         <Label className="text-xs">Exit</Label>
         <Select value={element.animationOut ?? 'none'} onValueChange={(v) => onUpdate({ animationOut: v as AnimationOut } as any)}>
@@ -239,6 +269,12 @@ function AnimationsSection({ element, onUpdate }: { element: SlideElement; onUpd
           </SelectContent>
         </Select>
       </div>
+      <SecondsField
+        label="Exit Duration (s)"
+        valueMs={element.exitDuration ?? 500}
+        onChangeMs={(v) => onUpdate({ exitDuration: Math.max(0, v) } as any)}
+        step={0.1}
+      />
     </div>
   );
 }
