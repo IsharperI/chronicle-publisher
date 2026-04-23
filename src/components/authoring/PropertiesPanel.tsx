@@ -18,6 +18,29 @@ function NumField({ label, value, onChange }: { label: string; value: number; on
   );
 }
 
+function SecondsField({ label, valueMs, onChangeMs, min = 0, step = 0.1 }: { label: string; valueMs: number; onChangeMs: (ms: number) => void; min?: number; step?: number }) {
+  const seconds = (valueMs / 1000).toFixed(1);
+  return (
+    <div className="space-y-1">
+      <Label className="text-xs">{label}</Label>
+      <div className="relative">
+        <Input
+          type="number"
+          step={step}
+          min={min / 1000}
+          value={seconds}
+          onChange={(e) => {
+            const sec = Number(e.target.value);
+            if (!Number.isNaN(sec)) onChangeMs(Math.max(min, Math.round(sec * 1000)));
+          }}
+          className="h-8 text-xs pr-6"
+        />
+        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground pointer-events-none">s</span>
+      </div>
+    </div>
+  );
+}
+
 function ColorField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
   return (
     <div className="space-y-1">
