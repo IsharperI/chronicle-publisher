@@ -91,10 +91,11 @@ export function PropertiesPanel() {
             <p className="text-sm font-medium text-foreground">
               {isMasterMode ? 'Master Slide Properties' : 'Slide Properties'}
             </p>
-            <NumField
-              label="Duration (ms)"
-              value={activeSlide?.duration ?? 5000}
-              onChange={(v) => dispatch({ type: 'UPDATE_SLIDE', index: state.activeSlideIndex, updates: { duration: Math.max(1000, v) } })}
+            <SecondsField
+              label="Duration (s)"
+              valueMs={activeSlide?.duration ?? 5000}
+              onChangeMs={(v) => dispatch({ type: 'UPDATE_SLIDE', index: state.activeSlideIndex, updates: { duration: Math.max(1000, v) } })}
+              min={1000}
             />
             <p className="text-xs text-muted-foreground">Sets the total timeline length for this slide.</p>
 
@@ -215,8 +216,8 @@ export function PropertiesPanel() {
             <div className="space-y-2 pt-2 border-t">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Timeline</p>
               <div className="grid grid-cols-2 gap-2">
-                <NumField label="Start (ms)" value={activeElement.startTime} onChange={(v) => update({ startTime: Math.max(0, v) })} />
-                <NumField label="Duration (ms)" value={activeElement.duration} onChange={(v) => update({ duration: Math.max(100, v) })} />
+                <SecondsField label="Start (s)" valueMs={activeElement.startTime} onChangeMs={(v) => update({ startTime: Math.max(0, v) })} />
+                <SecondsField label="Duration (s)" valueMs={activeElement.duration} onChangeMs={(v) => update({ duration: Math.max(100, v) })} min={100} />
               </div>
             </div>
 
@@ -250,6 +251,12 @@ function AnimationsSection({ element, onUpdate }: { element: SlideElement; onUpd
           </SelectContent>
         </Select>
       </div>
+      <SecondsField
+        label="Entrance Duration (s)"
+        valueMs={element.entranceDuration ?? 500}
+        onChangeMs={(v) => onUpdate({ entranceDuration: Math.max(0, v) } as any)}
+        step={0.1}
+      />
       <div className="space-y-1">
         <Label className="text-xs">Exit</Label>
         <Select value={element.animationOut ?? 'none'} onValueChange={(v) => onUpdate({ animationOut: v as AnimationOut } as any)}>
@@ -262,6 +269,12 @@ function AnimationsSection({ element, onUpdate }: { element: SlideElement; onUpd
           </SelectContent>
         </Select>
       </div>
+      <SecondsField
+        label="Exit Duration (s)"
+        valueMs={element.exitDuration ?? 500}
+        onChangeMs={(v) => onUpdate({ exitDuration: Math.max(0, v) } as any)}
+        step={0.1}
+      />
     </div>
   );
 }
