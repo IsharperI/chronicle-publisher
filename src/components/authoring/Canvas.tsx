@@ -7,7 +7,6 @@ import type { SlideElement, TextElement, ShapeElement, AnimationIn, AnimationOut
 
 const CANVAS_W = 1920;
 const CANVAS_H = 1080;
-const ANIM_DURATION = 500;
 
 function getAnimInClass(anim: AnimationIn): string {
   switch (anim) {
@@ -29,9 +28,11 @@ function getAnimOutClass(anim: AnimationOut): string {
 
 function getAnimationPhase(el: SlideElement, playheadTime: number): 'before' | 'entering' | 'visible' | 'exiting' | 'after' {
   const end = el.startTime + el.duration;
+  const entranceDur = el.entranceDuration ?? 500;
+  const exitDur = el.exitDuration ?? 500;
   if (playheadTime < el.startTime) return 'before';
-  if (playheadTime < el.startTime + ANIM_DURATION && el.animationIn !== 'none') return 'entering';
-  if (playheadTime < end - ANIM_DURATION) return 'visible';
+  if (playheadTime < el.startTime + entranceDur && el.animationIn !== 'none') return 'entering';
+  if (playheadTime < end - exitDur) return 'visible';
   if (playheadTime < end && el.animationOut !== 'none') return 'exiting';
   if (playheadTime >= end) return 'after';
   return 'visible';
@@ -210,11 +211,16 @@ export function Canvas() {
               if (phase === 'before' || phase === 'after') return null;
               const animClass = phase === 'entering' ? getAnimInClass(el.animationIn)
                 : phase === 'exiting' ? getAnimOutClass(el.animationOut) : '';
+              const animDurMs = phase === 'entering' ? (el.entranceDuration ?? 500)
+                : phase === 'exiting' ? (el.exitDuration ?? 500) : 0;
               return (
                 <div
                   key={el.id}
                   className={animClass}
-                  style={{ position: 'absolute', left: el.x, top: el.y, width: el.width, height: el.height, zIndex: 2 }}
+                  style={{
+                    position: 'absolute', left: el.x, top: el.y, width: el.width, height: el.height, zIndex: 2,
+                    ...(animClass ? { animationDuration: `${animDurMs}ms` } : {}),
+                  }}
                 >
                   <ElementRenderer element={el} isPreview />
                 </div>
