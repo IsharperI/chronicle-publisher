@@ -99,16 +99,27 @@ function courseReducer(state: CourseState, action: Action): CourseState {
     }
     case 'SET_ACTIVE_ELEMENT':
       return { ...state, activeElementId: action.id };
-    case 'LOAD_COURSE':
+    case 'LOAD_COURSE': {
+      const backfillEl = (e: SlideElement): SlideElement => ({
+        entranceDuration: 500,
+        exitDuration: 500,
+        ...e,
+      } as SlideElement);
+      const backfillSlide = (s: Slide): Slide => ({
+        ...s,
+        duration: s.duration ?? 5000,
+        elements: (s.elements ?? []).map(backfillEl),
+      });
       return {
         ...initialState,
-        slides: action.slides.map(s => ({ ...s, duration: s.duration ?? 5000 })),
-        masterSlides: (action.masterSlides ?? []).map(s => ({ ...s, duration: s.duration ?? 5000 })),
+        slides: action.slides.map(backfillSlide),
+        masterSlides: (action.masterSlides ?? []).map(backfillSlide),
         playerSettings: action.playerSettings ? { ...defaultPlayerSettings, ...action.playerSettings } : { ...defaultPlayerSettings },
         activeSlideIndex: 0,
         activeElementId: null,
         previewMode: false,
       };
+    }
     case 'SET_PREVIEW_MODE':
       return { ...state, previewMode: action.enabled, activeElementId: null, activeSlideIndex: action.enabled ? 0 : state.activeSlideIndex, playheadTime: 0, isPlaying: action.enabled, viewMode: action.enabled ? 'main' : state.viewMode };
     case 'PREVIEW_NEXT':
