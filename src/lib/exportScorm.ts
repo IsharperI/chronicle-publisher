@@ -134,6 +134,10 @@ window.COURSE_DATA=${courseData.replace(/<\/script>/gi, '<\\/script>').replace(/
     d.className="el";
     d.style.left=el.x+"px";d.style.top=el.y+"px";
     d.style.width=el.width+"px";d.style.height=el.height+"px";
+    if(el.animationOut&&el.animationOut!=="none"){
+      d.setAttribute("data-anim-out",el.animationOut);
+      d.setAttribute("data-exit-dur",String(el.exitDuration!=null?el.exitDuration:500));
+    }
 
     if(el.type==="text"){
       d.style.fontSize=(el.fontSize||24)+"px";
