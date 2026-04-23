@@ -22,6 +22,8 @@ export interface BaseElement {
   triggers: Trigger[];
   animationIn: AnimationIn;
   animationOut: AnimationOut;
+  entranceDuration: number;
+  exitDuration: number;
 }
 
 export interface TextElement extends BaseElement {
