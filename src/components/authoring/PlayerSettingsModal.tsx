@@ -62,7 +62,7 @@ export function PlayerSettingsModal({ open, onOpenChange }: { open: boolean; onO
           <div className="flex-1 flex flex-col items-center justify-center rounded-lg border bg-muted/30 p-4 min-h-[400px]">
             <div
               className="w-full max-w-md aspect-video rounded-lg shadow-lg flex flex-col overflow-hidden"
-              style={{ ...bgStyle(), fontFamily: ps.fontFamily }}
+              style={{ ...themeVarStyle(state.courseSettings.themeColors), ...bgStyle(), fontFamily: ps.fontFamily }}
             >
               {/* Faux stage */}
               <div className="flex-1 flex items-center justify-center">
