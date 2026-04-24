@@ -8,6 +8,7 @@ import { ChevronUp, ChevronDown, Type, ImageIcon, Square, Play, Pause } from 'lu
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import type { SlideElement, TextElement, ShapeElement } from '@/types/course';
+import { themeVarRef, themeVarIndex, resolveColor } from '@/lib/themeVars';
 
 const TRACK_HEIGHT = 28;
 
