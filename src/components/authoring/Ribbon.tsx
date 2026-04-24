@@ -35,12 +35,32 @@ export function Ribbon() {
   const loadProject = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    // Reject excessively large files to mitigate DoS via huge JSON payloads.
+    if (file.size > 50 * 1024 * 1024) {
+      console.error('Project file too large');
+      e.target.value = '';
+      return;
+    }
     const reader = new FileReader();
     reader.onload = (ev) => {
       try {
         const data = JSON.parse(ev.target?.result as string);
-        if (data.slides && Array.isArray(data.slides)) {
-          dispatch({ type: 'LOAD_COURSE', slides: data.slides, masterSlides: data.masterSlides, playerSettings: data.playerSettings, courseSettings: data.courseSettings });
+        if (data && Array.isArray(data.slides)) {
+          // Sanitize all imported data: validates colors, fonts, image URIs,
+          // numeric ranges, and enums to prevent CSS/HTML/JS injection when
+          // these values are later embedded in the SCORM export. See
+          // src/lib/sanitize.ts for details.
+          const slides = sanitizeSlides(data.slides);
+          const masterSlides = sanitizeSlides(data.masterSlides);
+          const playerSettings = sanitizePlayerSettings(data.playerSettings);
+          const courseSettings = sanitizeCourseSettings(data.courseSettings);
+          dispatch({
+            type: 'LOAD_COURSE',
+            slides,
+            masterSlides,
+            playerSettings,
+            courseSettings,
+          });
         }
       } catch {
         console.error('Invalid project file');
