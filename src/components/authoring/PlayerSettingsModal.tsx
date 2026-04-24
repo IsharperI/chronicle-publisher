@@ -110,7 +110,7 @@ export function PlayerSettingsModal({ open, onOpenChange }: { open: boolean; onO
 
           {/* Right — Controls */}
           <div className="w-[260px] shrink-0 overflow-y-auto space-y-5 pr-1">
-            <ColorControl label="Background Color" value={ps.backgroundColor} onChange={(v) => update({ backgroundColor: v })} />
+            <ColorControl label="Background Color" value={ps.backgroundColor} onChange={(v) => update({ backgroundColor: v })} themeColors={state.courseSettings.themeColors} />
             <div className="space-y-1.5">
               <Label className="text-xs">Background Image</Label>
               <div className="flex gap-2 items-center">
@@ -139,7 +139,7 @@ export function PlayerSettingsModal({ open, onOpenChange }: { open: boolean; onO
               </Select>
             </div>
 
-            <ColorControl label="Button Color" value={ps.buttonColor} onChange={(v) => update({ buttonColor: v })} />
+            <ColorControl label="Button Color" value={ps.buttonColor} onChange={(v) => update({ buttonColor: v })} themeColors={state.courseSettings.themeColors} />
 
             <div className="space-y-1.5">
               <Label className="text-xs">Button Corner Radius</Label>
@@ -190,7 +190,7 @@ export function PlayerSettingsModal({ open, onOpenChange }: { open: boolean; onO
   );
 }
 
-function ColorControl({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+function ColorControl({ label, value, onChange, themeColors }: { label: string; value: string; onChange: (v: string) => void; themeColors?: string[] }) {
   return (
     <div className="space-y-1.5">
       <Label className="text-xs">{label}</Label>
@@ -198,6 +198,21 @@ function ColorControl({ label, value, onChange }: { label: string; value: string
         <input type="color" value={value} onChange={(e) => onChange(e.target.value)} className="h-8 w-8 rounded border cursor-pointer" />
         <Input value={value} onChange={(e) => onChange(e.target.value)} className="h-8 text-xs flex-1" />
       </div>
+      {themeColors && themeColors.length > 0 && (
+        <div className="flex gap-1">
+          {themeColors.map((c, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => onChange(c)}
+              className="w-5 h-5 rounded-sm border border-border hover:scale-110 transition-transform"
+              style={{ backgroundColor: c }}
+              title={c}
+              aria-label={`Apply theme color ${c}`}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
