@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { BackgroundMode, NavigationMode, PlayerSettings } from '@/types/course';
 import { ImageIcon, Trash2 } from 'lucide-react';
+import { themeVarRef, themeVarIndex, resolveColor } from '@/lib/themeVars';
 
 const FONT_OPTIONS = [
   { value: 'system-ui, sans-serif', label: 'System Default' },
