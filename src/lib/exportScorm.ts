@@ -35,9 +35,12 @@ function buildPlayerHtml(state: CourseState): string {
     slides: state.slides,
     masterSlides: state.masterSlides,
     playerSettings: state.playerSettings,
+    courseSettings: state.courseSettings,
   });
 
   const ps = state.playerSettings;
+  const dims = state.courseSettings.canvasDimensions;
+  const aspect = `${dims.width}/${dims.height}`;
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -48,8 +51,8 @@ function buildPlayerHtml(state: CourseState): string {
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{background-color:${ps.backgroundColor};${ps.backgroundImage ? `background-image:url(${ps.backgroundImage});${ps.backgroundMode === 'stretch' ? 'background-size:100% 100%;background-repeat:no-repeat;' : ps.backgroundMode === 'fit' ? 'background-size:contain;background-repeat:no-repeat;background-position:center;' : 'background-repeat:repeat;background-size:auto;'}` : ''}display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;font-family:${ps.fontFamily};color:#fff}
-#stage-wrapper{position:relative;width:90vw;max-width:960px;aspect-ratio:16/9;background:#fff;overflow:hidden;border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,.4)}
-#stage{position:absolute;inset:0;width:1920px;height:1080px;transform-origin:top left}
+#stage-wrapper{position:relative;width:90vw;max-width:${Math.min(dims.width, 1280)}px;aspect-ratio:${aspect};background:#fff;overflow:hidden;border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,.4)}
+#stage{position:absolute;inset:0;width:${dims.width}px;height:${dims.height}px;transform-origin:top left}
 .el{position:absolute;transition:all .2s ease}
 .controls{margin-top:20px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;justify-content:center}
 .controls button{padding:8px 24px;border:none;border-radius:${ps.buttonBorderRadius}px;background:${ps.buttonColor};color:#fff;font-size:14px;cursor:pointer;font-weight:500;font-family:${ps.fontFamily}}
