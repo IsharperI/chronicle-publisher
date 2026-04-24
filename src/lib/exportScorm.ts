@@ -108,7 +108,7 @@ window.COURSE_DATA=${courseData.replace(/<\/script>/gi, '<\\/script>').replace(/
 
   function scaleStage(){
     var wrapper=document.getElementById("stage-wrapper");
-    var s=wrapper.clientWidth/1920;
+    var s=wrapper.clientWidth/${dims.width};
     stage.style.transform="scale("+s+")";
   }
   window.addEventListener("resize",scaleStage);
