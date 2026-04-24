@@ -39,8 +39,24 @@ function buildPlayerHtml(state: CourseState): string {
     courseSettings: state.courseSettings,
   });
 
-  const ps = state.playerSettings;
-  const dims = state.courseSettings.canvasDimensions;
+  // Sanitize all player-setting values that get embedded directly into the
+  // generated <style> block. This blocks CSS/HTML/JS injection from malicious
+  // imported project files. See src/lib/sanitize.ts.
+  const rawPs = state.playerSettings;
+  const ps = {
+    backgroundColor: safeColor(rawPs.backgroundColor, '#1a1a2e'),
+    buttonColor: safeColor(rawPs.buttonColor, '#3b82f6'),
+    buttonBorderRadius: safeNumber(rawPs.buttonBorderRadius, 6, 0, 200),
+    fontFamily: safeFontFamily(rawPs.fontFamily),
+    showMenu: !!rawPs.showMenu,
+    navigationMode: safeEnum(rawPs.navigationMode, ['free', 'restricted'] as const, 'free'),
+    backgroundImage: safeImageSrc(rawPs.backgroundImage),
+    backgroundMode: safeEnum(rawPs.backgroundMode, ['stretch', 'fit', 'tile'] as const, 'stretch'),
+  };
+  const dims = {
+    width: safeNumber(state.courseSettings.canvasDimensions.width, 1920, 320, 7680),
+    height: safeNumber(state.courseSettings.canvasDimensions.height, 1080, 240, 4320),
+  };
   const aspect = `${dims.width}/${dims.height}`;
 
   return `<!DOCTYPE html>
@@ -51,7 +67,7 @@ function buildPlayerHtml(state: CourseState): string {
 <title>eLearning Course</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{background-color:${ps.backgroundColor};${ps.backgroundImage ? `background-image:url(${ps.backgroundImage});${ps.backgroundMode === 'stretch' ? 'background-size:100% 100%;background-repeat:no-repeat;' : ps.backgroundMode === 'fit' ? 'background-size:contain;background-repeat:no-repeat;background-position:center;' : 'background-repeat:repeat;background-size:auto;'}` : ''}display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;font-family:${ps.fontFamily};color:#fff}
+body{background-color:${ps.backgroundColor};${ps.backgroundImage ? `background-image:url("${ps.backgroundImage.replace(/"/g, '%22')}");${ps.backgroundMode === 'stretch' ? 'background-size:100% 100%;background-repeat:no-repeat;' : ps.backgroundMode === 'fit' ? 'background-size:contain;background-repeat:no-repeat;background-position:center;' : 'background-repeat:repeat;background-size:auto;'}` : ''}display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;font-family:${ps.fontFamily};color:#fff}
 #stage-wrapper{position:relative;width:90vw;max-width:${Math.min(dims.width, 1280)}px;aspect-ratio:${aspect};background:#fff;overflow:hidden;border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,.4)}
 #stage{position:absolute;inset:0;width:${dims.width}px;height:${dims.height}px;transform-origin:top left}
 .el{position:absolute;transition:all .2s ease}
