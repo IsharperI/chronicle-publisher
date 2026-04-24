@@ -87,6 +87,22 @@ export const defaultPlayerSettings: PlayerSettings = {
   backgroundMode: 'stretch',
 };
 
+export interface CanvasDimensions {
+  width: number;
+  height: number;
+}
+
+export interface CourseSettings {
+  canvasDimensions: CanvasDimensions;
+  /** 6 hex colors: Primary, Secondary, Accent 1, Accent 2, Dark, Light */
+  themeColors: string[];
+}
+
+export const defaultCourseSettings: CourseSettings = {
+  canvasDimensions: { width: 1920, height: 1080 },
+  themeColors: ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#1f2937', '#f9fafb'],
+};
+
 export interface CourseState {
   slides: Slide[];
   masterSlides: Slide[];
@@ -97,4 +113,5 @@ export interface CourseState {
   isPlaying: boolean;
   viewMode: ViewMode;
   playerSettings: PlayerSettings;
+  courseSettings: CourseSettings;
 }
