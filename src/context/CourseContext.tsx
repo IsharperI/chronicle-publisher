@@ -175,6 +175,13 @@ function courseReducer(state: CourseState, action: Action): CourseState {
       return { ...state, viewMode: 'master', activeSlideIndex: action.index, activeElementId: null, playheadTime: 0, isPlaying: false };
     case 'UPDATE_PLAYER_SETTINGS':
       return { ...state, playerSettings: { ...state.playerSettings, ...action.updates } };
+    case 'UPDATE_COURSE_SETTINGS':
+      return { ...state, courseSettings: { ...state.courseSettings, ...action.updates } };
+    case 'UPDATE_THEME_COLOR': {
+      const next = [...state.courseSettings.themeColors];
+      next[action.index] = action.color;
+      return { ...state, courseSettings: { ...state.courseSettings, themeColors: next } };
+    }
     default:
       return state;
   }
