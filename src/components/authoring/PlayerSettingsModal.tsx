@@ -192,21 +192,25 @@ export function PlayerSettingsModal({ open, onOpenChange }: { open: boolean; onO
 }
 
 function ColorControl({ label, value, onChange, themeColors }: { label: string; value: string; onChange: (v: string) => void; themeColors?: string[] }) {
+  const palette = themeColors ?? [];
+  const themeIdx = themeVarIndex(value);
+  const resolvedHex = resolveColor(value, palette, '#ffffff');
+  const pickerValue = resolvedHex.startsWith('#') ? resolvedHex : '#ffffff';
   return (
     <div className="space-y-1.5">
       <Label className="text-xs">{label}</Label>
       <div className="flex gap-2">
-        <input type="color" value={value} onChange={(e) => onChange(e.target.value)} className="h-8 w-8 rounded border cursor-pointer" />
+        <input type="color" value={pickerValue} onChange={(e) => onChange(e.target.value)} className="h-8 w-8 rounded border cursor-pointer" />
         <Input value={value} onChange={(e) => onChange(e.target.value)} className="h-8 text-xs flex-1" />
       </div>
-      {themeColors && themeColors.length > 0 && (
+      {palette.length > 0 && (
         <div className="flex gap-1">
-          {themeColors.map((c, i) => (
+          {palette.map((c, i) => (
             <button
               key={i}
               type="button"
-              onClick={() => onChange(c)}
-              className="w-5 h-5 rounded-sm border border-border hover:scale-110 transition-transform"
+              onClick={() => onChange(themeVarRef(i))}
+              className={`w-5 h-5 rounded-sm border hover:scale-110 transition-transform ${themeIdx === i ? 'border-primary ring-1 ring-primary' : 'border-border'}`}
               style={{ backgroundColor: c }}
               title={c}
               aria-label={`Apply theme color ${c}`}
