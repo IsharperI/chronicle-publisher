@@ -29,7 +29,7 @@ function getElementLabel(el: SlideElement): string {
   return el.shapeType;
 }
 
-function ColorField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+function ColorField({ label, value, onChange, themeColors }: { label: string; value: string; onChange: (v: string) => void; themeColors?: string[] }) {
   return (
     <div className="space-y-1">
       <Label className="text-xs">{label}</Label>
@@ -37,6 +37,21 @@ function ColorField({ label, value, onChange }: { label: string; value: string; 
         <input type="color" value={value === 'transparent' ? '#ffffff' : value} onChange={(e) => onChange(e.target.value)} className="h-8 w-8 rounded border cursor-pointer" />
         <Input value={value} onChange={(e) => onChange(e.target.value)} className="h-8 text-xs flex-1" />
       </div>
+      {themeColors && themeColors.length > 0 && (
+        <div className="flex gap-1">
+          {themeColors.map((c, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => onChange(c)}
+              className="w-5 h-5 rounded-sm border border-border hover:scale-110 transition-transform"
+              style={{ backgroundColor: c }}
+              title={c}
+              aria-label={`Apply theme color ${c}`}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -163,6 +178,7 @@ function StatesPanel() {
     ? state.masterSlides[state.activeSlideIndex]
     : state.slides[state.activeSlideIndex];
   const activeElement = activeSlide?.elements.find((el) => el.id === state.activeElementId);
+  const themeColors = state.courseSettings.themeColors;
 
   const [activeState, setActiveState] = useState<'normal' | 'hover'>('normal');
 
@@ -189,13 +205,13 @@ function StatesPanel() {
         </div>
         {activeState === 'normal' ? (
           <>
-            <ColorField label="Text Color" value={te.textColor} onChange={(v) => update({ textColor: v } as any)} />
-            <ColorField label="Background" value={te.backgroundColor} onChange={(v) => update({ backgroundColor: v } as any)} />
+            <ColorField label="Text Color" value={te.textColor} onChange={(v) => update({ textColor: v } as any)} themeColors={themeColors} />
+            <ColorField label="Background" value={te.backgroundColor} onChange={(v) => update({ backgroundColor: v } as any)} themeColors={themeColors} />
           </>
         ) : (
           <>
-            <ColorField label="Hover Text Color" value={te.hoverTextColor ?? ''} onChange={(v) => update({ hoverTextColor: v } as any)} />
-            <ColorField label="Hover Background" value={te.hoverBackgroundColor ?? ''} onChange={(v) => update({ hoverBackgroundColor: v } as any)} />
+            <ColorField label="Hover Text Color" value={te.hoverTextColor ?? ''} onChange={(v) => update({ hoverTextColor: v } as any)} themeColors={themeColors} />
+            <ColorField label="Hover Background" value={te.hoverBackgroundColor ?? ''} onChange={(v) => update({ hoverBackgroundColor: v } as any)} themeColors={themeColors} />
             <p className="text-xs text-muted-foreground">Colors applied on hover during preview.</p>
           </>
         )}
@@ -212,13 +228,13 @@ function StatesPanel() {
       </div>
       {activeState === 'normal' ? (
         <>
-          <ColorField label="Fill Color" value={se.fillColor} onChange={(v) => update({ fillColor: v } as any)} />
-          <ColorField label="Border Color" value={se.borderColor} onChange={(v) => update({ borderColor: v } as any)} />
+          <ColorField label="Fill Color" value={se.fillColor} onChange={(v) => update({ fillColor: v } as any)} themeColors={themeColors} />
+          <ColorField label="Border Color" value={se.borderColor} onChange={(v) => update({ borderColor: v } as any)} themeColors={themeColors} />
         </>
       ) : (
         <>
-          <ColorField label="Hover Fill Color" value={se.hoverFillColor ?? ''} onChange={(v) => update({ hoverFillColor: v } as any)} />
-          <ColorField label="Hover Border Color" value={se.hoverBorderColor ?? ''} onChange={(v) => update({ hoverBorderColor: v } as any)} />
+          <ColorField label="Hover Fill Color" value={se.hoverFillColor ?? ''} onChange={(v) => update({ hoverFillColor: v } as any)} themeColors={themeColors} />
+          <ColorField label="Hover Border Color" value={se.hoverBorderColor ?? ''} onChange={(v) => update({ hoverBorderColor: v } as any)} themeColors={themeColors} />
           <p className="text-xs text-muted-foreground">Colors applied on hover during preview.</p>
         </>
       )}
