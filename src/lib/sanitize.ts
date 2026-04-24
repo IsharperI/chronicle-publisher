@@ -22,6 +22,8 @@ const HEX_COLOR_RE = /^#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
 const RGB_COLOR_RE =
   /^rgba?\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*(?:,\s*(?:0|1|0?\.\d+)\s*)?\)$/;
 const NAMED_COLOR_RE = /^[a-zA-Z]{3,20}$/;
+// Allow CSS variable references to our well-known theme tokens (e.g. var(--theme-primary)).
+const THEME_VAR_RE = /^var\(\s*--theme-[a-z0-9-]{1,32}\s*\)$/i;
 
 /**
  * Returns a CSS color value if it is in a safe form, otherwise the fallback.
@@ -31,9 +33,10 @@ const NAMED_COLOR_RE = /^[a-zA-Z]{3,20}$/;
 export function safeColor(value: unknown, fallback = '#000000'): string {
   if (typeof value !== 'string') return fallback;
   const v = value.trim();
-  if (v.length === 0 || v.length > 32) return fallback;
+  if (v.length === 0 || v.length > 64) return fallback;
   if (HEX_COLOR_RE.test(v)) return v;
   if (RGB_COLOR_RE.test(v)) return v;
+  if (THEME_VAR_RE.test(v)) return v;
   if (NAMED_COLOR_RE.test(v)) return v;
   return fallback;
 }

@@ -2,6 +2,7 @@ import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import type { CourseState } from '@/types/course';
 import { safeColor, safeFontFamily, safeNumber, safeImageSrc, safeEnum } from './sanitize';
+import { themeVarCssText, THEME_VAR_NAMES } from './themeVars';
 
 function buildManifest(): string {
   return `<?xml version="1.0" encoding="UTF-8"?>
@@ -59,6 +60,11 @@ function buildPlayerHtml(state: CourseState): string {
   };
   const aspect = `${dims.width}/${dims.height}`;
 
+  // Sanitize theme palette and emit as CSS variables on :root so any element
+  // using `var(--theme-*)` for its color updates if the palette changes.
+  const safeThemeColors = (state.courseSettings.themeColors ?? []).map((c) => safeColor(c, '#000000'));
+  const themeVarsCss = themeVarCssText(safeThemeColors);
+
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -66,6 +72,7 @@ function buildPlayerHtml(state: CourseState): string {
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>eLearning Course</title>
 <style>
+:root{${themeVarsCss}}
 *{margin:0;padding:0;box-sizing:border-box}
 body{background-color:${ps.backgroundColor};${ps.backgroundImage ? `background-image:url("${ps.backgroundImage.replace(/"/g, '%22')}");${ps.backgroundMode === 'stretch' ? 'background-size:100% 100%;background-repeat:no-repeat;' : ps.backgroundMode === 'fit' ? 'background-size:contain;background-repeat:no-repeat;background-position:center;' : 'background-repeat:repeat;background-size:auto;'}` : ''}display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;font-family:${ps.fontFamily};color:#fff}
 #stage-wrapper{position:relative;width:90vw;max-width:${Math.min(dims.width, 1280)}px;aspect-ratio:${aspect};background:#fff;overflow:hidden;border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,.4)}

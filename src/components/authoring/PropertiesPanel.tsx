@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Trash2, Upload, Plus, X } from 'lucide-react';
 import type { SlideElement, TextElement, ImageElement, ShapeElement, ShapeType, Trigger, AnimationIn, AnimationOut } from '@/types/course';
+import { themeVarRef, themeVarIndex, resolveColor } from '@/lib/themeVars';
 
 function NumField({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
   return (
@@ -41,15 +42,15 @@ function SecondsField({ label, valueMs, onChangeMs, min = 0, step = 0.1 }: { lab
   );
 }
 
-function ThemeSwatches({ themeColors, onPick }: { themeColors: string[]; onPick: (hex: string) => void }) {
+function ThemeSwatches({ themeColors, activeIndex, onPick }: { themeColors: string[]; activeIndex: number; onPick: (varRef: string) => void }) {
   return (
     <div className="flex gap-1">
       {themeColors.map((c, i) => (
         <button
           key={i}
           type="button"
-          onClick={() => onPick(c)}
-          className="w-5 h-5 rounded-sm border border-border hover:scale-110 transition-transform"
+          onClick={() => onPick(themeVarRef(i))}
+          className={`w-5 h-5 rounded-sm border hover:scale-110 transition-transform ${activeIndex === i ? 'border-primary ring-1 ring-primary' : 'border-border'}`}
           style={{ backgroundColor: c }}
           title={`Theme color ${i + 1}: ${c}`}
           aria-label={`Apply theme color ${c}`}
@@ -60,14 +61,18 @@ function ThemeSwatches({ themeColors, onPick }: { themeColors: string[]; onPick:
 }
 
 function ColorField({ label, value, onChange, themeColors }: { label: string; value: string; onChange: (v: string) => void; themeColors?: string[] }) {
+  const palette = themeColors ?? [];
+  const themeIdx = themeVarIndex(value);
+  const resolvedHex = resolveColor(value, palette, '#ffffff');
+  const pickerValue = (resolvedHex && resolvedHex !== 'transparent') ? resolvedHex : '#ffffff';
   return (
     <div className="space-y-1">
       <Label className="text-xs">{label}</Label>
       <div className="flex gap-2">
-        <input type="color" value={value === 'transparent' ? '#ffffff' : value} onChange={(e) => onChange(e.target.value)} className="h-8 w-8 rounded border cursor-pointer" />
+        <input type="color" value={pickerValue.startsWith('#') ? pickerValue : '#ffffff'} onChange={(e) => onChange(e.target.value)} className="h-8 w-8 rounded border cursor-pointer" />
         <Input value={value} onChange={(e) => onChange(e.target.value)} className="h-8 text-xs flex-1" />
       </div>
-      {themeColors && themeColors.length > 0 && <ThemeSwatches themeColors={themeColors} onPick={onChange} />}
+      {palette.length > 0 && <ThemeSwatches themeColors={palette} activeIndex={themeIdx} onPick={onChange} />}
     </div>
   );
 }

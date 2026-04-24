@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { BackgroundMode, NavigationMode, PlayerSettings } from '@/types/course';
 import { ImageIcon, Trash2 } from 'lucide-react';
+import { themeVarRef, themeVarIndex, resolveColor, themeVarStyle } from '@/lib/themeVars';
 
 const FONT_OPTIONS = [
   { value: 'system-ui, sans-serif', label: 'System Default' },
@@ -61,7 +62,7 @@ export function PlayerSettingsModal({ open, onOpenChange }: { open: boolean; onO
           <div className="flex-1 flex flex-col items-center justify-center rounded-lg border bg-muted/30 p-4 min-h-[400px]">
             <div
               className="w-full max-w-md aspect-video rounded-lg shadow-lg flex flex-col overflow-hidden"
-              style={{ ...bgStyle(), fontFamily: ps.fontFamily }}
+              style={{ ...themeVarStyle(state.courseSettings.themeColors), ...bgStyle(), fontFamily: ps.fontFamily }}
             >
               {/* Faux stage */}
               <div className="flex-1 flex items-center justify-center">
@@ -191,21 +192,25 @@ export function PlayerSettingsModal({ open, onOpenChange }: { open: boolean; onO
 }
 
 function ColorControl({ label, value, onChange, themeColors }: { label: string; value: string; onChange: (v: string) => void; themeColors?: string[] }) {
+  const palette = themeColors ?? [];
+  const themeIdx = themeVarIndex(value);
+  const resolvedHex = resolveColor(value, palette, '#ffffff');
+  const pickerValue = resolvedHex.startsWith('#') ? resolvedHex : '#ffffff';
   return (
     <div className="space-y-1.5">
       <Label className="text-xs">{label}</Label>
       <div className="flex gap-2">
-        <input type="color" value={value} onChange={(e) => onChange(e.target.value)} className="h-8 w-8 rounded border cursor-pointer" />
+        <input type="color" value={pickerValue} onChange={(e) => onChange(e.target.value)} className="h-8 w-8 rounded border cursor-pointer" />
         <Input value={value} onChange={(e) => onChange(e.target.value)} className="h-8 text-xs flex-1" />
       </div>
-      {themeColors && themeColors.length > 0 && (
+      {palette.length > 0 && (
         <div className="flex gap-1">
-          {themeColors.map((c, i) => (
+          {palette.map((c, i) => (
             <button
               key={i}
               type="button"
-              onClick={() => onChange(c)}
-              className="w-5 h-5 rounded-sm border border-border hover:scale-110 transition-transform"
+              onClick={() => onChange(themeVarRef(i))}
+              className={`w-5 h-5 rounded-sm border hover:scale-110 transition-transform ${themeIdx === i ? 'border-primary ring-1 ring-primary' : 'border-border'}`}
               style={{ backgroundColor: c }}
               title={c}
               aria-label={`Apply theme color ${c}`}
