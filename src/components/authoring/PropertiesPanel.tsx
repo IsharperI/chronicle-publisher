@@ -81,6 +81,7 @@ export function PropertiesPanel() {
     ? state.masterSlides[state.activeSlideIndex]
     : state.slides[state.activeSlideIndex];
   const activeElement = activeSlide?.elements.find((el) => el.id === state.activeElementId);
+  const themeColors = state.courseSettings.themeColors;
 
   const update = (updates: Partial<SlideElement>) => {
     if (!activeElement) return;
@@ -187,8 +188,8 @@ export function PropertiesPanel() {
                     </SelectContent>
                   </Select>
                 </div>
-                <ColorField label="Text Color" value={(activeElement as TextElement).textColor} onChange={(v) => update({ textColor: v } as Partial<TextElement>)} />
-                <ColorField label="Background" value={(activeElement as TextElement).backgroundColor} onChange={(v) => update({ backgroundColor: v } as Partial<TextElement>)} />
+               <ColorField label="Text Color" value={(activeElement as TextElement).textColor} onChange={(v) => update({ textColor: v } as Partial<TextElement>)} themeColors={themeColors} />
+               <ColorField label="Background" value={(activeElement as TextElement).backgroundColor} onChange={(v) => update({ backgroundColor: v } as Partial<TextElement>)} themeColors={themeColors} />
               </>
             )}
 
@@ -224,8 +225,8 @@ export function PropertiesPanel() {
                     </SelectContent>
                   </Select>
                 </div>
-                <ColorField label="Fill Color" value={(activeElement as ShapeElement).fillColor} onChange={(v) => update({ fillColor: v } as Partial<ShapeElement>)} />
-                <ColorField label="Border Color" value={(activeElement as ShapeElement).borderColor} onChange={(v) => update({ borderColor: v } as Partial<ShapeElement>)} />
+               <ColorField label="Fill Color" value={(activeElement as ShapeElement).fillColor} onChange={(v) => update({ fillColor: v } as Partial<ShapeElement>)} themeColors={themeColors} />
+               <ColorField label="Border Color" value={(activeElement as ShapeElement).borderColor} onChange={(v) => update({ borderColor: v } as Partial<ShapeElement>)} themeColors={themeColors} />
                 <NumField label="Border Width" value={(activeElement as ShapeElement).borderWidth} onChange={(v) => update({ borderWidth: v } as Partial<ShapeElement>)} />
               </>
             )}
