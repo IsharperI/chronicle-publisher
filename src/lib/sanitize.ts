@@ -22,6 +22,8 @@ const HEX_COLOR_RE = /^#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
 const RGB_COLOR_RE =
   /^rgba?\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*(?:,\s*(?:0|1|0?\.\d+)\s*)?\)$/;
 const NAMED_COLOR_RE = /^[a-zA-Z]{3,20}$/;
+// Allow CSS variable references to our well-known theme tokens (e.g. var(--theme-primary)).
+const THEME_VAR_RE = /^var\(\s*--theme-[a-z0-9-]{1,32}\s*\)$/i;
 
 /**
  * Returns a CSS color value if it is in a safe form, otherwise the fallback.
