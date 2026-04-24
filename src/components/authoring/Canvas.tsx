@@ -4,6 +4,7 @@ import { useCourse } from '@/context/CourseContext';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { SlideElement, TextElement, ShapeElement, AnimationIn, AnimationOut } from '@/types/course';
+import { themeVarStyle } from '@/lib/themeVars';
 
 function getAnimInClass(anim: AnimationIn): string {
   switch (anim) {
