@@ -171,7 +171,11 @@ export function Canvas() {
   const editElements = activeSlide?.elements ?? [];
 
   return (
-    <div ref={containerRef} className="flex-1 bg-muted/50 flex flex-col items-center justify-center overflow-hidden min-w-0">
+    <div
+      ref={containerRef}
+      className="flex-1 bg-muted/50 flex flex-col items-center justify-center overflow-hidden min-w-0"
+      style={themeVarStyle(state.courseSettings.themeColors)}
+    >
       <div
         style={{ width: CANVAS_W, height: CANVAS_H, transform: `scale(${scale})`, transformOrigin: 'center center' }}
         className="relative bg-background shadow-lg border rounded"
