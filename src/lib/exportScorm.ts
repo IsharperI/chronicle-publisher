@@ -2,6 +2,7 @@ import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import type { CourseState } from '@/types/course';
 import { safeColor, safeFontFamily, safeNumber, safeImageSrc, safeEnum } from './sanitize';
+import { themeVarCssText, THEME_VAR_NAMES } from './themeVars';
 
 function buildManifest(): string {
   return `<?xml version="1.0" encoding="UTF-8"?>
