@@ -60,6 +60,11 @@ function buildPlayerHtml(state: CourseState): string {
   };
   const aspect = `${dims.width}/${dims.height}`;
 
+  // Sanitize theme palette and emit as CSS variables on :root so any element
+  // using `var(--theme-*)` for its color updates if the palette changes.
+  const safeThemeColors = (state.courseSettings.themeColors ?? []).map((c) => safeColor(c, '#000000'));
+  const themeVarsCss = themeVarCssText(safeThemeColors);
+
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
