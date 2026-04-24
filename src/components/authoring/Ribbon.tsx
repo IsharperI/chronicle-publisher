@@ -8,7 +8,9 @@ import type { TextElement, ImageElement, ShapeElement } from '@/types/course';
 import { Separator } from '@/components/ui/separator';
 import { PlayerSettingsModal } from './PlayerSettingsModal';
 
-const TABS = ['Home', 'Insert', 'View'] as const;
+import { StorySizeControl, ThemeColorsControl } from './DesignControls';
+
+const TABS = ['Home', 'Insert', 'Design', 'View'] as const;
 type RibbonTab = typeof TABS[number];
 
 export function Ribbon() {
@@ -163,6 +165,18 @@ export function Ribbon() {
             <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageFile} />
             <RibbonButton icon={Square} label="Shape" onClick={addShape} />
           </RibbonGroup>
+        )}
+
+        {activeTab === 'Design' && (
+          <>
+            <RibbonGroup label="Story Size">
+              <StorySizeControl />
+            </RibbonGroup>
+            <Separator orientation="vertical" className="h-12 mx-2" />
+            <RibbonGroup label="Colors">
+              <ThemeColorsControl />
+            </RibbonGroup>
+          </>
         )}
 
         {activeTab === 'View' && (
