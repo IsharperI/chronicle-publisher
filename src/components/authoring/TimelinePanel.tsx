@@ -29,7 +29,7 @@ function getElementLabel(el: SlideElement): string {
   return el.shapeType;
 }
 
-function ColorField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+function ColorField({ label, value, onChange, themeColors }: { label: string; value: string; onChange: (v: string) => void; themeColors?: string[] }) {
   return (
     <div className="space-y-1">
       <Label className="text-xs">{label}</Label>
@@ -37,6 +37,21 @@ function ColorField({ label, value, onChange }: { label: string; value: string; 
         <input type="color" value={value === 'transparent' ? '#ffffff' : value} onChange={(e) => onChange(e.target.value)} className="h-8 w-8 rounded border cursor-pointer" />
         <Input value={value} onChange={(e) => onChange(e.target.value)} className="h-8 text-xs flex-1" />
       </div>
+      {themeColors && themeColors.length > 0 && (
+        <div className="flex gap-1">
+          {themeColors.map((c, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => onChange(c)}
+              className="w-5 h-5 rounded-sm border border-border hover:scale-110 transition-transform"
+              style={{ backgroundColor: c }}
+              title={c}
+              aria-label={`Apply theme color ${c}`}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
