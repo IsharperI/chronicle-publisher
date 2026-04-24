@@ -33,9 +33,10 @@ const THEME_VAR_RE = /^var\(\s*--theme-[a-z0-9-]{1,32}\s*\)$/i;
 export function safeColor(value: unknown, fallback = '#000000'): string {
   if (typeof value !== 'string') return fallback;
   const v = value.trim();
-  if (v.length === 0 || v.length > 32) return fallback;
+  if (v.length === 0 || v.length > 64) return fallback;
   if (HEX_COLOR_RE.test(v)) return v;
   if (RGB_COLOR_RE.test(v)) return v;
+  if (THEME_VAR_RE.test(v)) return v;
   if (NAMED_COLOR_RE.test(v)) return v;
   return fallback;
 }
