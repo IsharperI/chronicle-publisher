@@ -5,9 +5,6 @@ import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { SlideElement, TextElement, ShapeElement, AnimationIn, AnimationOut } from '@/types/course';
 
-const CANVAS_W = 1920;
-const CANVAS_H = 1080;
-
 function getAnimInClass(anim: AnimationIn): string {
   switch (anim) {
     case 'fade': return 'anim-fade-in';
@@ -135,13 +132,15 @@ export function Canvas() {
     return master?.elements ?? [];
   })();
 
+  const { width: CANVAS_W, height: CANVAS_H } = state.courseSettings.canvasDimensions;
+
   const updateScale = useCallback(() => {
     if (!containerRef.current) return;
     const { clientWidth, clientHeight } = containerRef.current;
     const pad = 40;
     const s = Math.min((clientWidth - pad) / CANVAS_W, (clientHeight - pad) / CANVAS_H);
     setScale(Math.min(s, 1));
-  }, []);
+  }, [CANVAS_W, CANVAS_H]);
 
   useEffect(() => {
     updateScale();
