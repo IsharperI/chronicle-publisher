@@ -42,7 +42,9 @@ type Action =
   | { type: 'SET_ACTIVE_MASTER_SLIDE'; index: number }
   | { type: 'UPDATE_PLAYER_SETTINGS'; updates: Partial<PlayerSettings> }
   | { type: 'UPDATE_COURSE_SETTINGS'; updates: Partial<CourseSettings> }
-  | { type: 'UPDATE_THEME_COLOR'; index: number; color: string };
+  | { type: 'UPDATE_THEME_COLOR'; index: number; color: string }
+  | { type: 'ADD_AUDIO'; audio: SlideAudio }
+  | { type: 'DELETE_AUDIO'; id: string };
 
 function getActiveSlides(state: CourseState): Slide[] {
   return state.viewMode === 'master' ? state.masterSlides : state.slides;
