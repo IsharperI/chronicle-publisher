@@ -415,6 +415,38 @@ export function Canvas() {
                 </Rnd>
               );
             })}
+
+        {/* Closed caption overlay (rendered inside the scaled stage so it
+            scales with the canvas). */}
+        {ccEnabled && activeCaption && (
+          <div
+            style={{
+              position: 'absolute',
+              left: '5%',
+              right: '5%',
+              bottom: '6%',
+              textAlign: 'center',
+              pointerEvents: 'none',
+              zIndex: 50,
+            }}
+          >
+            <span
+              style={{
+                display: 'inline-block',
+                background: 'rgba(0,0,0,0.75)',
+                color: '#fff',
+                padding: '8px 16px',
+                borderRadius: 6,
+                fontSize: Math.round(CANVAS_H * 0.035),
+                lineHeight: 1.3,
+                maxWidth: '90%',
+                whiteSpace: 'pre-wrap',
+              }}
+            >
+              {activeCaption}
+            </span>
+          </div>
+        )}
       </div>
 
       {isPreview && (
@@ -427,6 +459,15 @@ export function Canvas() {
           </span>
           <Button variant="outline" size="sm" onClick={() => dispatch({ type: 'PREVIEW_NEXT' })} disabled={state.activeSlideIndex === state.slides.length - 1}>
             Next<ChevronRight className="h-4 w-4 ml-1" />
+          </Button>
+          <Button
+            variant={ccEnabled ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setCcEnabled((v) => !v)}
+            title={ccEnabled ? 'Hide captions' : 'Show captions'}
+          >
+            {ccEnabled ? <Captions className="h-4 w-4 mr-1" /> : <CaptionsOff className="h-4 w-4 mr-1" />}
+            CC
           </Button>
         </div>
       )}
