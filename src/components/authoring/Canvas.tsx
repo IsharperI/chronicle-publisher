@@ -144,6 +144,7 @@ export function Canvas() {
   const [scale, setScale] = useState(0.5);
   const [editingId, setEditingId] = useState<string | null>(null);
   const audioRefs = useRef<Map<string, HTMLAudioElement>>(new Map());
+  const previewAccumRef = useRef(0);
 
   const isPreview = state.previewMode;
   const isMasterMode = state.viewMode === 'master';
