@@ -437,12 +437,17 @@ export function TimelinePanel() {
                   ))}
                   {(activeSlide?.audio ?? []).map((a) => {
                     const widthPx = Math.max(8, Math.min(slideDuration, a.duration * 1000) / slideDuration * trackWidth);
+                    const selected = state.activeAudioId === a.id;
                     return (
                       <div key={a.id} className="relative h-7 w-full border-t">
                         <div
-                          className="absolute top-0.5 h-6 rounded bg-amber-500/80 flex items-center text-[10px] text-white font-medium select-none overflow-hidden px-1.5"
+                          className={cn(
+                            'absolute top-0.5 h-6 rounded bg-amber-500/80 flex items-center text-[10px] text-white font-medium select-none overflow-hidden px-1.5 cursor-pointer',
+                            selected && 'ring-2 ring-primary ring-offset-1 ring-offset-background'
+                          )}
                           style={{ left: 0, width: widthPx }}
                           title={`${a.name} — ${a.duration.toFixed(1)}s`}
+                          onClick={(e) => { e.stopPropagation(); dispatch({ type: 'SET_ACTIVE_AUDIO', id: a.id }); }}
                         >
                           <Music className="h-3 w-3 mr-1 shrink-0" />
                           <span className="truncate">{a.name} · {a.duration.toFixed(1)}s</span>
