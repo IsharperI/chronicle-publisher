@@ -221,12 +221,19 @@ export function Ribbon() {
         <PlayerSettingsModal open={playerSettingsOpen} onOpenChange={setPlayerSettingsOpen} />
 
         {activeTab === 'Insert' && (
-          <RibbonGroup label="Elements">
-            <RibbonButton icon={Type} label="Text" onClick={addText} />
-            <RibbonButton icon={ImageIcon} label="Image" onClick={() => imageInputRef.current?.click()} />
-            <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageFile} />
-            <RibbonButton icon={Square} label="Shape" onClick={addShape} />
-          </RibbonGroup>
+          <>
+            <RibbonGroup label="Elements">
+              <RibbonButton icon={Type} label="Text" onClick={addText} />
+              <RibbonButton icon={ImageIcon} label="Image" onClick={() => imageInputRef.current?.click()} />
+              <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageFile} />
+              <RibbonButton icon={Square} label="Shape" onClick={addShape} />
+            </RibbonGroup>
+            <Separator orientation="vertical" className="h-12 mx-2" />
+            <RibbonGroup label="Media">
+              <RibbonButton icon={Music} label="Audio" onClick={() => audioInputRef.current?.click()} />
+              <input ref={audioInputRef} type="file" accept="audio/*,.mp3,.wav,.ogg,.m4a" className="hidden" onChange={handleAudioFile} />
+            </RibbonGroup>
+          </>
         )}
 
         {activeTab === 'Design' && (
