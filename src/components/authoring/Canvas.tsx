@@ -267,6 +267,18 @@ export function Canvas() {
 
   const editElements = activeSlide?.elements ?? [];
 
+  // Active caption text from any audio track on the current slide whose
+  // window contains the playhead (in seconds).
+  const activeCaption = useMemo(() => {
+    if (!ccEnabled) return '';
+    const tSec = state.playheadTime / 1000;
+    for (const track of audioTracks) {
+      const cap = track.captions?.find((c) => tSec >= c.startTime && tSec < (c.endTime || c.startTime + 2));
+      if (cap?.text) return cap.text;
+    }
+    return '';
+  }, [ccEnabled, state.playheadTime, audioTracks]);
+
   return (
     <div
       ref={containerRef}
