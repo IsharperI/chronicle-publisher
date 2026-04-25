@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useReducer, type Dispatch } from 'react';
-import type { CourseState, Slide, SlideElement, ViewMode, PlayerSettings, CourseSettings } from '@/types/course';
+import type { CourseState, Slide, SlideElement, ViewMode, PlayerSettings, CourseSettings, SlideAudio } from '@/types/course';
 import { defaultPlayerSettings, defaultCourseSettings } from '@/types/course';
 
 const createSlide = (): Slide => ({
