@@ -13,6 +13,7 @@ const initialState: CourseState = {
   masterSlides: [],
   activeSlideIndex: 0,
   activeElementId: null,
+  activeAudioId: null,
   previewMode: false,
   playheadTime: 0,
   isPlaying: false,
