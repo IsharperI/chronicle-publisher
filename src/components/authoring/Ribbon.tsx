@@ -1,10 +1,10 @@
 import { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Save, Upload, Play, X, Type, ImageIcon, Square, Eye, Package, Settings } from 'lucide-react';
+import { Save, Upload, Play, X, Type, ImageIcon, Square, Eye, Package, Settings, Music } from 'lucide-react';
 import { exportScorm } from '@/lib/exportScorm';
 import { useCourse } from '@/context/CourseContext';
 import { cn } from '@/lib/utils';
-import type { TextElement, ImageElement, ShapeElement } from '@/types/course';
+import type { TextElement, ImageElement, ShapeElement, SlideAudio } from '@/types/course';
 import { Separator } from '@/components/ui/separator';
 import { PlayerSettingsModal } from './PlayerSettingsModal';
 import { sanitizeSlides, sanitizePlayerSettings, sanitizeCourseSettings } from '@/lib/sanitize';
