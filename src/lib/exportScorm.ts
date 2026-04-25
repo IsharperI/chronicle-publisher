@@ -340,6 +340,49 @@ window.COURSE_DATA=${courseData.replace(/<\/script>/gi, '<\\/script>').replace(/
   prevBtn.onclick=function(){if(current>0)goTo(current-1)};
   nextBtn.onclick=function(){if(current<slides.length-1)goTo(current+1)};
   if(menuEl){menuEl.onchange=function(){var v=parseInt(menuEl.value,10);if(!isNaN(v)&&v>=0&&v<slides.length)goTo(v)}}
+
+  // ===== Closed captions =====
+  var ccOverlay=document.getElementById("cc-overlay");
+  var ccBtn=document.getElementById("cc");
+  var ccEnabled=true;
+  if(ccBtn){
+    ccBtn.onclick=function(){
+      ccEnabled=!ccEnabled;
+      ccBtn.setAttribute("aria-pressed",ccEnabled?"true":"false");
+      if(ccEnabled){ccBtn.classList.remove("off")}else{ccBtn.classList.add("off")}
+      if(!ccEnabled&&ccOverlay)ccOverlay.innerHTML="";
+    };
+  }
+  function tickCaptions(){
+    if(!ccOverlay){return}
+    if(!ccEnabled){ccOverlay.innerHTML="";requestAnimationFrame(tickCaptions);return}
+    var slide=slides[current];
+    var tracks=(slide&&slide.audio)||[];
+    var text="";
+    // Use the currentTime of the first audio track (most authoring tools have
+    // a single voiceover per slide). Fall back to scanning all tracks.
+    for(var i=0;i<activeAudio.length;i++){
+      var a=activeAudio[i];
+      var track=tracks[i];
+      if(!track||!track.captions)continue;
+      var t=a.currentTime||0;
+      for(var j=0;j<track.captions.length;j++){
+        var c=track.captions[j];
+        var endT=c.endTime||(c.startTime+2);
+        if(t>=c.startTime&&t<endT){text=c.text||"";break}
+      }
+      if(text)break;
+    }
+    if(text){
+      ccOverlay.innerHTML='<span></span>';
+      ccOverlay.firstChild.textContent=text;
+    } else {
+      ccOverlay.innerHTML="";
+    }
+    requestAnimationFrame(tickCaptions);
+  }
+  requestAnimationFrame(tickCaptions);
+
   render();
 })();
 </script>
