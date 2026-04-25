@@ -191,27 +191,59 @@ window.COURSE_DATA=${courseData.replace(/<\/script>/gi, '<\\/script>').replace(/
       d.appendChild(img);
     } else if(el.type==="shape"){
       var st=el.shapeType||"rectangle";
-      d.style.backgroundColor=el.fillColor||"#3b82f6";
-      d.style.border=(el.borderWidth||0)+"px solid "+(el.borderColor||"transparent");
-      if(st==="circle")d.style.borderRadius="50%";
+      var fillColor=el.fillColor||"#3b82f6";
+      var borderColor=el.borderColor||"transparent";
+      var borderWidth=el.borderWidth||0;
       if(st==="triangle"){
-        d.style.backgroundColor="transparent";
-        d.style.borderLeft=(el.width/2)+"px solid transparent";
-        d.style.borderRight=(el.width/2)+"px solid transparent";
-        d.style.borderBottom=el.height+"px solid "+(el.fillColor||"#3b82f6");
-        d.style.width="0";d.style.height="0";
+        // Use inline SVG so transparent fills/borders work cleanly.
+        var svgNS="http://www.w3.org/2000/svg";
+        var svg=document.createElementNS(svgNS,"svg");
+        svg.setAttribute("viewBox","0 0 100 100");
+        svg.setAttribute("preserveAspectRatio","none");
+        svg.style.width="100%";svg.style.height="100%";svg.style.display="block";
+        var poly=document.createElementNS(svgNS,"polygon");
+        poly.setAttribute("points","50,5 95,95 5,95");
+        poly.setAttribute("fill",fillColor);
+        poly.setAttribute("stroke",borderColor);
+        poly.setAttribute("stroke-width",String(borderWidth*2));
+        svg.appendChild(poly);
+        d.appendChild(svg);
+        if(el.hoverFillColor||el.hoverBorderColor){
+          d.addEventListener("mouseenter",function(){
+            if(el.hoverFillColor)poly.setAttribute("fill",el.hoverFillColor);
+            if(el.hoverBorderColor)poly.setAttribute("stroke",el.hoverBorderColor);
+            d.style.cursor="pointer";
+          });
+          d.addEventListener("mouseleave",function(){
+            poly.setAttribute("fill",fillColor);
+            poly.setAttribute("stroke",borderColor);
+          });
+        }
+      } else {
+        d.style.backgroundColor=fillColor;
+        d.style.border=borderWidth+"px solid "+borderColor;
+        if(st==="circle")d.style.borderRadius="50%";
+        if(el.hoverFillColor||el.hoverBorderColor){
+          d.addEventListener("mouseenter",function(){
+            if(el.hoverFillColor)d.style.backgroundColor=el.hoverFillColor;
+            if(el.hoverBorderColor)d.style.borderColor=el.hoverBorderColor;
+            d.style.cursor="pointer";
+          });
+          d.addEventListener("mouseleave",function(){
+            d.style.backgroundColor=fillColor;
+            d.style.borderColor=borderColor;
+          });
+        }
       }
-      if(el.hoverFillColor||el.hoverBorderColor){
-        var baseFill=el.fillColor||"#3b82f6",baseBorder=el.borderColor||"transparent";
-        d.addEventListener("mouseenter",function(){
-          if(st!=="triangle"){if(el.hoverFillColor)d.style.backgroundColor=el.hoverFillColor}
-          if(el.hoverBorderColor)d.style.borderColor=el.hoverBorderColor;
-          d.style.cursor="pointer";
-        });
-        d.addEventListener("mouseleave",function(){
-          if(st!=="triangle")d.style.backgroundColor=baseFill;
-          d.style.borderColor=baseBorder;
-        });
+      // Embedded shape text (centered via flexbox overlay).
+      if(el.text){
+        var txt=document.createElement("div");
+        txt.textContent=el.text;
+        txt.style.cssText="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;overflow:hidden;padding:4px;pointer-events:none;word-break:break-word;";
+        txt.style.color=el.textColor||"#000";
+        txt.style.fontSize=(el.fontSize||16)+"px";
+        d.style.position="absolute";
+        d.appendChild(txt);
       }
     }
 
