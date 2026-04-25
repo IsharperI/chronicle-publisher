@@ -77,6 +77,10 @@ function buildPlayerHtml(state: CourseState): string {
 body{background-color:${ps.backgroundColor};${ps.backgroundImage ? `background-image:url("${ps.backgroundImage.replace(/"/g, '%22')}");${ps.backgroundMode === 'stretch' ? 'background-size:100% 100%;background-repeat:no-repeat;' : ps.backgroundMode === 'fit' ? 'background-size:contain;background-repeat:no-repeat;background-position:center;' : 'background-repeat:repeat;background-size:auto;'}` : ''}display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;font-family:${ps.fontFamily};color:#fff}
 #stage-wrapper{position:relative;width:90vw;max-width:${Math.min(dims.width, 1280)}px;aspect-ratio:${aspect};background:#fff;overflow:hidden;border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,.4)}
 #stage{position:absolute;inset:0;width:${dims.width}px;height:${dims.height}px;transform-origin:top left}
+#cc-overlay{position:absolute;left:5%;right:5%;bottom:6%;text-align:center;pointer-events:none;z-index:50;font-family:${ps.fontFamily}}
+#cc-overlay span{display:inline-block;background:rgba(0,0,0,0.75);color:#fff;padding:8px 16px;border-radius:6px;font-size:clamp(12px,2.4vw,28px);line-height:1.3;max-width:90%;white-space:pre-wrap}
+#cc-overlay.hidden{display:none}
+#cc.off{opacity:.5}
 .el{position:absolute;transition:all .2s ease}
 .controls{margin-top:20px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;justify-content:center}
 .controls button{padding:8px 24px;border:none;border-radius:${ps.buttonBorderRadius}px;background:${ps.buttonColor};color:#fff;font-size:14px;cursor:pointer;font-weight:500;font-family:${ps.fontFamily}}
@@ -99,12 +103,13 @@ body{background-color:${ps.backgroundColor};${ps.backgroundImage ? `background-i
 </style>
 </head>
 <body>
-<div id="stage-wrapper"><div id="stage"></div></div>
+<div id="stage-wrapper"><div id="stage"></div><div id="cc-overlay" aria-live="polite"></div></div>
 <div class="controls">
   ${ps.showMenu ? '<select id="slideMenu"></select>' : ''}
   <button id="prev">&#9664; Prev</button>
   <span id="info"></span>
   <button id="next">Next &#9654;</button>
+  <button id="cc" aria-pressed="true" title="Toggle captions">CC</button>
 </div>
 <script>
 window.COURSE_DATA=${courseData.replace(/<\/script>/gi, '<\\/script>').replace(/<!--/g, '<\\!--')};
@@ -335,6 +340,49 @@ window.COURSE_DATA=${courseData.replace(/<\/script>/gi, '<\\/script>').replace(/
   prevBtn.onclick=function(){if(current>0)goTo(current-1)};
   nextBtn.onclick=function(){if(current<slides.length-1)goTo(current+1)};
   if(menuEl){menuEl.onchange=function(){var v=parseInt(menuEl.value,10);if(!isNaN(v)&&v>=0&&v<slides.length)goTo(v)}}
+
+  // ===== Closed captions =====
+  var ccOverlay=document.getElementById("cc-overlay");
+  var ccBtn=document.getElementById("cc");
+  var ccEnabled=true;
+  if(ccBtn){
+    ccBtn.onclick=function(){
+      ccEnabled=!ccEnabled;
+      ccBtn.setAttribute("aria-pressed",ccEnabled?"true":"false");
+      if(ccEnabled){ccBtn.classList.remove("off")}else{ccBtn.classList.add("off")}
+      if(!ccEnabled&&ccOverlay)ccOverlay.innerHTML="";
+    };
+  }
+  function tickCaptions(){
+    if(!ccOverlay){return}
+    if(!ccEnabled){ccOverlay.innerHTML="";requestAnimationFrame(tickCaptions);return}
+    var slide=slides[current];
+    var tracks=(slide&&slide.audio)||[];
+    var text="";
+    // Use the currentTime of the first audio track (most authoring tools have
+    // a single voiceover per slide). Fall back to scanning all tracks.
+    for(var i=0;i<activeAudio.length;i++){
+      var a=activeAudio[i];
+      var track=tracks[i];
+      if(!track||!track.captions)continue;
+      var t=a.currentTime||0;
+      for(var j=0;j<track.captions.length;j++){
+        var c=track.captions[j];
+        var endT=c.endTime||(c.startTime+2);
+        if(t>=c.startTime&&t<endT){text=c.text||"";break}
+      }
+      if(text)break;
+    }
+    if(text){
+      ccOverlay.innerHTML='<span></span>';
+      ccOverlay.firstChild.textContent=text;
+    } else {
+      ccOverlay.innerHTML="";
+    }
+    requestAnimationFrame(tickCaptions);
+  }
+  requestAnimationFrame(tickCaptions);
+
   render();
 })();
 </script>

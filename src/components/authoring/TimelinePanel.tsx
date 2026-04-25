@@ -389,20 +389,27 @@ export function TimelinePanel() {
                   <p className="text-xs text-muted-foreground text-center py-4">No elements</p>
                 )}
                 {(activeSlide?.audio ?? []).map((a) => (
-                  <div
+                  <button
                     key={a.id}
-                    className="w-full h-7 flex items-center gap-1.5 px-2 text-xs truncate border-t bg-muted/30"
+                    onClick={() => dispatch({ type: 'SET_ACTIVE_AUDIO', id: a.id })}
+                    className={cn(
+                      'w-full h-7 flex items-center gap-1.5 px-2 text-xs truncate border-t bg-muted/30 hover:bg-accent/50 transition-colors text-left',
+                      state.activeAudioId === a.id && 'bg-accent text-accent-foreground'
+                    )}
                   >
                     <Music className="h-3 w-3 text-amber-600 shrink-0" />
                     <span className="truncate flex-1">{a.name}</span>
-                    <button
-                      onClick={() => dispatch({ type: 'DELETE_AUDIO', id: a.id })}
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      onClick={(e) => { e.stopPropagation(); dispatch({ type: 'DELETE_AUDIO', id: a.id }); }}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); dispatch({ type: 'DELETE_AUDIO', id: a.id }); } }}
                       className="opacity-60 hover:opacity-100 shrink-0"
                       title="Remove audio"
                     >
                       <X className="h-3 w-3" />
-                    </button>
-                  </div>
+                    </span>
+                  </button>
                 ))}
               </div>
 
@@ -430,12 +437,17 @@ export function TimelinePanel() {
                   ))}
                   {(activeSlide?.audio ?? []).map((a) => {
                     const widthPx = Math.max(8, Math.min(slideDuration, a.duration * 1000) / slideDuration * trackWidth);
+                    const selected = state.activeAudioId === a.id;
                     return (
                       <div key={a.id} className="relative h-7 w-full border-t">
                         <div
-                          className="absolute top-0.5 h-6 rounded bg-amber-500/80 flex items-center text-[10px] text-white font-medium select-none overflow-hidden px-1.5"
+                          className={cn(
+                            'absolute top-0.5 h-6 rounded bg-amber-500/80 flex items-center text-[10px] text-white font-medium select-none overflow-hidden px-1.5 cursor-pointer',
+                            selected && 'ring-2 ring-primary ring-offset-1 ring-offset-background'
+                          )}
                           style={{ left: 0, width: widthPx }}
                           title={`${a.name} — ${a.duration.toFixed(1)}s`}
+                          onClick={(e) => { e.stopPropagation(); dispatch({ type: 'SET_ACTIVE_AUDIO', id: a.id }); }}
                         >
                           <Music className="h-3 w-3 mr-1 shrink-0" />
                           <span className="truncate">{a.name} · {a.duration.toFixed(1)}s</span>

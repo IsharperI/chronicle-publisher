@@ -13,6 +13,7 @@ const initialState: CourseState = {
   masterSlides: [],
   activeSlideIndex: 0,
   activeElementId: null,
+  activeAudioId: null,
   previewMode: false,
   playheadTime: 0,
   isPlaying: false,
@@ -44,7 +45,9 @@ type Action =
   | { type: 'UPDATE_COURSE_SETTINGS'; updates: Partial<CourseSettings> }
   | { type: 'UPDATE_THEME_COLOR'; index: number; color: string }
   | { type: 'ADD_AUDIO'; audio: SlideAudio }
-  | { type: 'DELETE_AUDIO'; id: string };
+  | { type: 'DELETE_AUDIO'; id: string }
+  | { type: 'UPDATE_AUDIO'; id: string; updates: Partial<SlideAudio> }
+  | { type: 'SET_ACTIVE_AUDIO'; id: string | null };
 
 function getActiveSlides(state: CourseState): Slide[] {
   return state.viewMode === 'master' ? state.masterSlides : state.slides;
@@ -72,14 +75,14 @@ function courseReducer(state: CourseState, action: Action): CourseState {
       return { ...state, ...updateActiveSlides(state, newSlides), activeSlideIndex: newIndex, activeElementId: null };
     }
     case 'SET_ACTIVE_SLIDE':
-      return { ...state, activeSlideIndex: action.index, activeElementId: null, playheadTime: 0, isPlaying: false };
+      return { ...state, activeSlideIndex: action.index, activeElementId: null, activeAudioId: null, playheadTime: 0, isPlaying: false };
     case 'ADD_ELEMENT': {
       const slides = getActiveSlides(state).map((slide, i) =>
         i === state.activeSlideIndex
           ? { ...slide, elements: [...slide.elements, action.element] }
           : slide
       );
-      return { ...state, ...updateActiveSlides(state, slides), activeElementId: action.element.id };
+      return { ...state, ...updateActiveSlides(state, slides), activeElementId: action.element.id, activeAudioId: null };
     }
     case 'UPDATE_ELEMENT': {
       const slides = getActiveSlides(state).map((slide, i) =>
@@ -103,7 +106,7 @@ function courseReducer(state: CourseState, action: Action): CourseState {
       return { ...state, ...updateActiveSlides(state, slides), activeElementId: state.activeElementId === action.id ? null : state.activeElementId };
     }
     case 'SET_ACTIVE_ELEMENT':
-      return { ...state, activeElementId: action.id };
+      return { ...state, activeElementId: action.id, activeAudioId: action.id ? null : state.activeAudioId };
     case 'LOAD_COURSE': {
       const backfillEl = (e: SlideElement): SlideElement => ({
         entranceDuration: 500,
@@ -174,7 +177,7 @@ function courseReducer(state: CourseState, action: Action): CourseState {
       return { ...state, masterSlides: newMasters, slides: updatedSlides, activeSlideIndex: newIndex, activeElementId: null };
     }
     case 'SET_ACTIVE_MASTER_SLIDE':
-      return { ...state, viewMode: 'master', activeSlideIndex: action.index, activeElementId: null, playheadTime: 0, isPlaying: false };
+      return { ...state, viewMode: 'master', activeSlideIndex: action.index, activeElementId: null, activeAudioId: null, playheadTime: 0, isPlaying: false };
     case 'UPDATE_PLAYER_SETTINGS':
       return { ...state, playerSettings: { ...state.playerSettings, ...action.updates } };
     case 'UPDATE_COURSE_SETTINGS':
@@ -198,8 +201,27 @@ function courseReducer(state: CourseState, action: Action): CourseState {
           ? { ...slide, audio: (slide.audio ?? []).filter((a) => a.id !== action.id) }
           : slide
       );
+      return {
+        ...state,
+        ...updateActiveSlides(state, slides),
+        activeAudioId: state.activeAudioId === action.id ? null : state.activeAudioId,
+      };
+    }
+    case 'UPDATE_AUDIO': {
+      const slides = getActiveSlides(state).map((slide, i) =>
+        i === state.activeSlideIndex
+          ? {
+              ...slide,
+              audio: (slide.audio ?? []).map((a) =>
+                a.id === action.id ? { ...a, ...action.updates } : a
+              ),
+            }
+          : slide
+      );
       return { ...state, ...updateActiveSlides(state, slides) };
     }
+    case 'SET_ACTIVE_AUDIO':
+      return { ...state, activeAudioId: action.id, activeElementId: action.id ? null : state.activeElementId };
     default:
       return state;
   }

@@ -1,8 +1,8 @@
-import { useRef, useEffect, useState, useCallback } from 'react';
+import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import { Rnd } from 'react-rnd';
 import { useCourse } from '@/context/CourseContext';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Captions, CaptionsOff } from 'lucide-react';
 import type { SlideElement, TextElement, ShapeElement, AnimationIn, AnimationOut } from '@/types/course';
 import { themeVarStyle } from '@/lib/themeVars';
 
@@ -145,6 +145,7 @@ export function Canvas() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const audioRefs = useRef<Map<string, HTMLAudioElement>>(new Map());
   const previewAccumRef = useRef(0);
+  const [ccEnabled, setCcEnabled] = useState(true);
 
   const isPreview = state.previewMode;
   const isMasterMode = state.viewMode === 'master';
@@ -265,6 +266,18 @@ export function Canvas() {
   };
 
   const editElements = activeSlide?.elements ?? [];
+
+  // Active caption text from any audio track on the current slide whose
+  // window contains the playhead (in seconds).
+  const activeCaption = useMemo(() => {
+    if (!ccEnabled) return '';
+    const tSec = state.playheadTime / 1000;
+    for (const track of audioTracks) {
+      const cap = track.captions?.find((c) => tSec >= c.startTime && tSec < (c.endTime || c.startTime + 2));
+      if (cap?.text) return cap.text;
+    }
+    return '';
+  }, [ccEnabled, state.playheadTime, audioTracks]);
 
   return (
     <div
@@ -402,6 +415,38 @@ export function Canvas() {
                 </Rnd>
               );
             })}
+
+        {/* Closed caption overlay (rendered inside the scaled stage so it
+            scales with the canvas). */}
+        {ccEnabled && activeCaption && (
+          <div
+            style={{
+              position: 'absolute',
+              left: '5%',
+              right: '5%',
+              bottom: '6%',
+              textAlign: 'center',
+              pointerEvents: 'none',
+              zIndex: 50,
+            }}
+          >
+            <span
+              style={{
+                display: 'inline-block',
+                background: 'rgba(0,0,0,0.75)',
+                color: '#fff',
+                padding: '8px 16px',
+                borderRadius: 6,
+                fontSize: Math.round(CANVAS_H * 0.035),
+                lineHeight: 1.3,
+                maxWidth: '90%',
+                whiteSpace: 'pre-wrap',
+              }}
+            >
+              {activeCaption}
+            </span>
+          </div>
+        )}
       </div>
 
       {isPreview && (
@@ -414,6 +459,15 @@ export function Canvas() {
           </span>
           <Button variant="outline" size="sm" onClick={() => dispatch({ type: 'PREVIEW_NEXT' })} disabled={state.activeSlideIndex === state.slides.length - 1}>
             Next<ChevronRight className="h-4 w-4 ml-1" />
+          </Button>
+          <Button
+            variant={ccEnabled ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setCcEnabled((v) => !v)}
+            title={ccEnabled ? 'Hide captions' : 'Show captions'}
+          >
+            {ccEnabled ? <Captions className="h-4 w-4 mr-1" /> : <CaptionsOff className="h-4 w-4 mr-1" />}
+            CC
           </Button>
         </div>
       )}

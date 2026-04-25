@@ -129,6 +129,7 @@ export interface CourseState {
   masterSlides: Slide[];
   activeSlideIndex: number;
   activeElementId: string | null;
+  activeAudioId: string | null;
   previewMode: boolean;
   playheadTime: number;
   isPlaying: boolean;

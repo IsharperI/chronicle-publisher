@@ -19,4 +19,10 @@ export default defineConfig(({ mode }) => ({
     },
     dedupe: ["react", "react-dom", "react/jsx-runtime", "react/jsx-dev-runtime", "@tanstack/react-query", "@tanstack/query-core"],
   },
+  optimizeDeps: {
+    // Transformers.js is large and dynamically imported only when the user
+    // clicks "Auto-Generate Captions". Excluding it keeps initial dev startup
+    // fast and avoids Vite trying to pre-bundle node-only deps.
+    exclude: ["@xenova/transformers"],
+  },
 }));
