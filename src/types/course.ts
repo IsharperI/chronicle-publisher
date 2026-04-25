@@ -59,11 +59,28 @@ export interface ShapeElement extends BaseElement {
 
 export type SlideElement = TextElement | ImageElement | ShapeElement;
 
+export interface Caption {
+  startTime: number;
+  endTime: number;
+  text: string;
+}
+
+export interface SlideAudio {
+  id: string;
+  name: string;
+  /** Base64 data URI (e.g. data:audio/mpeg;base64,...) */
+  src: string;
+  /** Duration in seconds */
+  duration: number;
+  captions: Caption[];
+}
+
 export interface Slide {
   id: string;
   elements: SlideElement[];
   duration: number;
   masterId?: string;
+  audio?: SlideAudio[];
 }
 
 export type NavigationMode = 'free' | 'restricted';
