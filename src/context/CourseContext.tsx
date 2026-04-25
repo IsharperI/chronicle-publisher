@@ -75,7 +75,7 @@ function courseReducer(state: CourseState, action: Action): CourseState {
       return { ...state, ...updateActiveSlides(state, newSlides), activeSlideIndex: newIndex, activeElementId: null };
     }
     case 'SET_ACTIVE_SLIDE':
-      return { ...state, activeSlideIndex: action.index, activeElementId: null, playheadTime: 0, isPlaying: false };
+      return { ...state, activeSlideIndex: action.index, activeElementId: null, activeAudioId: null, playheadTime: 0, isPlaying: false };
     case 'ADD_ELEMENT': {
       const slides = getActiveSlides(state).map((slide, i) =>
         i === state.activeSlideIndex
@@ -177,7 +177,7 @@ function courseReducer(state: CourseState, action: Action): CourseState {
       return { ...state, masterSlides: newMasters, slides: updatedSlides, activeSlideIndex: newIndex, activeElementId: null };
     }
     case 'SET_ACTIVE_MASTER_SLIDE':
-      return { ...state, viewMode: 'master', activeSlideIndex: action.index, activeElementId: null, playheadTime: 0, isPlaying: false };
+      return { ...state, viewMode: 'master', activeSlideIndex: action.index, activeElementId: null, activeAudioId: null, playheadTime: 0, isPlaying: false };
     case 'UPDATE_PLAYER_SETTINGS':
       return { ...state, playerSettings: { ...state.playerSettings, ...action.updates } };
     case 'UPDATE_COURSE_SETTINGS':
