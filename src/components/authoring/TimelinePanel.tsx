@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ChevronUp, ChevronDown, Type, ImageIcon, Square, Play, Pause } from 'lucide-react';
+import { ChevronUp, ChevronDown, Type, ImageIcon, Square, Play, Pause, Music, X } from 'lucide-react';
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import type { SlideElement, TextElement, ShapeElement } from '@/types/course';
