@@ -206,6 +206,29 @@ function sanitizeElement(raw: any): SlideElement | null {
   return null;
 }
 
+function sanitizeCaption(c: any) {
+  return {
+    startTime: safeNumber(c?.startTime, 0, 0, 86_400),
+    endTime: safeNumber(c?.endTime, 0, 0, 86_400),
+    text: safeString(c?.text, '', 1_000),
+  };
+}
+
+function sanitizeAudio(raw: any) {
+  if (!raw || typeof raw !== 'object') return null;
+  const src = safeAudioSrc(raw.src);
+  if (!src) return null;
+  return {
+    id: safeId(raw.id),
+    name: safeString(raw.name, 'audio', 200),
+    src,
+    duration: safeNumber(raw.duration, 0, 0, 86_400),
+    captions: Array.isArray(raw.captions)
+      ? raw.captions.slice(0, 500).map(sanitizeCaption)
+      : [],
+  };
+}
+
 function sanitizeSlide(raw: any): Slide {
   return {
     id: safeId(raw?.id),
@@ -215,6 +238,9 @@ function sanitizeSlide(raw: any): Slide {
       : undefined,
     elements: Array.isArray(raw?.elements)
       ? raw.elements.slice(0, 1000).map(sanitizeElement).filter((e): e is SlideElement => e !== null)
+      : [],
+    audio: Array.isArray(raw?.audio)
+      ? raw.audio.slice(0, 20).map(sanitizeAudio).filter((a: any): a is NonNullable<typeof a> => a !== null)
       : [],
   };
 }
