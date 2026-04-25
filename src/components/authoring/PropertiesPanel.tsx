@@ -6,9 +6,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Trash2, Upload, Plus, X } from 'lucide-react';
-import type { SlideElement, TextElement, ImageElement, ShapeElement, ShapeType, Trigger, AnimationIn, AnimationOut } from '@/types/course';
+import { Trash2, Upload, Plus, X, Sparkles, Loader2, Music } from 'lucide-react';
+import type { SlideElement, TextElement, ImageElement, ShapeElement, ShapeType, Trigger, AnimationIn, AnimationOut, SlideAudio, Caption } from '@/types/course';
 import { themeVarRef, themeVarIndex, resolveColor } from '@/lib/themeVars';
+import { transcribeAudio } from '@/lib/transcribe';
 
 function NumField({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
   return (
