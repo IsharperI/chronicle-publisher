@@ -201,8 +201,27 @@ function courseReducer(state: CourseState, action: Action): CourseState {
           ? { ...slide, audio: (slide.audio ?? []).filter((a) => a.id !== action.id) }
           : slide
       );
+      return {
+        ...state,
+        ...updateActiveSlides(state, slides),
+        activeAudioId: state.activeAudioId === action.id ? null : state.activeAudioId,
+      };
+    }
+    case 'UPDATE_AUDIO': {
+      const slides = getActiveSlides(state).map((slide, i) =>
+        i === state.activeSlideIndex
+          ? {
+              ...slide,
+              audio: (slide.audio ?? []).map((a) =>
+                a.id === action.id ? { ...a, ...action.updates } : a
+              ),
+            }
+          : slide
+      );
       return { ...state, ...updateActiveSlides(state, slides) };
     }
+    case 'SET_ACTIVE_AUDIO':
+      return { ...state, activeAudioId: action.id, activeElementId: action.id ? null : state.activeElementId };
     default:
       return state;
   }
