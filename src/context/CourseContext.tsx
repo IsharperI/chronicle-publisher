@@ -184,6 +184,22 @@ function courseReducer(state: CourseState, action: Action): CourseState {
       next[action.index] = action.color;
       return { ...state, courseSettings: { ...state.courseSettings, themeColors: next } };
     }
+    case 'ADD_AUDIO': {
+      const slides = getActiveSlides(state).map((slide, i) =>
+        i === state.activeSlideIndex
+          ? { ...slide, audio: [...(slide.audio ?? []), action.audio] }
+          : slide
+      );
+      return { ...state, ...updateActiveSlides(state, slides) };
+    }
+    case 'DELETE_AUDIO': {
+      const slides = getActiveSlides(state).map((slide, i) =>
+        i === state.activeSlideIndex
+          ? { ...slide, audio: (slide.audio ?? []).filter((a) => a.id !== action.id) }
+          : slide
+      );
+      return { ...state, ...updateActiveSlides(state, slides) };
+    }
     default:
       return state;
   }
