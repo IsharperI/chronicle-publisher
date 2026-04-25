@@ -51,6 +51,10 @@ export interface ShapeElement extends BaseElement {
   borderWidth: number;
   hoverFillColor?: string;
   hoverBorderColor?: string;
+  /** Optional embedded text rendered centered inside the shape. */
+  text?: string;
+  textColor?: string;
+  fontSize?: number;
 }
 
 export type SlideElement = TextElement | ImageElement | ShapeElement;
