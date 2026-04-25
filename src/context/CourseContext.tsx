@@ -82,7 +82,7 @@ function courseReducer(state: CourseState, action: Action): CourseState {
           ? { ...slide, elements: [...slide.elements, action.element] }
           : slide
       );
-      return { ...state, ...updateActiveSlides(state, slides), activeElementId: action.element.id };
+      return { ...state, ...updateActiveSlides(state, slides), activeElementId: action.element.id, activeAudioId: null };
     }
     case 'UPDATE_ELEMENT': {
       const slides = getActiveSlides(state).map((slide, i) =>
@@ -106,7 +106,7 @@ function courseReducer(state: CourseState, action: Action): CourseState {
       return { ...state, ...updateActiveSlides(state, slides), activeElementId: state.activeElementId === action.id ? null : state.activeElementId };
     }
     case 'SET_ACTIVE_ELEMENT':
-      return { ...state, activeElementId: action.id };
+      return { ...state, activeElementId: action.id, activeAudioId: action.id ? null : state.activeAudioId };
     case 'LOAD_COURSE': {
       const backfillEl = (e: SlideElement): SlideElement => ({
         entranceDuration: 500,
