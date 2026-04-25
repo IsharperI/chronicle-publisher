@@ -99,12 +99,13 @@ body{background-color:${ps.backgroundColor};${ps.backgroundImage ? `background-i
 </style>
 </head>
 <body>
-<div id="stage-wrapper"><div id="stage"></div></div>
+<div id="stage-wrapper"><div id="stage"></div><div id="cc-overlay" aria-live="polite"></div></div>
 <div class="controls">
   ${ps.showMenu ? '<select id="slideMenu"></select>' : ''}
   <button id="prev">&#9664; Prev</button>
   <span id="info"></span>
   <button id="next">Next &#9654;</button>
+  <button id="cc" aria-pressed="true" title="Toggle captions">CC</button>
 </div>
 <script>
 window.COURSE_DATA=${courseData.replace(/<\/script>/gi, '<\\/script>').replace(/<!--/g, '<\\!--')};
