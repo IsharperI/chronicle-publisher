@@ -240,6 +240,7 @@ export function PropertiesPanel() {
     ? state.masterSlides[state.activeSlideIndex]
     : state.slides[state.activeSlideIndex];
   const activeElement = activeSlide?.elements.find((el) => el.id === state.activeElementId);
+  const activeAudio = activeSlide?.audio?.find((a) => a.id === state.activeAudioId) ?? null;
   const themeColors = state.courseSettings.themeColors;
 
   const update = (updates: Partial<SlideElement>) => {
@@ -260,7 +261,9 @@ export function PropertiesPanel() {
 
   return (
     <div className="w-[280px] border-l bg-card flex flex-col shrink-0">
-      {!activeElement ? (
+      {activeAudio ? (
+        <AudioPanel audio={activeAudio} />
+      ) : !activeElement ? (
         /* Slide-level properties — no tabs needed */
         <>
           <div className="p-3 border-b">
