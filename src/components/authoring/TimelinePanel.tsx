@@ -388,6 +388,22 @@ export function TimelinePanel() {
                 {elements.length === 0 && (
                   <p className="text-xs text-muted-foreground text-center py-4">No elements</p>
                 )}
+                {(activeSlide?.audio ?? []).map((a) => (
+                  <div
+                    key={a.id}
+                    className="w-full h-7 flex items-center gap-1.5 px-2 text-xs truncate border-t bg-muted/30"
+                  >
+                    <Music className="h-3 w-3 text-amber-600 shrink-0" />
+                    <span className="truncate flex-1">{a.name}</span>
+                    <button
+                      onClick={() => dispatch({ type: 'DELETE_AUDIO', id: a.id })}
+                      className="opacity-60 hover:opacity-100 shrink-0"
+                      title="Remove audio"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
               </div>
 
               {/* Tracks */}
@@ -412,6 +428,21 @@ export function TimelinePanel() {
                   {elements.map((el) => (
                     <TimelineTrack key={el.id} element={el} timelineWidth={trackWidth} slideDuration={slideDuration} />
                   ))}
+                  {(activeSlide?.audio ?? []).map((a) => {
+                    const widthPx = Math.max(8, Math.min(slideDuration, a.duration * 1000) / slideDuration * trackWidth);
+                    return (
+                      <div key={a.id} className="relative h-7 w-full border-t">
+                        <div
+                          className="absolute top-0.5 h-6 rounded bg-amber-500/80 flex items-center text-[10px] text-white font-medium select-none overflow-hidden px-1.5"
+                          style={{ left: 0, width: widthPx }}
+                          title={`${a.name} — ${a.duration.toFixed(1)}s`}
+                        >
+                          <Music className="h-3 w-3 mr-1 shrink-0" />
+                          <span className="truncate">{a.name} · {a.duration.toFixed(1)}s</span>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
                 <div
                   className="absolute top-0 bottom-0 w-0.5 bg-destructive pointer-events-none z-20"
