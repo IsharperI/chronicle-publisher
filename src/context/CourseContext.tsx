@@ -45,7 +45,9 @@ type Action =
   | { type: 'UPDATE_COURSE_SETTINGS'; updates: Partial<CourseSettings> }
   | { type: 'UPDATE_THEME_COLOR'; index: number; color: string }
   | { type: 'ADD_AUDIO'; audio: SlideAudio }
-  | { type: 'DELETE_AUDIO'; id: string };
+  | { type: 'DELETE_AUDIO'; id: string }
+  | { type: 'UPDATE_AUDIO'; id: string; updates: Partial<SlideAudio> }
+  | { type: 'SET_ACTIVE_AUDIO'; id: string | null };
 
 function getActiveSlides(state: CourseState): Slide[] {
   return state.viewMode === 'master' ? state.masterSlides : state.slides;
