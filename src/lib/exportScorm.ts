@@ -283,6 +283,30 @@ window.COURSE_DATA=${courseData.replace(/<\/script>/gi, '<\\/script>').replace(/
     if(menuEl)menuEl.disabled=locked;
   }
 
+  // Active <audio> elements for the current slide, so we can pause on navigation.
+  var activeAudio=[];
+  function stopAudio(){
+    for(var i=0;i<activeAudio.length;i++){
+      try{activeAudio[i].pause();activeAudio[i].currentTime=0;activeAudio[i].src="";}catch(e){}
+    }
+    activeAudio=[];
+  }
+  function startAudio(slide){
+    stopAudio();
+    var tracks=(slide&&slide.audio)||[];
+    for(var i=0;i<tracks.length;i++){
+      var t=tracks[i];
+      if(!t||!t.src)continue;
+      var a=new Audio();
+      a.preload="auto";
+      a.src=t.src;
+      // Play in sync with slide timeline (slide begins => t=0).
+      var p=a.play();
+      if(p&&p.catch)p.catch(function(){});
+      activeAudio.push(a);
+    }
+  }
+
   function startRestrictionTimer(){
     unlocked=false;
     if(timer)clearTimeout(timer);
@@ -303,10 +327,11 @@ window.COURSE_DATA=${courseData.replace(/<\/script>/gi, '<\\/script>').replace(/
     prevBtn.disabled=current===0;
     buildMenu();
     startRestrictionTimer();
+    startAudio(slide);
     if(API){try{API.LMSSetValue("cmi.core.lesson_location",""+current)}catch(e){}}
   }
 
-  function goTo(idx){if(idx<0||idx>=slides.length||idx===current)return;applyExitAnimations(stage,function(){current=idx;render()})}
+  function goTo(idx){if(idx<0||idx>=slides.length||idx===current)return;stopAudio();applyExitAnimations(stage,function(){current=idx;render()})}
   prevBtn.onclick=function(){if(current>0)goTo(current-1)};
   nextBtn.onclick=function(){if(current<slides.length-1)goTo(current+1)};
   if(menuEl){menuEl.onchange=function(){var v=parseInt(menuEl.value,10);if(!isNaN(v)&&v>=0&&v<slides.length)goTo(v)}}
