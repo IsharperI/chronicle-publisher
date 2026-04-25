@@ -36,6 +36,24 @@ function getAnimationPhase(el: SlideElement, playheadTime: number): 'before' | '
   return 'visible';
 }
 
+function ShapeText({ se, isPreview }: { se: ShapeElement; isPreview?: boolean }) {
+  if (!se.text) return null;
+  return (
+    <div
+      style={{
+        position: 'absolute', inset: 0,
+        display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center',
+        overflow: 'hidden', padding: 4, pointerEvents: 'none',
+        color: se.textColor ?? '#000000',
+        fontSize: se.fontSize ?? 16,
+        wordBreak: 'break-word',
+      }}
+    >
+      {se.text}
+    </div>
+  );
+}
+
 function ElementRenderer({ element, isPreview }: { element: SlideElement; isPreview?: boolean }) {
   const [hovered, setHovered] = useState(false);
 
@@ -75,35 +93,42 @@ function ElementRenderer({ element, isPreview }: { element: SlideElement; isPrev
         <div
           {...hoverProps}
           style={{
+            position: 'relative',
             width: '100%', height: '100%', borderRadius: '50%', backgroundColor: fill,
             border: `${se.borderWidth}px solid ${border}`,
             transition: isPreview ? 'background-color 0.2s, border-color 0.2s' : undefined,
             cursor: isPreview && (se.hoverFillColor || se.hoverBorderColor) ? 'pointer' : undefined,
           }}
-        />
+        >
+          <ShapeText se={se} isPreview={isPreview} />
+        </div>
       );
     }
     if (se.shapeType === 'triangle') {
       return (
-        <svg viewBox="0 0 100 100" preserveAspectRatio="none" style={{ width: '100%', height: '100%' }}
-          {...hoverProps}
-        >
-          <polygon points="50,5 95,95 5,95" fill={fill} stroke={border} strokeWidth={se.borderWidth * 2}
-            style={{ transition: isPreview ? 'fill 0.2s, stroke 0.2s' : undefined }}
-          />
-        </svg>
+        <div {...hoverProps} style={{ position: 'relative', width: '100%', height: '100%' }}>
+          <svg viewBox="0 0 100 100" preserveAspectRatio="none" style={{ width: '100%', height: '100%', display: 'block' }}>
+            <polygon points="50,5 95,95 5,95" fill={fill} stroke={border} strokeWidth={se.borderWidth * 2}
+              style={{ transition: isPreview ? 'fill 0.2s, stroke 0.2s' : undefined }}
+            />
+          </svg>
+          <ShapeText se={se} isPreview={isPreview} />
+        </div>
       );
     }
     return (
       <div
         {...hoverProps}
         style={{
+          position: 'relative',
           width: '100%', height: '100%', backgroundColor: fill,
           border: `${se.borderWidth}px solid ${border}`, borderRadius: 4,
           transition: isPreview ? 'background-color 0.2s, border-color 0.2s' : undefined,
           cursor: isPreview && (se.hoverFillColor || se.hoverBorderColor) ? 'pointer' : undefined,
         }}
-      />
+      >
+        <ShapeText se={se} isPreview={isPreview} />
+      </div>
     );
   }
   return null;
