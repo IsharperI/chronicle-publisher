@@ -257,6 +257,30 @@ export function PropertiesPanel() {
                <ColorField label="Fill Color" value={(activeElement as ShapeElement).fillColor} onChange={(v) => update({ fillColor: v } as Partial<ShapeElement>)} themeColors={themeColors} />
                <ColorField label="Border Color" value={(activeElement as ShapeElement).borderColor} onChange={(v) => update({ borderColor: v } as Partial<ShapeElement>)} themeColors={themeColors} />
                 <NumField label="Border Width" value={(activeElement as ShapeElement).borderWidth} onChange={(v) => update({ borderWidth: v } as Partial<ShapeElement>)} />
+
+                <div className="space-y-2 pt-2 border-t">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Shape Text</p>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Text</Label>
+                    <Textarea
+                      value={(activeElement as ShapeElement).text ?? ''}
+                      onChange={(e) => update({ text: e.target.value } as Partial<ShapeElement>)}
+                      placeholder="Type text to display inside the shape (or double-click the shape on the canvas)"
+                      className="text-xs min-h-[60px]"
+                    />
+                  </div>
+                  <NumField
+                    label="Font Size"
+                    value={(activeElement as ShapeElement).fontSize ?? 16}
+                    onChange={(v) => update({ fontSize: Math.max(1, v) } as Partial<ShapeElement>)}
+                  />
+                  <ColorField
+                    label="Text Color"
+                    value={(activeElement as ShapeElement).textColor ?? '#000000'}
+                    onChange={(v) => update({ textColor: v } as Partial<ShapeElement>)}
+                    themeColors={themeColors}
+                  />
+                </div>
               </>
             )}
 
