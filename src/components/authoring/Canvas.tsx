@@ -1,8 +1,8 @@
-import { useRef, useEffect, useState, useCallback } from 'react';
+import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import { Rnd } from 'react-rnd';
 import { useCourse } from '@/context/CourseContext';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Captions, CaptionsOff } from 'lucide-react';
 import type { SlideElement, TextElement, ShapeElement, AnimationIn, AnimationOut } from '@/types/course';
 import { themeVarStyle } from '@/lib/themeVars';
 
@@ -145,6 +145,7 @@ export function Canvas() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const audioRefs = useRef<Map<string, HTMLAudioElement>>(new Map());
   const previewAccumRef = useRef(0);
+  const [ccEnabled, setCcEnabled] = useState(true);
 
   const isPreview = state.previewMode;
   const isMasterMode = state.viewMode === 'master';
