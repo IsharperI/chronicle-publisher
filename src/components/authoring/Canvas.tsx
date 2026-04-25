@@ -143,6 +143,8 @@ export function Canvas() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0.5);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const audioRefs = useRef<Map<string, HTMLAudioElement>>(new Map());
+  const previewAccumRef = useRef(0);
 
   const isPreview = state.previewMode;
   const isMasterMode = state.viewMode === 'master';
@@ -189,6 +191,74 @@ export function Canvas() {
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, [state.activeElementId, state.previewMode, dispatch]);
+
+  // Audio playback synced to playhead. Plays slide audio from t=0 in preview
+  // (and in author mode while the timeline is "playing"); pauses when paused.
+  const audioTracks = activeSlide?.audio ?? [];
+  const slideKey = activeSlide?.id ?? '';
+
+  // In preview mode, drive the playhead forward (TimelinePanel ticker is hidden).
+  useEffect(() => {
+    if (!isPreview) return;
+    let raf = 0;
+    let last = performance.now();
+    const slideDur = activeSlide?.duration ?? 5000;
+    dispatch({ type: 'SET_PLAYHEAD', time: 0 });
+    dispatch({ type: 'SET_PLAYING', playing: true });
+    previewAccumRef.current = 0;
+    const tick = (now: number) => {
+      const dt = now - last;
+      last = now;
+      previewAccumRef.current += dt;
+      const next = Math.min(slideDur, previewAccumRef.current);
+      dispatch({ type: 'SET_PLAYHEAD', time: next });
+      if (next >= slideDur) {
+        dispatch({ type: 'SET_PLAYING', playing: false });
+        cancelAnimationFrame(raf);
+        return;
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [isPreview, slideKey, activeSlide?.duration, dispatch]);
+
+  // Reset & cleanup audio elements when slide changes or preview toggles.
+  useEffect(() => {
+    const map = audioRefs.current;
+    return () => {
+      map.forEach((a) => { try { a.pause(); a.currentTime = 0; } catch { /* noop */ } });
+      map.clear();
+    };
+  }, [slideKey, isPreview]);
+
+  // Drive playback based on isPlaying / playheadTime.
+  useEffect(() => {
+    const map = audioRefs.current;
+    audioTracks.forEach((track) => {
+      let el = map.get(track.id);
+      if (!el) {
+        el = new Audio(track.src);
+        el.preload = 'auto';
+        map.set(track.id, el);
+      }
+      const targetSec = state.playheadTime / 1000;
+      // Resync if drift > 250ms
+      if (Math.abs(el.currentTime - targetSec) > 0.25) {
+        try { el.currentTime = Math.max(0, targetSec); } catch { /* noop */ }
+      }
+      if (state.isPlaying && targetSec < (track.duration || Infinity)) {
+        if (el.paused) { el.play().catch(() => { /* autoplay blocked */ }); }
+      } else {
+        if (!el.paused) el.pause();
+      }
+    });
+    // Pause/cleanup any audio elements no longer in the track list
+    const liveIds = new Set(audioTracks.map((t) => t.id));
+    map.forEach((el, id) => {
+      if (!liveIds.has(id)) { try { el.pause(); } catch { /* noop */ } map.delete(id); }
+    });
+  }, [audioTracks, state.isPlaying, state.playheadTime]);
 
   const handleCanvasClick = (e: React.MouseEvent) => {
     if (!isPreview && e.target === e.currentTarget) dispatch({ type: 'SET_ACTIVE_ELEMENT', id: null });

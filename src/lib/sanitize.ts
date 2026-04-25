@@ -92,6 +92,20 @@ export function safeImageSrc(value: unknown): string | null {
   return null;
 }
 
+/**
+ * Validate audio source. Accepts http(s) URLs and data: URIs for common audio
+ * formats (mp3/wav/ogg/m4a/aac/webm). Allows much larger payloads than image
+ * to accommodate voiceover tracks. Returns null if invalid.
+ */
+export function safeAudioSrc(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const v = value.trim();
+  if (v.length === 0 || v.length > 100_000_000) return null;
+  if (/^https?:\/\//i.test(v) && !/["'<>\\]/.test(v)) return v;
+  if (/^data:audio\/(mpeg|mp3|wav|wave|x-wav|ogg|webm|mp4|aac|x-m4a);base64,[A-Za-z0-9+/=]+$/i.test(v)) return v;
+  return null;
+}
+
 import type {
   Slide,
   SlideElement,
@@ -192,6 +206,29 @@ function sanitizeElement(raw: any): SlideElement | null {
   return null;
 }
 
+function sanitizeCaption(c: any) {
+  return {
+    startTime: safeNumber(c?.startTime, 0, 0, 86_400),
+    endTime: safeNumber(c?.endTime, 0, 0, 86_400),
+    text: safeString(c?.text, '', 1_000),
+  };
+}
+
+function sanitizeAudio(raw: any) {
+  if (!raw || typeof raw !== 'object') return null;
+  const src = safeAudioSrc(raw.src);
+  if (!src) return null;
+  return {
+    id: safeId(raw.id),
+    name: safeString(raw.name, 'audio', 200),
+    src,
+    duration: safeNumber(raw.duration, 0, 0, 86_400),
+    captions: Array.isArray(raw.captions)
+      ? raw.captions.slice(0, 500).map(sanitizeCaption)
+      : [],
+  };
+}
+
 function sanitizeSlide(raw: any): Slide {
   return {
     id: safeId(raw?.id),
@@ -201,6 +238,9 @@ function sanitizeSlide(raw: any): Slide {
       : undefined,
     elements: Array.isArray(raw?.elements)
       ? raw.elements.slice(0, 1000).map(sanitizeElement).filter((e): e is SlideElement => e !== null)
+      : [],
+    audio: Array.isArray(raw?.audio)
+      ? raw.audio.slice(0, 20).map(sanitizeAudio).filter((a: any): a is NonNullable<typeof a> => a !== null)
       : [],
   };
 }

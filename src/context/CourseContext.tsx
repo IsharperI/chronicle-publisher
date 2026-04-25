@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useReducer, type Dispatch } from 'react';
-import type { CourseState, Slide, SlideElement, ViewMode, PlayerSettings, CourseSettings } from '@/types/course';
+import type { CourseState, Slide, SlideElement, ViewMode, PlayerSettings, CourseSettings, SlideAudio } from '@/types/course';
 import { defaultPlayerSettings, defaultCourseSettings } from '@/types/course';
 
 const createSlide = (): Slide => ({
@@ -42,7 +42,9 @@ type Action =
   | { type: 'SET_ACTIVE_MASTER_SLIDE'; index: number }
   | { type: 'UPDATE_PLAYER_SETTINGS'; updates: Partial<PlayerSettings> }
   | { type: 'UPDATE_COURSE_SETTINGS'; updates: Partial<CourseSettings> }
-  | { type: 'UPDATE_THEME_COLOR'; index: number; color: string };
+  | { type: 'UPDATE_THEME_COLOR'; index: number; color: string }
+  | { type: 'ADD_AUDIO'; audio: SlideAudio }
+  | { type: 'DELETE_AUDIO'; id: string };
 
 function getActiveSlides(state: CourseState): Slide[] {
   return state.viewMode === 'master' ? state.masterSlides : state.slides;
@@ -181,6 +183,22 @@ function courseReducer(state: CourseState, action: Action): CourseState {
       const next = [...state.courseSettings.themeColors];
       next[action.index] = action.color;
       return { ...state, courseSettings: { ...state.courseSettings, themeColors: next } };
+    }
+    case 'ADD_AUDIO': {
+      const slides = getActiveSlides(state).map((slide, i) =>
+        i === state.activeSlideIndex
+          ? { ...slide, audio: [...(slide.audio ?? []), action.audio] }
+          : slide
+      );
+      return { ...state, ...updateActiveSlides(state, slides) };
+    }
+    case 'DELETE_AUDIO': {
+      const slides = getActiveSlides(state).map((slide, i) =>
+        i === state.activeSlideIndex
+          ? { ...slide, audio: (slide.audio ?? []).filter((a) => a.id !== action.id) }
+          : slide
+      );
+      return { ...state, ...updateActiveSlides(state, slides) };
     }
     default:
       return state;

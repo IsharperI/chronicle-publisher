@@ -1,10 +1,10 @@
 import { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Save, Upload, Play, X, Type, ImageIcon, Square, Eye, Package, Settings } from 'lucide-react';
+import { Save, Upload, Play, X, Type, ImageIcon, Square, Eye, Package, Settings, Music } from 'lucide-react';
 import { exportScorm } from '@/lib/exportScorm';
 import { useCourse } from '@/context/CourseContext';
 import { cn } from '@/lib/utils';
-import type { TextElement, ImageElement, ShapeElement } from '@/types/course';
+import type { TextElement, ImageElement, ShapeElement, SlideAudio } from '@/types/course';
 import { Separator } from '@/components/ui/separator';
 import { PlayerSettingsModal } from './PlayerSettingsModal';
 import { sanitizeSlides, sanitizePlayerSettings, sanitizeCourseSettings } from '@/lib/sanitize';
@@ -20,6 +20,7 @@ export function Ribbon() {
   const [playerSettingsOpen, setPlayerSettingsOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
+  const audioInputRef = useRef<HTMLInputElement>(null);
 
   const saveProject = () => {
     const json = JSON.stringify({ slides: state.slides, masterSlides: state.masterSlides, playerSettings: state.playerSettings, courseSettings: state.courseSettings }, null, 2);
@@ -115,6 +116,46 @@ export function Ribbon() {
     dispatch({ type: 'ADD_ELEMENT', element: el });
   };
 
+  const handleAudioFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 50 * 1024 * 1024) {
+      console.error('Audio file too large (max 50MB)');
+      e.target.value = '';
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const base64 = ev.target?.result as string;
+      // Probe duration via a transient Audio element.
+      const probe = new Audio();
+      probe.preload = 'metadata';
+      probe.onloadedmetadata = () => {
+        const audio: SlideAudio = {
+          id: crypto.randomUUID(),
+          name: file.name,
+          src: base64,
+          duration: Number.isFinite(probe.duration) ? probe.duration : 0,
+          captions: [],
+        };
+        dispatch({ type: 'ADD_AUDIO', audio });
+      };
+      probe.onerror = () => {
+        const audio: SlideAudio = {
+          id: crypto.randomUUID(),
+          name: file.name,
+          src: base64,
+          duration: 0,
+          captions: [],
+        };
+        dispatch({ type: 'ADD_AUDIO', audio });
+      };
+      probe.src = base64;
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
   if (state.previewMode) {
     return (
       <div className="h-12 border-b bg-card flex items-center px-4 shrink-0">
@@ -180,12 +221,19 @@ export function Ribbon() {
         <PlayerSettingsModal open={playerSettingsOpen} onOpenChange={setPlayerSettingsOpen} />
 
         {activeTab === 'Insert' && (
-          <RibbonGroup label="Elements">
-            <RibbonButton icon={Type} label="Text" onClick={addText} />
-            <RibbonButton icon={ImageIcon} label="Image" onClick={() => imageInputRef.current?.click()} />
-            <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageFile} />
-            <RibbonButton icon={Square} label="Shape" onClick={addShape} />
-          </RibbonGroup>
+          <>
+            <RibbonGroup label="Elements">
+              <RibbonButton icon={Type} label="Text" onClick={addText} />
+              <RibbonButton icon={ImageIcon} label="Image" onClick={() => imageInputRef.current?.click()} />
+              <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageFile} />
+              <RibbonButton icon={Square} label="Shape" onClick={addShape} />
+            </RibbonGroup>
+            <Separator orientation="vertical" className="h-12 mx-2" />
+            <RibbonGroup label="Media">
+              <RibbonButton icon={Music} label="Audio" onClick={() => audioInputRef.current?.click()} />
+              <input ref={audioInputRef} type="file" accept="audio/*,.mp3,.wav,.ogg,.m4a" className="hidden" onChange={handleAudioFile} />
+            </RibbonGroup>
+          </>
         )}
 
         {activeTab === 'Design' && (
