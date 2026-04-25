@@ -92,6 +92,20 @@ export function safeImageSrc(value: unknown): string | null {
   return null;
 }
 
+/**
+ * Validate audio source. Accepts http(s) URLs and data: URIs for common audio
+ * formats (mp3/wav/ogg/m4a/aac/webm). Allows much larger payloads than image
+ * to accommodate voiceover tracks. Returns null if invalid.
+ */
+export function safeAudioSrc(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const v = value.trim();
+  if (v.length === 0 || v.length > 100_000_000) return null;
+  if (/^https?:\/\//i.test(v) && !/["'<>\\]/.test(v)) return v;
+  if (/^data:audio\/(mpeg|mp3|wav|wave|x-wav|ogg|webm|mp4|aac|x-m4a);base64,[A-Za-z0-9+/=]+$/i.test(v)) return v;
+  return null;
+}
+
 import type {
   Slide,
   SlideElement,
