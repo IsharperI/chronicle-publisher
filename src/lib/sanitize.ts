@@ -183,6 +183,9 @@ function sanitizeElement(raw: any): SlideElement | null {
       borderWidth: safeNumber(raw.borderWidth, 0, 0, 1000),
       hoverFillColor: raw.hoverFillColor != null ? safeColor(raw.hoverFillColor, '#3b82f6') : undefined,
       hoverBorderColor: raw.hoverBorderColor != null ? safeColor(raw.hoverBorderColor, '#1e40af') : undefined,
+      text: raw.text != null ? safeString(raw.text, '', 5_000) : undefined,
+      textColor: raw.textColor != null ? safeColor(raw.textColor, '#000000') : undefined,
+      fontSize: raw.fontSize != null ? safeNumber(raw.fontSize, 16, 1, 1000) : undefined,
     };
     return el;
   }

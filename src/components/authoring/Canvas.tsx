@@ -36,6 +36,24 @@ function getAnimationPhase(el: SlideElement, playheadTime: number): 'before' | '
   return 'visible';
 }
 
+function ShapeText({ se, isPreview }: { se: ShapeElement; isPreview?: boolean }) {
+  if (!se.text) return null;
+  return (
+    <div
+      style={{
+        position: 'absolute', inset: 0,
+        display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center',
+        overflow: 'hidden', padding: 4, pointerEvents: 'none',
+        color: se.textColor ?? '#000000',
+        fontSize: se.fontSize ?? 16,
+        wordBreak: 'break-word',
+      }}
+    >
+      {se.text}
+    </div>
+  );
+}
+
 function ElementRenderer({ element, isPreview }: { element: SlideElement; isPreview?: boolean }) {
   const [hovered, setHovered] = useState(false);
 
@@ -75,35 +93,42 @@ function ElementRenderer({ element, isPreview }: { element: SlideElement; isPrev
         <div
           {...hoverProps}
           style={{
+            position: 'relative',
             width: '100%', height: '100%', borderRadius: '50%', backgroundColor: fill,
             border: `${se.borderWidth}px solid ${border}`,
             transition: isPreview ? 'background-color 0.2s, border-color 0.2s' : undefined,
             cursor: isPreview && (se.hoverFillColor || se.hoverBorderColor) ? 'pointer' : undefined,
           }}
-        />
+        >
+          <ShapeText se={se} isPreview={isPreview} />
+        </div>
       );
     }
     if (se.shapeType === 'triangle') {
       return (
-        <svg viewBox="0 0 100 100" preserveAspectRatio="none" style={{ width: '100%', height: '100%' }}
-          {...hoverProps}
-        >
-          <polygon points="50,5 95,95 5,95" fill={fill} stroke={border} strokeWidth={se.borderWidth * 2}
-            style={{ transition: isPreview ? 'fill 0.2s, stroke 0.2s' : undefined }}
-          />
-        </svg>
+        <div {...hoverProps} style={{ position: 'relative', width: '100%', height: '100%' }}>
+          <svg viewBox="0 0 100 100" preserveAspectRatio="none" style={{ width: '100%', height: '100%', display: 'block' }}>
+            <polygon points="50,5 95,95 5,95" fill={fill} stroke={border} strokeWidth={se.borderWidth * 2}
+              style={{ transition: isPreview ? 'fill 0.2s, stroke 0.2s' : undefined }}
+            />
+          </svg>
+          <ShapeText se={se} isPreview={isPreview} />
+        </div>
       );
     }
     return (
       <div
         {...hoverProps}
         style={{
+          position: 'relative',
           width: '100%', height: '100%', backgroundColor: fill,
           border: `${se.borderWidth}px solid ${border}`, borderRadius: 4,
           transition: isPreview ? 'background-color 0.2s, border-color 0.2s' : undefined,
           cursor: isPreview && (se.hoverFillColor || se.hoverBorderColor) ? 'pointer' : undefined,
         }}
-      />
+      >
+        <ShapeText se={se} isPreview={isPreview} />
+      </div>
     );
   }
   return null;
@@ -117,6 +142,7 @@ export function Canvas() {
   const { state, dispatch } = useCourse();
   const containerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0.5);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const isPreview = state.previewMode;
   const isMasterMode = state.viewMode === 'master';
@@ -232,6 +258,7 @@ export function Canvas() {
             })
           : editElements.map((el) => {
               const visible = isElementVisible(el, state.playheadTime);
+              const isEditing = editingId === el.id && el.type === 'shape';
               return (
                 <Rnd
                   key={el.id}
@@ -246,8 +273,10 @@ export function Canvas() {
                   }}
                   scale={scale}
                   bounds="parent"
+                  disableDragging={isEditing}
                   onMouseDown={(e: MouseEvent) => { e.stopPropagation(); dispatch({ type: 'SET_ACTIVE_ELEMENT', id: el.id }); }}
-                  enableResizing={state.activeElementId === el.id}
+                  onDoubleClick={() => { if (el.type === 'shape') setEditingId(el.id); }}
+                  enableResizing={state.activeElementId === el.id && !isEditing}
                   resizeHandleStyles={{
                     top: handleStyle, bottom: handleStyle, left: handleStyle, right: handleStyle,
                     topLeft: cornerStyle, topRight: cornerStyle, bottomLeft: cornerStyle, bottomRight: cornerStyle,
@@ -259,6 +288,47 @@ export function Canvas() {
                   }}
                 >
                   <ElementRenderer element={el} />
+                  {isEditing && (
+                    <div
+                      contentEditable
+                      suppressContentEditableWarning
+                      autoFocus
+                      ref={(node) => {
+                        if (node && document.activeElement !== node) {
+                          node.focus();
+                          // place caret at end
+                          const range = document.createRange();
+                          range.selectNodeContents(node);
+                          range.collapse(false);
+                          const sel = window.getSelection();
+                          sel?.removeAllRanges();
+                          sel?.addRange(range);
+                        }
+                      }}
+                      onMouseDown={(e) => e.stopPropagation()}
+                      onBlur={(e) => {
+                        const text = e.currentTarget.textContent ?? '';
+                        dispatch({ type: 'UPDATE_ELEMENT', id: el.id, updates: { text } as Partial<ShapeElement> });
+                        setEditingId(null);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Escape') { e.currentTarget.blur(); }
+                      }}
+                      style={{
+                        position: 'absolute', inset: 0, zIndex: 20,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center',
+                        overflow: 'hidden', padding: 4,
+                        color: (el as ShapeElement).textColor ?? '#000000',
+                        fontSize: (el as ShapeElement).fontSize ?? 16,
+                        outline: '2px dashed hsl(var(--primary))',
+                        background: 'transparent',
+                        cursor: 'text',
+                        wordBreak: 'break-word',
+                      }}
+                    >
+                      {(el as ShapeElement).text ?? ''}
+                    </div>
+                  )}
                 </Rnd>
               );
             })}

@@ -48,6 +48,7 @@ export function Toolbox() {
       id: crypto.randomUUID(), type: 'shape',
       x: 760, y: 390, width: 400, height: 300,
       shapeType: 'rectangle', fillColor: '#3b82f6', borderColor: '#1e40af', borderWidth: 2,
+      text: '', textColor: '#ffffff', fontSize: 16,
       startTime: 0, duration: 5000, triggers: [],
       animationIn: 'none', animationOut: 'none',
       entranceDuration: 500, exitDuration: 500,
