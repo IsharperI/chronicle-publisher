@@ -116,6 +116,46 @@ export function Ribbon() {
     dispatch({ type: 'ADD_ELEMENT', element: el });
   };
 
+  const handleAudioFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 50 * 1024 * 1024) {
+      console.error('Audio file too large (max 50MB)');
+      e.target.value = '';
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const base64 = ev.target?.result as string;
+      // Probe duration via a transient Audio element.
+      const probe = new Audio();
+      probe.preload = 'metadata';
+      probe.onloadedmetadata = () => {
+        const audio: SlideAudio = {
+          id: crypto.randomUUID(),
+          name: file.name,
+          src: base64,
+          duration: Number.isFinite(probe.duration) ? probe.duration : 0,
+          captions: [],
+        };
+        dispatch({ type: 'ADD_AUDIO', audio });
+      };
+      probe.onerror = () => {
+        const audio: SlideAudio = {
+          id: crypto.randomUUID(),
+          name: file.name,
+          src: base64,
+          duration: 0,
+          captions: [],
+        };
+        dispatch({ type: 'ADD_AUDIO', audio });
+      };
+      probe.src = base64;
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
   if (state.previewMode) {
     return (
       <div className="h-12 border-b bg-card flex items-center px-4 shrink-0">
