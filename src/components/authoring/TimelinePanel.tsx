@@ -389,20 +389,27 @@ export function TimelinePanel() {
                   <p className="text-xs text-muted-foreground text-center py-4">No elements</p>
                 )}
                 {(activeSlide?.audio ?? []).map((a) => (
-                  <div
+                  <button
                     key={a.id}
-                    className="w-full h-7 flex items-center gap-1.5 px-2 text-xs truncate border-t bg-muted/30"
+                    onClick={() => dispatch({ type: 'SET_ACTIVE_AUDIO', id: a.id })}
+                    className={cn(
+                      'w-full h-7 flex items-center gap-1.5 px-2 text-xs truncate border-t bg-muted/30 hover:bg-accent/50 transition-colors text-left',
+                      state.activeAudioId === a.id && 'bg-accent text-accent-foreground'
+                    )}
                   >
                     <Music className="h-3 w-3 text-amber-600 shrink-0" />
                     <span className="truncate flex-1">{a.name}</span>
-                    <button
-                      onClick={() => dispatch({ type: 'DELETE_AUDIO', id: a.id })}
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      onClick={(e) => { e.stopPropagation(); dispatch({ type: 'DELETE_AUDIO', id: a.id }); }}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); dispatch({ type: 'DELETE_AUDIO', id: a.id }); } }}
                       className="opacity-60 hover:opacity-100 shrink-0"
                       title="Remove audio"
                     >
                       <X className="h-3 w-3" />
-                    </button>
-                  </div>
+                    </span>
+                  </button>
                 ))}
               </div>
 
