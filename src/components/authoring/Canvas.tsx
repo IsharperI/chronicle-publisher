@@ -142,6 +142,7 @@ export function Canvas() {
   const { state, dispatch } = useCourse();
   const containerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0.5);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const isPreview = state.previewMode;
   const isMasterMode = state.viewMode === 'master';
