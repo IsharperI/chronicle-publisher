@@ -60,9 +60,30 @@ function ThemeSwatches({ themeColors, activeIndex, onPick }: { themeColors: stri
   );
 }
 
+function TransparentSwatch({ active, onClick }: { active: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title="Transparent"
+      aria-label="Set color to transparent"
+      className={`relative w-5 h-5 rounded-sm border bg-background overflow-hidden hover:scale-110 transition-transform ${active ? 'border-primary ring-1 ring-primary' : 'border-border'}`}
+    >
+      <span
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background:
+            'linear-gradient(to top right, transparent calc(50% - 1px), hsl(0 84% 60%) calc(50% - 1px), hsl(0 84% 60%) calc(50% + 1px), transparent calc(50% + 1px))',
+        }}
+      />
+    </button>
+  );
+}
+
 function ColorField({ label, value, onChange, themeColors }: { label: string; value: string; onChange: (v: string) => void; themeColors?: string[] }) {
   const palette = themeColors ?? [];
   const themeIdx = themeVarIndex(value);
+  const isTransparent = value === 'transparent';
   const resolvedHex = resolveColor(value, palette, '#ffffff');
   const pickerValue = (resolvedHex && resolvedHex !== 'transparent') ? resolvedHex : '#ffffff';
   return (
@@ -72,7 +93,10 @@ function ColorField({ label, value, onChange, themeColors }: { label: string; va
         <input type="color" value={pickerValue.startsWith('#') ? pickerValue : '#ffffff'} onChange={(e) => onChange(e.target.value)} className="h-8 w-8 rounded border cursor-pointer" />
         <Input value={value} onChange={(e) => onChange(e.target.value)} className="h-8 text-xs flex-1" />
       </div>
-      {palette.length > 0 && <ThemeSwatches themeColors={palette} activeIndex={themeIdx} onPick={onChange} />}
+      <div className="flex items-center gap-1 flex-wrap">
+        <TransparentSwatch active={isTransparent} onClick={() => onChange('transparent')} />
+        {palette.length > 0 && <ThemeSwatches themeColors={palette} activeIndex={themeIdx} onPick={onChange} />}
+      </div>
     </div>
   );
 }
