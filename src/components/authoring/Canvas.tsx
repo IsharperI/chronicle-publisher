@@ -191,6 +191,34 @@ export function Canvas() {
     return () => window.removeEventListener('keydown', handler);
   }, [state.activeElementId, state.previewMode, dispatch]);
 
+  // In preview mode, drive the playhead forward (TimelinePanel ticker is hidden).
+  useEffect(() => {
+    if (!isPreview) return;
+    let raf = 0;
+    let last = performance.now();
+    const slideDur = activeSlide?.duration ?? 5000;
+    // Reset playhead when entering preview / slide change
+    dispatch({ type: 'SET_PLAYHEAD', time: 0 });
+    dispatch({ type: 'SET_PLAYING', playing: true });
+    const tick = (now: number) => {
+      const dt = now - last;
+      last = now;
+      // Read current time off the ref via state isn't possible here; use a closure counter
+      // We instead schedule via dispatch directly with incremental updates.
+      raf = requestAnimationFrame(tick);
+      _previewAccum.current += dt;
+      const next = Math.min(slideDur, _previewAccum.current);
+      dispatch({ type: 'SET_PLAYHEAD', time: next });
+      if (next >= slideDur) {
+        dispatch({ type: 'SET_PLAYING', playing: false });
+        cancelAnimationFrame(raf);
+      }
+    };
+    _previewAccum.current = 0;
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [isPreview, slideKey, activeSlide?.duration, dispatch]);
+
   // Audio playback synced to playhead. Plays slide audio from t=0 in preview
   // (and in author mode while the timeline is "playing"); pauses when paused.
   const audioTracks = activeSlide?.audio ?? [];
