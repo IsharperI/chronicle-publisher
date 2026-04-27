@@ -18,6 +18,7 @@ type RibbonTab = typeof TABS[number];
 export function Ribbon() {
   const { state, dispatch } = useCourse();
   const [activeTab, setActiveTab] = useState<RibbonTab>('Home');
+  const [alignMode, setAlignMode] = useState<'canvas' | 'selection'>('canvas');
   const [playerSettingsOpen, setPlayerSettingsOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
