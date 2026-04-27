@@ -319,3 +319,53 @@ function RibbonButton({ icon: Icon, label, onClick, disabled }: { icon: React.Co
     </Button>
   );
 }
+
+type Alignment = 'left' | 'center' | 'right' | 'top' | 'middle' | 'bottom';
+
+function ArrangeControls({
+  mode, onModeChange, onAlign, disabled, selectionCount,
+}: {
+  mode: 'canvas' | 'selection';
+  onModeChange: (m: 'canvas' | 'selection') => void;
+  onAlign: (alignment: Alignment) => void;
+  disabled: boolean;
+  selectionCount: number;
+}) {
+  const buttons: Array<{ icon: React.ComponentType<any>; label: string; alignment: Alignment }> = [
+    { icon: AlignLeft, label: 'Align Left', alignment: 'left' },
+    { icon: AlignCenter, label: 'Align Center', alignment: 'center' },
+    { icon: AlignRight, label: 'Align Right', alignment: 'right' },
+    { icon: AlignStartVertical, label: 'Align Top', alignment: 'top' },
+    { icon: AlignCenterVertical, label: 'Align Middle', alignment: 'middle' },
+    { icon: AlignEndVertical, label: 'Align Bottom', alignment: 'bottom' },
+  ];
+  return (
+    <div className="flex flex-col gap-1 px-1">
+      <Select value={mode} onValueChange={(v) => onModeChange(v as 'canvas' | 'selection')}>
+        <SelectTrigger className="h-7 text-[11px] w-[170px]">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="canvas">Align to Canvas</SelectItem>
+          <SelectItem value="selection">Align to Selected Objects</SelectItem>
+        </SelectContent>
+      </Select>
+      <div className="flex items-center gap-0.5">
+        {buttons.map(({ icon: Icon, label, alignment }) => (
+          <Button
+            key={alignment}
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            disabled={disabled}
+            onClick={() => onAlign(alignment)}
+            title={`${label} (${selectionCount} selected)`}
+            aria-label={label}
+          >
+            <Icon className="h-4 w-4" />
+          </Button>
+        ))}
+      </div>
+    </div>
+  );
+}
