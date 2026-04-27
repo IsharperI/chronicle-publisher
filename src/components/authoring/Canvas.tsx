@@ -182,16 +182,20 @@ export function Canvas() {
   // Keyboard delete
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (!state.activeElementId || state.previewMode) return;
+      if (state.previewMode) return;
+      const ids = state.selectedElementIds.length > 0
+        ? state.selectedElementIds
+        : (state.activeElementId ? [state.activeElementId] : []);
+      if (ids.length === 0) return;
       if (e.key !== 'Delete' && e.key !== 'Backspace') return;
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (e.target as HTMLElement)?.isContentEditable) return;
       e.preventDefault();
-      dispatch({ type: 'DELETE_ELEMENT', id: state.activeElementId });
+      ids.forEach((id) => dispatch({ type: 'DELETE_ELEMENT', id }));
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [state.activeElementId, state.previewMode, dispatch]);
+  }, [state.activeElementId, state.selectedElementIds, state.previewMode, dispatch]);
 
   // Audio playback synced to playhead. Plays slide audio from t=0 in preview
   // (and in author mode while the timeline is "playing"); pauses when paused.
