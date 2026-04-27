@@ -20,6 +20,8 @@ const initialState: CourseState = {
   viewMode: 'main',
   playerSettings: { ...defaultPlayerSettings },
   courseSettings: { ...defaultCourseSettings, themeColors: [...defaultCourseSettings.themeColors] },
+  showGrid: false,
+  snapToGrid: false,
 };
 
 type Action =
@@ -47,7 +49,9 @@ type Action =
   | { type: 'ADD_AUDIO'; audio: SlideAudio }
   | { type: 'DELETE_AUDIO'; id: string }
   | { type: 'UPDATE_AUDIO'; id: string; updates: Partial<SlideAudio> }
-  | { type: 'SET_ACTIVE_AUDIO'; id: string | null };
+  | { type: 'SET_ACTIVE_AUDIO'; id: string | null }
+  | { type: 'SET_SHOW_GRID'; value: boolean }
+  | { type: 'SET_SNAP_TO_GRID'; value: boolean };
 
 function getActiveSlides(state: CourseState): Slide[] {
   return state.viewMode === 'master' ? state.masterSlides : state.slides;
@@ -222,6 +226,10 @@ function courseReducer(state: CourseState, action: Action): CourseState {
     }
     case 'SET_ACTIVE_AUDIO':
       return { ...state, activeAudioId: action.id, activeElementId: action.id ? null : state.activeElementId };
+    case 'SET_SHOW_GRID':
+      return { ...state, showGrid: action.value };
+    case 'SET_SNAP_TO_GRID':
+      return { ...state, snapToGrid: action.value };
     default:
       return state;
   }

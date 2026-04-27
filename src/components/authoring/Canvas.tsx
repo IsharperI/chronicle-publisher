@@ -286,7 +286,16 @@ export function Canvas() {
       style={themeVarStyle(state.courseSettings.themeColors)}
     >
       <div
-        style={{ width: CANVAS_W, height: CANVAS_H, transform: `scale(${scale})`, transformOrigin: 'center center' }}
+        style={{
+          width: CANVAS_W, height: CANVAS_H,
+          transform: `scale(${scale})`, transformOrigin: 'center center',
+          ...(state.showGrid && !isPreview ? {
+            backgroundImage:
+              'linear-gradient(to right, hsl(var(--border) / 0.6) 1px, transparent 1px),' +
+              'linear-gradient(to bottom, hsl(var(--border) / 0.6) 1px, transparent 1px)',
+            backgroundSize: '20px 20px',
+          } : {}),
+        }}
         className="relative bg-background shadow-lg border rounded"
         onClick={handleCanvasClick}
       >
@@ -347,15 +356,31 @@ export function Canvas() {
                   key={el.id}
                   size={{ width: el.width, height: el.height }}
                   position={{ x: el.x, y: el.y }}
-                  onDragStop={(_e, d) => dispatch({ type: 'UPDATE_ELEMENT', id: el.id, updates: { x: d.x, y: d.y } })}
+                  onDragStop={(_e, d) => {
+                    const x = state.snapToGrid ? Math.round(d.x / 20) * 20 : d.x;
+                    const y = state.snapToGrid ? Math.round(d.y / 20) * 20 : d.y;
+                    dispatch({ type: 'UPDATE_ELEMENT', id: el.id, updates: { x, y } });
+                  }}
                   onResizeStop={(_e, _dir, ref, _delta, position) => {
+                    let w = parseInt(ref.style.width);
+                    let h = parseInt(ref.style.height);
+                    let x = position.x;
+                    let y = position.y;
+                    if (state.snapToGrid) {
+                      w = Math.max(20, Math.round(w / 20) * 20);
+                      h = Math.max(20, Math.round(h / 20) * 20);
+                      x = Math.round(x / 20) * 20;
+                      y = Math.round(y / 20) * 20;
+                    }
                     dispatch({
                       type: 'UPDATE_ELEMENT', id: el.id,
-                      updates: { width: parseInt(ref.style.width), height: parseInt(ref.style.height), x: position.x, y: position.y },
+                      updates: { width: w, height: h, x, y },
                     });
                   }}
                   scale={scale}
                   bounds="parent"
+                  dragGrid={state.snapToGrid ? [20, 20] : undefined}
+                  resizeGrid={state.snapToGrid ? [20, 20] : undefined}
                   disableDragging={isEditing}
                   onMouseDown={(e: MouseEvent) => { e.stopPropagation(); dispatch({ type: 'SET_ACTIVE_ELEMENT', id: el.id }); }}
                   onDoubleClick={() => { if (el.type === 'shape') setEditingId(el.id); }}
