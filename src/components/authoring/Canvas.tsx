@@ -182,16 +182,20 @@ export function Canvas() {
   // Keyboard delete
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (!state.activeElementId || state.previewMode) return;
+      if (state.previewMode) return;
+      const ids = state.selectedElementIds.length > 0
+        ? state.selectedElementIds
+        : (state.activeElementId ? [state.activeElementId] : []);
+      if (ids.length === 0) return;
       if (e.key !== 'Delete' && e.key !== 'Backspace') return;
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (e.target as HTMLElement)?.isContentEditable) return;
       e.preventDefault();
-      dispatch({ type: 'DELETE_ELEMENT', id: state.activeElementId });
+      ids.forEach((id) => dispatch({ type: 'DELETE_ELEMENT', id }));
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [state.activeElementId, state.previewMode, dispatch]);
+  }, [state.activeElementId, state.selectedElementIds, state.previewMode, dispatch]);
 
   // Audio playback synced to playhead. Plays slide audio from t=0 in preview
   // (and in author mode while the timeline is "playing"); pauses when paused.
@@ -262,7 +266,7 @@ export function Canvas() {
   }, [audioTracks, state.isPlaying, state.playheadTime]);
 
   const handleCanvasClick = (e: React.MouseEvent) => {
-    if (!isPreview && e.target === e.currentTarget) dispatch({ type: 'SET_ACTIVE_ELEMENT', id: null });
+    if (!isPreview && e.target === e.currentTarget) dispatch({ type: 'CLEAR_SELECTION' });
   };
 
   const editElements = activeSlide?.elements ?? [];
@@ -382,15 +386,26 @@ export function Canvas() {
                   dragGrid={state.snapToGrid ? [20, 20] : undefined}
                   resizeGrid={state.snapToGrid ? [20, 20] : undefined}
                   disableDragging={isEditing}
-                  onMouseDown={(e: MouseEvent) => { e.stopPropagation(); dispatch({ type: 'SET_ACTIVE_ELEMENT', id: el.id }); }}
+                  onMouseDown={(e: MouseEvent) => {
+                    e.stopPropagation();
+                    if ((e as any).shiftKey) {
+                      dispatch({ type: 'TOGGLE_SELECT_ELEMENT', id: el.id });
+                    } else {
+                      dispatch({ type: 'SET_ACTIVE_ELEMENT', id: el.id });
+                    }
+                  }}
                   onDoubleClick={() => { if (el.type === 'shape') setEditingId(el.id); }}
-                  enableResizing={state.activeElementId === el.id && !isEditing}
+                  enableResizing={state.activeElementId === el.id && state.selectedElementIds.length === 1 && !isEditing}
                   resizeHandleStyles={{
                     top: handleStyle, bottom: handleStyle, left: handleStyle, right: handleStyle,
                     topLeft: cornerStyle, topRight: cornerStyle, bottomLeft: cornerStyle, bottomRight: cornerStyle,
                   }}
                   style={{
-                    outline: state.activeElementId === el.id ? '2px solid hsl(var(--primary))' : 'none',
+                    outline: state.activeElementId === el.id
+                      ? '2px solid hsl(var(--primary))'
+                      : state.selectedElementIds.includes(el.id)
+                        ? '2px dashed hsl(var(--primary))'
+                        : 'none',
                     zIndex: state.activeElementId === el.id ? 10 : 2,
                     opacity: visible ? 1 : 0.3,
                   }}

@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Save, Upload, Play, X, Type, ImageIcon, Square, Eye, Package, Settings, Music } from 'lucide-react';
+import { Save, Upload, Play, X, Type, ImageIcon, Square, Eye, Package, Settings, Music, AlignLeft, AlignCenter, AlignRight, AlignStartVertical, AlignCenterVertical, AlignEndVertical } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { exportScorm } from '@/lib/exportScorm';
 import { useCourse } from '@/context/CourseContext';
 import { cn } from '@/lib/utils';
@@ -17,6 +18,7 @@ type RibbonTab = typeof TABS[number];
 export function Ribbon() {
   const { state, dispatch } = useCourse();
   const [activeTab, setActiveTab] = useState<RibbonTab>('Home');
+  const [alignMode, setAlignMode] = useState<'canvas' | 'selection'>('canvas');
   const [playerSettingsOpen, setPlayerSettingsOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -216,6 +218,18 @@ export function Ribbon() {
             <RibbonGroup label="Settings">
               <RibbonButton icon={Settings} label="Player" onClick={() => setPlayerSettingsOpen(true)} />
             </RibbonGroup>
+
+            <Separator orientation="vertical" className="h-12 mx-2" />
+
+            <RibbonGroup label="Arrange">
+              <ArrangeControls
+                mode={alignMode}
+                onModeChange={setAlignMode}
+                disabled={state.selectedElementIds.length === 0 || (alignMode === 'selection' && state.selectedElementIds.length < 2)}
+                onAlign={(alignment) => dispatch({ type: 'ALIGN_ELEMENTS', mode: alignMode, alignment })}
+                selectionCount={state.selectedElementIds.length}
+              />
+            </RibbonGroup>
           </>
         )}
         <PlayerSettingsModal open={playerSettingsOpen} onOpenChange={setPlayerSettingsOpen} />
@@ -303,5 +317,55 @@ function RibbonButton({ icon: Icon, label, onClick, disabled }: { icon: React.Co
       <Icon className="h-5 w-5" />
       <span className="text-[10px] font-medium leading-none">{label}</span>
     </Button>
+  );
+}
+
+type Alignment = 'left' | 'center' | 'right' | 'top' | 'middle' | 'bottom';
+
+function ArrangeControls({
+  mode, onModeChange, onAlign, disabled, selectionCount,
+}: {
+  mode: 'canvas' | 'selection';
+  onModeChange: (m: 'canvas' | 'selection') => void;
+  onAlign: (alignment: Alignment) => void;
+  disabled: boolean;
+  selectionCount: number;
+}) {
+  const buttons: Array<{ icon: React.ComponentType<any>; label: string; alignment: Alignment }> = [
+    { icon: AlignLeft, label: 'Align Left', alignment: 'left' },
+    { icon: AlignCenter, label: 'Align Center', alignment: 'center' },
+    { icon: AlignRight, label: 'Align Right', alignment: 'right' },
+    { icon: AlignStartVertical, label: 'Align Top', alignment: 'top' },
+    { icon: AlignCenterVertical, label: 'Align Middle', alignment: 'middle' },
+    { icon: AlignEndVertical, label: 'Align Bottom', alignment: 'bottom' },
+  ];
+  return (
+    <div className="flex flex-col gap-1 px-1">
+      <Select value={mode} onValueChange={(v) => onModeChange(v as 'canvas' | 'selection')}>
+        <SelectTrigger className="h-7 text-[11px] w-[170px]">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="canvas">Align to Canvas</SelectItem>
+          <SelectItem value="selection">Align to Selected Objects</SelectItem>
+        </SelectContent>
+      </Select>
+      <div className="flex items-center gap-0.5">
+        {buttons.map(({ icon: Icon, label, alignment }) => (
+          <Button
+            key={alignment}
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            disabled={disabled}
+            onClick={() => onAlign(alignment)}
+            title={`${label} (${selectionCount} selected)`}
+            aria-label={label}
+          >
+            <Icon className="h-4 w-4" />
+          </Button>
+        ))}
+      </div>
+    </div>
   );
 }
