@@ -129,6 +129,9 @@ export interface CourseState {
   masterSlides: Slide[];
   activeSlideIndex: number;
   activeElementId: string | null;
+  /** All currently selected element IDs (for multi-select). The
+   * `activeElementId` is always included when non-null. */
+  selectedElementIds: string[];
   activeAudioId: string | null;
   previewMode: boolean;
   playheadTime: number;
