@@ -120,7 +120,7 @@ export interface CourseSettings {
 }
 
 export const defaultCourseSettings: CourseSettings = {
-  canvasDimensions: { width: 1920, height: 1080 },
+  canvasDimensions: { width: 1024, height: 768 },
   themeColors: ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#1f2937', '#f9fafb'],
 };
 
@@ -136,4 +136,8 @@ export interface CourseState {
   viewMode: ViewMode;
   playerSettings: PlayerSettings;
   courseSettings: CourseSettings;
+  /** Editor-only: show 20px visual grid on canvas. Not exported. */
+  showGrid: boolean;
+  /** Editor-only: snap drag/resize to 20px grid. Not exported. */
+  snapToGrid: boolean;
 }
