@@ -247,6 +247,16 @@ export function Ribbon() {
             <RibbonGroup label="Colors">
               <ThemeColorsControl />
             </RibbonGroup>
+            <Separator orientation="vertical" className="h-12 mx-2" />
+            <RibbonGroup label="Arrange">
+              <ArrangeControls
+                mode={alignMode}
+                onModeChange={setAlignMode}
+                disabled={state.selectedElementIds.length === 0 || (alignMode === 'selection' && state.selectedElementIds.length < 2)}
+                onAlign={(alignment) => dispatch({ type: 'ALIGN_ELEMENTS', mode: alignMode, alignment })}
+                selectionCount={state.selectedElementIds.length}
+              />
+            </RibbonGroup>
           </>
         )}
 
