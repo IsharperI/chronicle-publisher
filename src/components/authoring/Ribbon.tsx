@@ -249,9 +249,34 @@ export function Ribbon() {
         )}
 
         {activeTab === 'View' && (
-          <RibbonGroup label="Preview">
-            <RibbonButton icon={Eye} label="Preview Mode" onClick={() => dispatch({ type: 'SET_PREVIEW_MODE', enabled: true })} />
-          </RibbonGroup>
+          <>
+            <RibbonGroup label="Preview">
+              <RibbonButton icon={Eye} label="Preview Mode" onClick={() => dispatch({ type: 'SET_PREVIEW_MODE', enabled: true })} />
+            </RibbonGroup>
+            <Separator orientation="vertical" className="h-12 mx-2" />
+            <RibbonGroup label="Grid">
+              <div className="flex flex-col gap-1.5 px-2 py-1">
+                <label className="flex items-center gap-2 text-xs cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={state.showGrid}
+                    onChange={(e) => dispatch({ type: 'SET_SHOW_GRID', value: e.target.checked })}
+                    className="h-3.5 w-3.5 cursor-pointer"
+                  />
+                  Show Grid
+                </label>
+                <label className="flex items-center gap-2 text-xs cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={state.snapToGrid}
+                    onChange={(e) => dispatch({ type: 'SET_SNAP_TO_GRID', value: e.target.checked })}
+                    className="h-3.5 w-3.5 cursor-pointer"
+                  />
+                  Snap to Grid
+                </label>
+              </div>
+            </RibbonGroup>
+          </>
         )}
       </div>
     </div>
