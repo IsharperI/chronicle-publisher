@@ -286,7 +286,16 @@ export function Canvas() {
       style={themeVarStyle(state.courseSettings.themeColors)}
     >
       <div
-        style={{ width: CANVAS_W, height: CANVAS_H, transform: `scale(${scale})`, transformOrigin: 'center center' }}
+        style={{
+          width: CANVAS_W, height: CANVAS_H,
+          transform: `scale(${scale})`, transformOrigin: 'center center',
+          ...(state.showGrid && !isPreview ? {
+            backgroundImage:
+              'linear-gradient(to right, hsl(var(--border) / 0.6) 1px, transparent 1px),' +
+              'linear-gradient(to bottom, hsl(var(--border) / 0.6) 1px, transparent 1px)',
+            backgroundSize: '20px 20px',
+          } : {}),
+        }}
         className="relative bg-background shadow-lg border rounded"
         onClick={handleCanvasClick}
       >
