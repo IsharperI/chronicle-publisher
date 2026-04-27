@@ -33,6 +33,9 @@ type Action =
   | { type: 'UPDATE_ELEMENT'; id: string; updates: Partial<SlideElement> }
   | { type: 'DELETE_ELEMENT'; id: string }
   | { type: 'SET_ACTIVE_ELEMENT'; id: string | null }
+  | { type: 'TOGGLE_SELECT_ELEMENT'; id: string }
+  | { type: 'CLEAR_SELECTION' }
+  | { type: 'ALIGN_ELEMENTS'; mode: 'canvas' | 'selection'; alignment: 'left' | 'center' | 'right' | 'top' | 'middle' | 'bottom' }
   | { type: 'LOAD_COURSE'; slides: Slide[]; masterSlides?: Slide[]; playerSettings?: Partial<PlayerSettings>; courseSettings?: Partial<CourseSettings> }
   | { type: 'SET_PREVIEW_MODE'; enabled: boolean }
   | { type: 'PREVIEW_NEXT' }
