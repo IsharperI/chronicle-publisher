@@ -218,6 +218,18 @@ export function Ribbon() {
             <RibbonGroup label="Settings">
               <RibbonButton icon={Settings} label="Player" onClick={() => setPlayerSettingsOpen(true)} />
             </RibbonGroup>
+
+            <Separator orientation="vertical" className="h-12 mx-2" />
+
+            <RibbonGroup label="Arrange">
+              <ArrangeControls
+                mode={alignMode}
+                onModeChange={setAlignMode}
+                disabled={state.selectedElementIds.length === 0 || (alignMode === 'selection' && state.selectedElementIds.length < 2)}
+                onAlign={(alignment) => dispatch({ type: 'ALIGN_ELEMENTS', mode: alignMode, alignment })}
+                selectionCount={state.selectedElementIds.length}
+              />
+            </RibbonGroup>
           </>
         )}
         <PlayerSettingsModal open={playerSettingsOpen} onOpenChange={setPlayerSettingsOpen} />
