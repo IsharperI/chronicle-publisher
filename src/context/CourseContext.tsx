@@ -213,11 +213,12 @@ function courseReducer(state: CourseState, action: Action): CourseState {
         },
         activeSlideIndex: 0,
         activeElementId: null,
+        selectedElementIds: [],
         previewMode: false,
       };
     }
     case 'SET_PREVIEW_MODE':
-      return { ...state, previewMode: action.enabled, activeElementId: null, activeSlideIndex: action.enabled ? 0 : state.activeSlideIndex, playheadTime: 0, isPlaying: action.enabled, viewMode: action.enabled ? 'main' : state.viewMode };
+      return { ...state, previewMode: action.enabled, activeElementId: null, selectedElementIds: [], activeSlideIndex: action.enabled ? 0 : state.activeSlideIndex, playheadTime: 0, isPlaying: action.enabled, viewMode: action.enabled ? 'main' : state.viewMode };
     case 'PREVIEW_NEXT':
       return { ...state, activeSlideIndex: Math.min(state.activeSlideIndex + 1, state.slides.length - 1) };
     case 'PREVIEW_PREV':
@@ -238,12 +239,13 @@ function courseReducer(state: CourseState, action: Action): CourseState {
         viewMode: action.mode,
         activeSlideIndex: 0,
         activeElementId: null,
+        selectedElementIds: [],
         playheadTime: 0,
         isPlaying: false,
       };
     case 'ADD_MASTER_SLIDE': {
       const newMasters = [...state.masterSlides, createSlide()];
-      return { ...state, masterSlides: newMasters, viewMode: 'master', activeSlideIndex: newMasters.length - 1, activeElementId: null };
+      return { ...state, masterSlides: newMasters, viewMode: 'master', activeSlideIndex: newMasters.length - 1, activeElementId: null, selectedElementIds: [] };
     }
     case 'DELETE_MASTER_SLIDE': {
       if (state.masterSlides.length <= 0) return state;
@@ -254,10 +256,10 @@ function courseReducer(state: CourseState, action: Action): CourseState {
         ? state.slides.map(s => s.masterId === deletedId ? { ...s, masterId: undefined } : s)
         : state.slides;
       const newIndex = Math.min(state.activeSlideIndex, Math.max(0, newMasters.length - 1));
-      return { ...state, masterSlides: newMasters, slides: updatedSlides, activeSlideIndex: newIndex, activeElementId: null };
+      return { ...state, masterSlides: newMasters, slides: updatedSlides, activeSlideIndex: newIndex, activeElementId: null, selectedElementIds: [] };
     }
     case 'SET_ACTIVE_MASTER_SLIDE':
-      return { ...state, viewMode: 'master', activeSlideIndex: action.index, activeElementId: null, activeAudioId: null, playheadTime: 0, isPlaying: false };
+      return { ...state, viewMode: 'master', activeSlideIndex: action.index, activeElementId: null, selectedElementIds: [], activeAudioId: null, playheadTime: 0, isPlaying: false };
     case 'UPDATE_PLAYER_SETTINGS':
       return { ...state, playerSettings: { ...state.playerSettings, ...action.updates } };
     case 'UPDATE_COURSE_SETTINGS':
