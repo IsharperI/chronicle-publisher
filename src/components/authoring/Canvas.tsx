@@ -262,7 +262,7 @@ export function Canvas() {
   }, [audioTracks, state.isPlaying, state.playheadTime]);
 
   const handleCanvasClick = (e: React.MouseEvent) => {
-    if (!isPreview && e.target === e.currentTarget) dispatch({ type: 'SET_ACTIVE_ELEMENT', id: null });
+    if (!isPreview && e.target === e.currentTarget) dispatch({ type: 'CLEAR_SELECTION' });
   };
 
   const editElements = activeSlide?.elements ?? [];
@@ -382,15 +382,26 @@ export function Canvas() {
                   dragGrid={state.snapToGrid ? [20, 20] : undefined}
                   resizeGrid={state.snapToGrid ? [20, 20] : undefined}
                   disableDragging={isEditing}
-                  onMouseDown={(e: MouseEvent) => { e.stopPropagation(); dispatch({ type: 'SET_ACTIVE_ELEMENT', id: el.id }); }}
+                  onMouseDown={(e: MouseEvent) => {
+                    e.stopPropagation();
+                    if ((e as any).shiftKey) {
+                      dispatch({ type: 'TOGGLE_SELECT_ELEMENT', id: el.id });
+                    } else {
+                      dispatch({ type: 'SET_ACTIVE_ELEMENT', id: el.id });
+                    }
+                  }}
                   onDoubleClick={() => { if (el.type === 'shape') setEditingId(el.id); }}
-                  enableResizing={state.activeElementId === el.id && !isEditing}
+                  enableResizing={state.activeElementId === el.id && state.selectedElementIds.length === 1 && !isEditing}
                   resizeHandleStyles={{
                     top: handleStyle, bottom: handleStyle, left: handleStyle, right: handleStyle,
                     topLeft: cornerStyle, topRight: cornerStyle, bottomLeft: cornerStyle, bottomRight: cornerStyle,
                   }}
                   style={{
-                    outline: state.activeElementId === el.id ? '2px solid hsl(var(--primary))' : 'none',
+                    outline: state.activeElementId === el.id
+                      ? '2px solid hsl(var(--primary))'
+                      : state.selectedElementIds.includes(el.id)
+                        ? '2px dashed hsl(var(--primary))'
+                        : 'none',
                     zIndex: state.activeElementId === el.id ? 10 : 2,
                     opacity: visible ? 1 : 0.3,
                   }}
