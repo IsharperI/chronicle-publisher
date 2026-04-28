@@ -53,7 +53,15 @@ function buildPlayerHtml(state: CourseState): string {
     navigationMode: safeEnum(rawPs.navigationMode, ['free', 'restricted'] as const, 'free'),
     backgroundImage: safeImageSrc(rawPs.backgroundImage),
     backgroundMode: safeEnum(rawPs.backgroundMode, ['stretch', 'fit', 'tile'] as const, 'stretch'),
+    courseTitle: (rawPs.courseTitle || 'Untitled Course').slice(0, 200),
+    sidebarPosition: safeEnum(rawPs.sidebarPosition, ['left', 'right', 'none'] as const, 'left'),
+    tabMenu: !!(rawPs.playerTabs?.showMenu ?? true),
+    tabNotes: !!(rawPs.playerTabs?.showNotes ?? true),
+    ctrlPlayPause: !!(rawPs.playerControls?.showPlayPause ?? true),
+    ctrlCaptions: !!(rawPs.playerControls?.showCaptions ?? true),
   };
+  const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  const titleSafe = escapeHtml(ps.courseTitle);
   const dims = {
     width: safeNumber(state.courseSettings.canvasDimensions.width, 1920, 320, 7680),
     height: safeNumber(state.courseSettings.canvasDimensions.height, 1080, 240, 4320),
@@ -74,42 +82,63 @@ function buildPlayerHtml(state: CourseState): string {
 <style>
 :root{${themeVarsCss}}
 *{margin:0;padding:0;box-sizing:border-box}
-body{background-color:${ps.backgroundColor};${ps.backgroundImage ? `background-image:url("${ps.backgroundImage.replace(/"/g, '%22')}");${ps.backgroundMode === 'stretch' ? 'background-size:100% 100%;background-repeat:no-repeat;' : ps.backgroundMode === 'fit' ? 'background-size:contain;background-repeat:no-repeat;background-position:center;' : 'background-repeat:repeat;background-size:auto;'}` : ''}display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;font-family:${ps.fontFamily};color:#fff}
-#stage-wrapper{position:relative;width:90vw;max-width:${Math.min(dims.width, 1280)}px;aspect-ratio:${aspect};background:#fff;overflow:hidden;border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,.4)}
+html,body{height:100%}
+body{background-color:${ps.backgroundColor};${ps.backgroundImage ? `background-image:url("${ps.backgroundImage.replace(/"/g, '%22')}");${ps.backgroundMode === 'stretch' ? 'background-size:100% 100%;background-repeat:no-repeat;' : ps.backgroundMode === 'fit' ? 'background-size:contain;background-repeat:no-repeat;background-position:center;' : 'background-repeat:repeat;background-size:auto;'}` : ''}font-family:${ps.fontFamily};color:#fff;display:flex;flex-direction:column;min-height:100vh}
+#topbar{flex:0 0 auto;height:48px;display:flex;align-items:center;padding:0 20px;background:rgba(0,0,0,.35);backdrop-filter:blur(6px);border-bottom:1px solid rgba(255,255,255,.08)}
+#topbar h1{font-size:14px;font-weight:600;letter-spacing:.02em;margin:0}
+#topbar .meta{margin-left:auto;font-size:12px;color:rgba(255,255,255,.6)}
+#body{flex:1 1 auto;display:flex;min-height:0}
+#sidebar{width:256px;flex-shrink:0;display:flex;flex-direction:column;background:rgba(0,0,0,.3);backdrop-filter:blur(6px)}
+#sidebar.left{border-right:1px solid rgba(255,255,255,.08)}
+#sidebar.right{border-left:1px solid rgba(255,255,255,.08);order:2}
+#sidebar .tabs{display:flex;border-bottom:1px solid rgba(255,255,255,.08)}
+#sidebar .tabs button{flex:1;background:transparent;border:none;color:rgba(255,255,255,.6);font-size:12px;font-weight:500;padding:10px;cursor:pointer;font-family:${ps.fontFamily};border-bottom:2px solid transparent}
+#sidebar .tabs button.active{color:#fff;border-bottom-color:${ps.buttonColor}}
+#sidebar .pane{flex:1;overflow-y:auto;padding:12px;font-size:12px;color:rgba(255,255,255,.9)}
+#sidebar .menu-list{list-style:none;margin:0;padding:0}
+#sidebar .menu-list li{margin-bottom:4px}
+#sidebar .menu-list button{width:100%;text-align:left;padding:8px 10px;border-radius:4px;background:transparent;border:none;color:rgba(255,255,255,.7);font-size:12px;cursor:pointer;font-family:${ps.fontFamily}}
+#sidebar .menu-list button:hover{background:rgba(255,255,255,.05)}
+#sidebar .menu-list button.active{color:#fff;background:${ps.buttonColor}33}
+#notes-pane{white-space:pre-wrap;line-height:1.5}
+#notes-pane.empty{color:rgba(255,255,255,.4);font-style:italic}
+#stage-area{flex:1;display:flex;align-items:center;justify-content:center;min-width:0;padding:16px;order:1}
+#stage-wrapper{position:relative;width:100%;max-width:${Math.min(dims.width, 1280)}px;aspect-ratio:${aspect};background:#fff;overflow:hidden;border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,.4)}
 #stage{position:absolute;inset:0;width:${dims.width}px;height:${dims.height}px;transform-origin:top left}
 #cc-overlay{position:absolute;left:5%;right:5%;bottom:6%;text-align:center;pointer-events:none;z-index:50;font-family:${ps.fontFamily}}
 #cc-overlay span{display:inline-block;background:rgba(0,0,0,0.75);color:#fff;padding:8px 16px;border-radius:6px;font-size:clamp(12px,2.4vw,28px);line-height:1.3;max-width:90%;white-space:pre-wrap}
 #cc-overlay.hidden{display:none}
-#cc.off{opacity:.5}
 .el{position:absolute;transition:all .2s ease}
-.controls{margin-top:20px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;justify-content:center}
-.controls button{padding:8px 24px;border:none;border-radius:${ps.buttonBorderRadius}px;background:${ps.buttonColor};color:#fff;font-size:14px;cursor:pointer;font-weight:500;font-family:${ps.fontFamily}}
-.controls button:hover{filter:brightness(1.15)}
-.controls button:disabled{opacity:.4;cursor:default;filter:none}
-.controls span{font-size:14px;color:#aaa}
-.controls select{padding:6px 10px;border-radius:${ps.buttonBorderRadius}px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.1);color:#fff;font-size:13px;font-family:${ps.fontFamily};cursor:pointer}
-@keyframes el-fade-in{from{opacity:0}to{opacity:1}}
-@keyframes el-fade-out{from{opacity:1}to{opacity:0}}
-@keyframes el-fly-in-left{from{opacity:0;transform:translateX(-120px)}to{opacity:1;transform:translateX(0)}}
-@keyframes el-fly-in-right{from{opacity:0;transform:translateX(120px)}to{opacity:1;transform:translateX(0)}}
-@keyframes el-fly-out-left{from{opacity:1;transform:translateX(0)}to{opacity:0;transform:translateX(-120px)}}
-@keyframes el-fly-out-right{from{opacity:1;transform:translateX(0)}to{opacity:0;transform:translateX(120px)}}
-.anim-fade-in{animation-name:el-fade-in;animation-fill-mode:forwards;animation-timing-function:ease-out}
-.anim-fade-out{animation-name:el-fade-out;animation-fill-mode:forwards;animation-timing-function:ease-in}
-.anim-fly-in-left{animation-name:el-fly-in-left;animation-fill-mode:forwards;animation-timing-function:ease-out}
-.anim-fly-in-right{animation-name:el-fly-in-right;animation-fill-mode:forwards;animation-timing-function:ease-out}
-.anim-fly-out-left{animation-name:el-fly-out-left;animation-fill-mode:forwards;animation-timing-function:ease-in}
-.anim-fly-out-right{animation-name:el-fly-out-right;animation-fill-mode:forwards;animation-timing-function:ease-in}
+#controls{flex:0 0 auto;height:56px;display:flex;gap:8px;align-items:center;justify-content:center;padding:0 20px;background:rgba(0,0,0,.4);backdrop-filter:blur(6px);border-top:1px solid rgba(255,255,255,.08)}
+#controls button{padding:8px 18px;border:none;border-radius:${ps.buttonBorderRadius}px;background:${ps.buttonColor};color:#fff;font-size:13px;cursor:pointer;font-weight:500;font-family:${ps.fontFamily};display:inline-flex;align-items:center;gap:4px}
+#controls button:hover{filter:brightness(1.15)}
+#controls button:disabled{opacity:.4;cursor:default;filter:none}
+#controls #cc.off{opacity:.55}
 </style>
 </head>
 <body>
-<div id="stage-wrapper"><div id="stage"></div><div id="cc-overlay" aria-live="polite"></div></div>
-<div class="controls">
-  ${ps.showMenu ? '<select id="slideMenu"></select>' : ''}
+<div id="topbar">
+  <h1>${titleSafe}</h1>
+  <span class="meta" id="meta"></span>
+</div>
+<div id="body">
+  ${ps.sidebarPosition !== 'none' && (ps.tabMenu || ps.tabNotes) ? `<aside id="sidebar" class="${ps.sidebarPosition}">
+    <div class="tabs">
+      ${ps.tabMenu ? '<button id="tab-menu" class="active" data-tab="menu">Menu</button>' : ''}
+      ${ps.tabNotes ? `<button id="tab-notes"${ps.tabMenu ? '' : ' class="active"'} data-tab="notes">Notes</button>` : ''}
+    </div>
+    ${ps.tabMenu ? '<div class="pane" id="menu-pane"><ul class="menu-list" id="slideList"></ul></div>' : ''}
+    ${ps.tabNotes ? `<div class="pane" id="notes-pane"${ps.tabMenu ? ' style="display:none"' : ''}></div>` : ''}
+  </aside>` : ''}
+  <div id="stage-area">
+    <div id="stage-wrapper"><div id="stage"></div><div id="cc-overlay" aria-live="polite"></div></div>
+  </div>
+</div>
+<div id="controls">
   <button id="prev">&#9664; Prev</button>
-  <span id="info"></span>
+  ${ps.ctrlPlayPause ? '<button id="playpause" aria-label="Play">&#9658;</button>' : ''}
   <button id="next">Next &#9654;</button>
-  <button id="cc" aria-pressed="true" title="Toggle captions">CC</button>
+  ${ps.ctrlCaptions ? '<button id="cc" aria-pressed="true" title="Toggle captions">CC</button>' : ''}
 </div>
 <script>
 window.COURSE_DATA=${courseData.replace(/<\/script>/gi, '<\\/script>').replace(/<!--/g, '<\\!--')};
@@ -125,15 +154,19 @@ window.COURSE_DATA=${courseData.replace(/<\/script>/gi, '<\\/script>').replace(/
   var masters=data.masterSlides||[];
   var ps=data.playerSettings||{};
   var navMode=ps.navigationMode||"free";
-  var showMenu=!!ps.showMenu;
   var current=0;
   var unlocked=false;
   var timer=null;
   var stage=document.getElementById("stage");
-  var info=document.getElementById("info");
+  var meta=document.getElementById("meta");
   var prevBtn=document.getElementById("prev");
   var nextBtn=document.getElementById("next");
-  var menuEl=document.getElementById("slideMenu");
+  var slideListEl=document.getElementById("slideList");
+  var notesPane=document.getElementById("notes-pane");
+  var menuPane=document.getElementById("menu-pane");
+  var tabMenuBtn=document.getElementById("tab-menu");
+  var tabNotesBtn=document.getElementById("tab-notes");
+  var ppBtn=document.getElementById("playpause");
 
   function scaleStage(){
     var wrapper=document.getElementById("stage-wrapper");
@@ -144,16 +177,38 @@ window.COURSE_DATA=${courseData.replace(/<\/script>/gi, '<\\/script>').replace(/
   scaleStage();
 
   function buildMenu(){
-    if(!menuEl||!showMenu)return;
-    menuEl.innerHTML="";
+    if(!slideListEl)return;
+    slideListEl.innerHTML="";
     for(var i=0;i<slides.length;i++){
-      var opt=document.createElement("option");
-      opt.value=i;
-      opt.textContent="Slide "+(i+1);
-      if(i===current)opt.selected=true;
-      menuEl.appendChild(opt);
+      (function(idx){
+        var li=document.createElement("li");
+        var b=document.createElement("button");
+        b.type="button";
+        b.textContent="Slide "+(idx+1);
+        if(idx===current)b.className="active";
+        b.onclick=function(){goTo(idx)};
+        li.appendChild(b);
+        slideListEl.appendChild(li);
+      })(i);
     }
   }
+
+  function updateNotes(){
+    if(!notesPane)return;
+    var s=slides[current];
+    var n=(s&&s.notes)||"";
+    if(n&&n.trim()){notesPane.textContent=n;notesPane.classList.remove("empty")}
+    else{notesPane.textContent="No notes for this slide.";notesPane.classList.add("empty")}
+  }
+
+  function activateTab(name){
+    if(tabMenuBtn)tabMenuBtn.classList.toggle("active",name==="menu");
+    if(tabNotesBtn)tabNotesBtn.classList.toggle("active",name==="notes");
+    if(menuPane)menuPane.style.display=name==="menu"?"":"none";
+    if(notesPane)notesPane.style.display=name==="notes"?"":"none";
+  }
+  if(tabMenuBtn)tabMenuBtn.onclick=function(){activateTab("menu")};
+  if(tabNotesBtn)tabNotesBtn.onclick=function(){activateTab("notes")};
 
   function getMasterElements(slide){
     if(!slide.masterId)return[];
@@ -283,9 +338,8 @@ window.COURSE_DATA=${courseData.replace(/<\/script>/gi, '<\\/script>').replace(/
   }
 
   function setNavLock(locked){
-    if(navMode!=="restricted"){nextBtn.disabled=current===slides.length-1;if(menuEl)menuEl.disabled=false;return}
+    if(navMode!=="restricted"){nextBtn.disabled=current===slides.length-1;return}
     nextBtn.disabled=locked||current===slides.length-1;
-    if(menuEl)menuEl.disabled=locked;
   }
 
   // Active <audio> elements for the current slide, so we can pause on navigation.
@@ -328,18 +382,32 @@ window.COURSE_DATA=${courseData.replace(/<\/script>/gi, '<\\/script>').replace(/
     var masterEls=getMasterElements(slide);
     masterEls.forEach(function(el){stage.appendChild(renderElement(el))});
     (slide.elements||[]).forEach(function(el){stage.appendChild(renderElement(el))});
-    info.textContent="Slide "+(current+1)+" / "+slides.length;
+    if(meta)meta.textContent="Slide "+(current+1)+" / "+slides.length;
     prevBtn.disabled=current===0;
     buildMenu();
+    updateNotes();
     startRestrictionTimer();
     startAudio(slide);
+    setPlaying(true);
     if(API){try{API.LMSSetValue("cmi.core.lesson_location",""+current)}catch(e){}}
   }
+
+  // Play/pause control: pauses all active audio. (Engine timeline is driven
+  // off audio in the exported player, so pausing audio is sufficient here.)
+  var playing=true;
+  function setPlaying(v){
+    playing=v;
+    for(var i=0;i<activeAudio.length;i++){
+      try{if(playing){activeAudio[i].play().catch(function(){})}else{activeAudio[i].pause()}}catch(e){}
+    }
+    if(ppBtn)ppBtn.innerHTML=playing?"&#10074;&#10074;":"&#9658;";
+    if(ppBtn)ppBtn.setAttribute("aria-label",playing?"Pause":"Play");
+  }
+  if(ppBtn)ppBtn.onclick=function(){setPlaying(!playing)};
 
   function goTo(idx){if(idx<0||idx>=slides.length||idx===current)return;stopAudio();applyExitAnimations(stage,function(){current=idx;render()})}
   prevBtn.onclick=function(){if(current>0)goTo(current-1)};
   nextBtn.onclick=function(){if(current<slides.length-1)goTo(current+1)};
-  if(menuEl){menuEl.onchange=function(){var v=parseInt(menuEl.value,10);if(!isNaN(v)&&v>=0&&v<slides.length)goTo(v)}}
 
   // ===== Closed captions =====
   var ccOverlay=document.getElementById("cc-overlay");

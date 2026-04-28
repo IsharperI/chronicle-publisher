@@ -83,20 +83,37 @@ export interface Slide {
   duration: number;
   masterId?: string;
   audio?: SlideAudio[];
+  notes?: string;
 }
 
 export type NavigationMode = 'free' | 'restricted';
 export type BackgroundMode = 'stretch' | 'fit' | 'tile';
+export type SidebarPosition = 'left' | 'right' | 'none';
+
+export interface PlayerTabs {
+  showMenu: boolean;
+  showNotes: boolean;
+}
+
+export interface PlayerControls {
+  showPlayPause: boolean;
+  showCaptions: boolean;
+}
 
 export interface PlayerSettings {
   backgroundColor: string;
   buttonColor: string;
   buttonBorderRadius: number;
   fontFamily: string;
+  /** @deprecated Use playerTabs.showMenu. Kept for backward compat. */
   showMenu: boolean;
   navigationMode: NavigationMode;
   backgroundImage: string | null;
   backgroundMode: BackgroundMode;
+  courseTitle: string;
+  sidebarPosition: SidebarPosition;
+  playerTabs: PlayerTabs;
+  playerControls: PlayerControls;
 }
 
 export const defaultPlayerSettings: PlayerSettings = {
@@ -108,6 +125,10 @@ export const defaultPlayerSettings: PlayerSettings = {
   navigationMode: 'free',
   backgroundImage: null,
   backgroundMode: 'stretch',
+  courseTitle: 'Untitled Course',
+  sidebarPosition: 'left',
+  playerTabs: { showMenu: true, showNotes: true },
+  playerControls: { showPlayPause: true, showCaptions: true },
 };
 
 export interface CanvasDimensions {
@@ -145,4 +166,6 @@ export interface CourseState {
   showGrid: boolean;
   /** Editor-only: snap drag/resize to 20px grid. Not exported. */
   snapToGrid: boolean;
+  /** Runtime: closed-captions enabled in preview/player. */
+  ccEnabled: boolean;
 }

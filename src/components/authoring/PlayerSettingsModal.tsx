@@ -5,9 +5,10 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import type { BackgroundMode, NavigationMode, PlayerSettings } from '@/types/course';
+import type { BackgroundMode, NavigationMode, PlayerSettings, SidebarPosition } from '@/types/course';
 import { ImageIcon, Trash2 } from 'lucide-react';
 import { themeVarRef, themeVarIndex, resolveColor, themeVarStyle } from '@/lib/themeVars';
 
@@ -111,6 +112,16 @@ export function PlayerSettingsModal({ open, onOpenChange }: { open: boolean; onO
 
           {/* Right — Controls */}
           <div className="w-[260px] shrink-0 overflow-y-auto space-y-5 pr-1">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Course Title</Label>
+              <Input
+                value={ps.courseTitle}
+                onChange={(e) => update({ courseTitle: e.target.value })}
+                className="h-8 text-xs"
+                placeholder="Untitled Course"
+              />
+            </div>
+
             <ColorControl label="Background Color" value={ps.backgroundColor} onChange={(v) => update({ backgroundColor: v })} themeColors={state.courseSettings.themeColors} />
             <div className="space-y-1.5">
               <Label className="text-xs">Background Image</Label>
@@ -167,6 +178,58 @@ export function PlayerSettingsModal({ open, onOpenChange }: { open: boolean; onO
             <div className="flex items-center justify-between">
               <Label className="text-xs">Show Slide Menu</Label>
               <Switch checked={ps.showMenu} onCheckedChange={(v) => update({ showMenu: v })} />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs">Sidebar Position</Label>
+              <Select value={ps.sidebarPosition} onValueChange={(v) => update({ sidebarPosition: v as SidebarPosition })}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="left">Left</SelectItem>
+                  <SelectItem value="right">Right</SelectItem>
+                  <SelectItem value="none">None (Hide Sidebar)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-xs">Player Tabs</Label>
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="tab-menu"
+                  checked={ps.playerTabs.showMenu}
+                  onCheckedChange={(v) => update({ playerTabs: { ...ps.playerTabs, showMenu: !!v } })}
+                />
+                <Label htmlFor="tab-menu" className="text-xs font-normal cursor-pointer">Menu</Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="tab-notes"
+                  checked={ps.playerTabs.showNotes}
+                  onCheckedChange={(v) => update({ playerTabs: { ...ps.playerTabs, showNotes: !!v } })}
+                />
+                <Label htmlFor="tab-notes" className="text-xs font-normal cursor-pointer">Notes</Label>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-xs">Player Controls</Label>
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="ctrl-pp"
+                  checked={ps.playerControls.showPlayPause}
+                  onCheckedChange={(v) => update({ playerControls: { ...ps.playerControls, showPlayPause: !!v } })}
+                />
+                <Label htmlFor="ctrl-pp" className="text-xs font-normal cursor-pointer">Play/Pause</Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="ctrl-cc"
+                  checked={ps.playerControls.showCaptions}
+                  onCheckedChange={(v) => update({ playerControls: { ...ps.playerControls, showCaptions: !!v } })}
+                />
+                <Label htmlFor="ctrl-cc" className="text-xs font-normal cursor-pointer">Captions (CC)</Label>
+              </div>
             </div>
 
             <div className="space-y-1.5">

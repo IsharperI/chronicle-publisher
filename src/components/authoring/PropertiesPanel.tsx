@@ -345,6 +345,18 @@ export function PropertiesPanel() {
             />
             <p className="text-xs text-muted-foreground">Sets the total timeline length for this slide.</p>
 
+            {!isMasterMode && (
+              <div className="space-y-1.5 pt-2 border-t">
+                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Slide Notes</Label>
+                <Textarea
+                  value={activeSlide?.notes ?? ''}
+                  onChange={(e) => dispatch({ type: 'UPDATE_SLIDE', index: state.activeSlideIndex, updates: { notes: e.target.value } })}
+                  className="text-xs min-h-[80px]"
+                  placeholder="Speaker notes shown in the player Notes tab…"
+                />
+              </div>
+            )}
+
             {!isMasterMode && state.masterSlides.length > 0 && (
               <div className="space-y-2 pt-2 border-t">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Master Slide</p>

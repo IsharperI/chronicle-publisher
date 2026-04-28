@@ -1,8 +1,6 @@
 import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import { Rnd } from 'react-rnd';
 import { useCourse } from '@/context/CourseContext';
-import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight, Captions, CaptionsOff } from 'lucide-react';
 import type { SlideElement, TextElement, ShapeElement, AnimationIn, AnimationOut } from '@/types/course';
 import { themeVarStyle } from '@/lib/themeVars';
 
@@ -145,7 +143,7 @@ export function Canvas() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const audioRefs = useRef<Map<string, HTMLAudioElement>>(new Map());
   const previewAccumRef = useRef(0);
-  const [ccEnabled, setCcEnabled] = useState(true);
+  const ccEnabled = state.ccEnabled;
 
   const isPreview = state.previewMode;
   const isMasterMode = state.viewMode === 'master';
@@ -494,28 +492,6 @@ export function Canvas() {
         )}
       </div>
 
-      {isPreview && (
-        <div className="flex items-center gap-4 mt-4">
-          <Button variant="outline" size="sm" onClick={() => dispatch({ type: 'PREVIEW_PREV' })} disabled={state.activeSlideIndex === 0}>
-            <ChevronLeft className="h-4 w-4 mr-1" />Previous
-          </Button>
-          <span className="text-sm text-muted-foreground">
-            Slide {state.activeSlideIndex + 1} of {state.slides.length}
-          </span>
-          <Button variant="outline" size="sm" onClick={() => dispatch({ type: 'PREVIEW_NEXT' })} disabled={state.activeSlideIndex === state.slides.length - 1}>
-            Next<ChevronRight className="h-4 w-4 ml-1" />
-          </Button>
-          <Button
-            variant={ccEnabled ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setCcEnabled((v) => !v)}
-            title={ccEnabled ? 'Hide captions' : 'Show captions'}
-          >
-            {ccEnabled ? <Captions className="h-4 w-4 mr-1" /> : <CaptionsOff className="h-4 w-4 mr-1" />}
-            CC
-          </Button>
-        </div>
-      )}
     </div>
   );
 }
