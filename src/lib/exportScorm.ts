@@ -302,7 +302,7 @@ window.COURSE_DATA=${courseData.replace(/<\/script>/gi, '<\\/script>').replace(/
         if(st==="circle"){d.style.borderRadius="50%";}
         else if(typeof el.borderRadius==="number"){d.style.borderRadius=el.borderRadius+"px";}
         else {d.style.borderRadius="4px";}
-        if(typeof el.boxShadow==="string"&&el.boxShadow.length<200&&!/[<>"'`\\]/.test(el.boxShadow)){
+        if(typeof el.boxShadow==="string"&&el.boxShadow.length<200&&!/[<>"'\\]/.test(el.boxShadow)){
           d.style.boxShadow=el.boxShadow;
         }
         if(el.hoverFillColor||el.hoverBorderColor){
