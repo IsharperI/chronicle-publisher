@@ -338,9 +338,8 @@ window.COURSE_DATA=${courseData.replace(/<\/script>/gi, '<\\/script>').replace(/
   }
 
   function setNavLock(locked){
-    if(navMode!=="restricted"){nextBtn.disabled=current===slides.length-1;if(menuEl)menuEl.disabled=false;return}
+    if(navMode!=="restricted"){nextBtn.disabled=current===slides.length-1;return}
     nextBtn.disabled=locked||current===slides.length-1;
-    if(menuEl)menuEl.disabled=locked;
   }
 
   // Active <audio> elements for the current slide, so we can pause on navigation.
