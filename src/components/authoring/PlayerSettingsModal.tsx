@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState, useLayoutEffect } from 'react';
+import { useRef, useState, useLayoutEffect } from 'react';
 import { useCourse } from '@/context/CourseContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
