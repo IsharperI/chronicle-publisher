@@ -54,6 +54,7 @@ function ShapeText({ se, isPreview }: { se: ShapeElement; isPreview?: boolean })
 
 function ElementRenderer({ element, isPreview }: { element: SlideElement; isPreview?: boolean }) {
   const [hovered, setHovered] = useState(false);
+  const { dispatch } = useCourse();
 
   const hoverProps = isPreview ? {
     onMouseEnter: () => setHovered(true),
