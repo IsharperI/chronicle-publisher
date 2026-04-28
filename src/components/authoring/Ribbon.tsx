@@ -664,3 +664,54 @@ function TransitionsTab() {
     </>
   );
 }
+
+function TableInsertPopover({ onInsert }: { onInsert: (rows: number, cols: number) => void }) {
+  const [open, setOpen] = useState(false);
+  const [rows, setRows] = useState(3);
+  const [cols, setCols] = useState(3);
+  const clamp = (n: number) => Math.max(1, Math.min(20, Math.round(n || 1)));
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="ghost"
+          className="h-11 flex flex-col items-center justify-center gap-0.5 px-3 text-foreground"
+        >
+          <TableIcon className="h-5 w-5" />
+          <span className="text-[10px] font-medium leading-none">Table</span>
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-56 p-3 space-y-3">
+        <div className="space-y-1">
+          <Label className="text-xs">Rows</Label>
+          <Input
+            type="number"
+            min={1}
+            max={20}
+            value={rows}
+            onChange={(e) => setRows(clamp(Number(e.target.value)))}
+            className="h-8 text-xs"
+          />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs">Columns</Label>
+          <Input
+            type="number"
+            min={1}
+            max={20}
+            value={cols}
+            onChange={(e) => setCols(clamp(Number(e.target.value)))}
+            className="h-8 text-xs"
+          />
+        </div>
+        <Button
+          size="sm"
+          className="w-full"
+          onClick={() => { onInsert(clamp(rows), clamp(cols)); setOpen(false); }}
+        >
+          Insert Table
+        </Button>
+      </PopoverContent>
+    </Popover>
+  );
+}
