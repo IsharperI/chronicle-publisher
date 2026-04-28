@@ -240,7 +240,11 @@ function ElementRenderer({ element, isPreview }: { element: SlideElement; isPrev
                   key={c}
                   contentEditable={!isPreview}
                   suppressContentEditableWarning
-                  onMouseDown={(e) => { if (!isPreview) e.stopPropagation(); }}
+                  onMouseDown={(e) => {
+                    if (isPreview) return;
+                    e.stopPropagation();
+                    dispatch({ type: 'SET_ACTIVE_ELEMENT', id: te.id });
+                  }}
                   onBlur={(e) => { if (!isPreview) onCellBlur(r, c, e.currentTarget.textContent ?? ''); }}
                   style={{
                     border: `1px solid ${borderColor}`,
