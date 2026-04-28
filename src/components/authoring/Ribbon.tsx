@@ -416,6 +416,10 @@ export function Ribbon() {
             <RibbonGroup label="Data">
               <TableInsertPopover onInsert={addTable} />
             </RibbonGroup>
+          </>
+        )}
+
+        {activeTab === 'Design' && (
           <>
             <RibbonGroup label="Story Size">
               <StorySizeControl />
