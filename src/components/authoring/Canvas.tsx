@@ -1,8 +1,6 @@
 import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import { Rnd } from 'react-rnd';
 import { useCourse } from '@/context/CourseContext';
-import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight, Captions, CaptionsOff } from 'lucide-react';
 import type { SlideElement, TextElement, ShapeElement, AnimationIn, AnimationOut } from '@/types/course';
 import { themeVarStyle } from '@/lib/themeVars';
 
