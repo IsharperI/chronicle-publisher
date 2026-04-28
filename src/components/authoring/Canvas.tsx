@@ -355,6 +355,9 @@ export function Canvas() {
           : editElements.map((el) => {
               const visible = isElementVisible(el, state.playheadTime);
               const isEditing = editingId === el.id && el.type === 'shape';
+              const locked = !!el.isLocked;
+              const hidden = !!el.isHidden;
+              if (hidden) return null;
               return (
                 <Rnd
                   key={el.id}
@@ -385,8 +388,9 @@ export function Canvas() {
                   bounds="parent"
                   dragGrid={state.snapToGrid ? [20, 20] : undefined}
                   resizeGrid={state.snapToGrid ? [20, 20] : undefined}
-                  disableDragging={isEditing}
+                  disableDragging={isEditing || locked}
                   onMouseDown={(e: MouseEvent) => {
+                    if (locked) return;
                     e.stopPropagation();
                     if ((e as any).shiftKey) {
                       dispatch({ type: 'TOGGLE_SELECT_ELEMENT', id: el.id });
@@ -394,8 +398,8 @@ export function Canvas() {
                       dispatch({ type: 'SET_ACTIVE_ELEMENT', id: el.id });
                     }
                   }}
-                  onDoubleClick={() => { if (el.type === 'shape') setEditingId(el.id); }}
-                  enableResizing={state.activeElementId === el.id && state.selectedElementIds.length === 1 && !isEditing}
+                  onDoubleClick={() => { if (!locked && el.type === 'shape') setEditingId(el.id); }}
+                  enableResizing={!locked && state.activeElementId === el.id && state.selectedElementIds.length === 1 && !isEditing}
                   resizeHandleStyles={{
                     top: handleStyle, bottom: handleStyle, left: handleStyle, right: handleStyle,
                     topLeft: cornerStyle, topRight: cornerStyle, bottomLeft: cornerStyle, bottomRight: cornerStyle,
@@ -408,6 +412,7 @@ export function Canvas() {
                         : 'none',
                     zIndex: state.activeElementId === el.id ? 10 : 2,
                     opacity: visible ? 1 : 0.3,
+                    pointerEvents: locked ? 'none' : undefined,
                   }}
                 >
                   <ElementRenderer element={el} />

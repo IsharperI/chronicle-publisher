@@ -10,15 +10,23 @@ export function Toolbox() {
   const { state, dispatch } = useCourse();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const centerPos = (w: number, h: number) => {
+    const { width: cw, height: ch } = state.courseSettings.canvasDimensions;
+    return { x: Math.round((cw - w) / 2), y: Math.round((ch - h) / 2) };
+  };
+
   const addText = () => {
+    const w = 600, h = 200;
+    const { x, y } = centerPos(w, h);
     const el: TextElement = {
       id: crypto.randomUUID(), type: 'text',
-      x: 660, y: 440, width: 600, height: 200,
+      x, y, width: w, height: h,
       content: 'Double-click to edit', fontSize: 32, fontWeight: '400',
       textColor: '#000000', backgroundColor: 'transparent',
       startTime: 0, duration: 5000, triggers: [],
       animationIn: 'none', animationOut: 'none',
       entranceDuration: 500, exitDuration: 500,
+      isLocked: false, isHidden: false,
     };
     dispatch({ type: 'ADD_ELEMENT', element: el });
   };
@@ -29,13 +37,16 @@ export function Toolbox() {
     const reader = new FileReader();
     reader.onload = (ev) => {
       const base64 = ev.target?.result as string;
+      const w = 800, h = 600;
+      const { x, y } = centerPos(w, h);
       const el: ImageElement = {
         id: crypto.randomUUID(), type: 'image',
-        x: 560, y: 240, width: 800, height: 600,
+        x, y, width: w, height: h,
         src: base64, alt: file.name,
         startTime: 0, duration: 5000, triggers: [],
         animationIn: 'none', animationOut: 'none',
         entranceDuration: 500, exitDuration: 500,
+        isLocked: false, isHidden: false,
       };
       dispatch({ type: 'ADD_ELEMENT', element: el });
     };
@@ -44,14 +55,17 @@ export function Toolbox() {
   };
 
   const addShape = () => {
+    const w = 400, h = 300;
+    const { x, y } = centerPos(w, h);
     const el: ShapeElement = {
       id: crypto.randomUUID(), type: 'shape',
-      x: 760, y: 390, width: 400, height: 300,
+      x, y, width: w, height: h,
       shapeType: 'rectangle', fillColor: '#3b82f6', borderColor: '#1e40af', borderWidth: 2,
       text: '', textColor: '#ffffff', fontSize: 16,
       startTime: 0, duration: 5000, triggers: [],
       animationIn: 'none', animationOut: 'none',
       entranceDuration: 500, exitDuration: 500,
+      isLocked: false, isHidden: false,
     };
     dispatch({ type: 'ADD_ELEMENT', element: el });
   };

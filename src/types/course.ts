@@ -24,6 +24,8 @@ export interface BaseElement {
   animationOut: AnimationOut;
   entranceDuration: number;
   exitDuration: number;
+  isLocked?: boolean;
+  isHidden?: boolean;
 }
 
 export interface TextElement extends BaseElement {
