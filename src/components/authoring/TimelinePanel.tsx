@@ -19,6 +19,7 @@ const typeColors: Record<string, string> = {
   video: 'bg-rose-500/80',
   hotspot: 'bg-emerald-500/80',
   checkbox: 'bg-amber-500/80',
+  table: 'bg-cyan-500/80',
 };
 
 const typeIcons: Record<string, React.ReactNode> = {
@@ -28,6 +29,7 @@ const typeIcons: Record<string, React.ReactNode> = {
   video: <ImageIcon className="h-3 w-3" />,
   hotspot: <Square className="h-3 w-3" />,
   checkbox: <Square className="h-3 w-3" />,
+  table: <Square className="h-3 w-3" />,
 };
 
 function getElementLabel(el: SlideElement): string {
@@ -36,6 +38,7 @@ function getElementLabel(el: SlideElement): string {
   if (el.type === 'video') return 'Video';
   if (el.type === 'hotspot') return 'Hotspot';
   if (el.type === 'checkbox') return el.label?.slice(0, 20) || 'Checkbox';
+  if (el.type === 'table') return `Table ${el.rowCount}×${el.colCount}`;
   return el.shapeType;
 }
 
