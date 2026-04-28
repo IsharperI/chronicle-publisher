@@ -53,7 +53,15 @@ function buildPlayerHtml(state: CourseState): string {
     navigationMode: safeEnum(rawPs.navigationMode, ['free', 'restricted'] as const, 'free'),
     backgroundImage: safeImageSrc(rawPs.backgroundImage),
     backgroundMode: safeEnum(rawPs.backgroundMode, ['stretch', 'fit', 'tile'] as const, 'stretch'),
+    courseTitle: (rawPs.courseTitle || 'Untitled Course').slice(0, 200),
+    sidebarPosition: safeEnum(rawPs.sidebarPosition, ['left', 'right', 'none'] as const, 'left'),
+    tabMenu: !!(rawPs.playerTabs?.showMenu ?? true),
+    tabNotes: !!(rawPs.playerTabs?.showNotes ?? true),
+    ctrlPlayPause: !!(rawPs.playerControls?.showPlayPause ?? true),
+    ctrlCaptions: !!(rawPs.playerControls?.showCaptions ?? true),
   };
+  const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  const titleSafe = escapeHtml(ps.courseTitle);
   const dims = {
     width: safeNumber(state.courseSettings.canvasDimensions.width, 1920, 320, 7680),
     height: safeNumber(state.courseSettings.canvasDimensions.height, 1080, 240, 4320),
