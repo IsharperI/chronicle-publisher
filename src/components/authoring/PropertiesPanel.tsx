@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useCourse } from '@/context/CourseContext';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
