@@ -323,12 +323,14 @@ function RibbonButton({ icon: Icon, label, onClick, disabled }: { icon: React.Co
 type Alignment = 'left' | 'center' | 'right' | 'top' | 'middle' | 'bottom';
 
 function ArrangeControls({
-  mode, onModeChange, onAlign, disabled, selectionCount,
+  mode, onModeChange, onAlign, onDistribute, disabled, distributeDisabled, selectionCount,
 }: {
   mode: 'canvas' | 'selection';
   onModeChange: (m: 'canvas' | 'selection') => void;
   onAlign: (alignment: Alignment) => void;
+  onDistribute: (axis: 'horizontal' | 'vertical') => void;
   disabled: boolean;
+  distributeDisabled: boolean;
   selectionCount: number;
 }) {
   const buttons: Array<{ icon: React.ComponentType<any>; label: string; alignment: Alignment }> = [
@@ -365,6 +367,29 @@ function ArrangeControls({
             <Icon className="h-4 w-4" />
           </Button>
         ))}
+        <Separator orientation="vertical" className="h-5 mx-0.5" />
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7"
+          disabled={distributeDisabled}
+          onClick={() => onDistribute('horizontal')}
+          title={`Distribute Horizontally (${selectionCount} selected, requires 3+)`}
+          aria-label="Distribute Horizontally"
+        >
+          <AlignHorizontalDistributeCenter className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7"
+          disabled={distributeDisabled}
+          onClick={() => onDistribute('vertical')}
+          title={`Distribute Vertically (${selectionCount} selected, requires 3+)`}
+          aria-label="Distribute Vertically"
+        >
+          <AlignVerticalDistributeCenter className="h-4 w-4" />
+        </Button>
       </div>
     </div>
   );
