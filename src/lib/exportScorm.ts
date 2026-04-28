@@ -384,11 +384,12 @@ window.COURSE_DATA=${courseData.replace(/<\/script>/gi, '<\\/script>').replace(/
     timer=setTimeout(function(){unlocked=true;setNavLock(false)},dur);
   }
 
-  function playSlideTransition(slide){
+  function playSlideTransition(){
     var wrapper=document.getElementById("stage-wrapper");
     if(!wrapper)return;
-    var t=(slide&&slide.transitionType)||"none";
-    var dur=(slide&&typeof slide.transitionDuration==="number")?slide.transitionDuration:0.5;
+    var cs=(data.courseSettings&&data.courseSettings.transition)||{type:"none",duration:1};
+    var t=cs.type||"none";
+    var dur=(typeof cs.duration==="number")?cs.duration:1;
     // Strip any prior transition class so the animation can replay.
     wrapper.classList.remove("slide-trans-fade","slide-trans-push-up","slide-trans-push-left","slide-trans-zoom-in");
     wrapper.style.removeProperty("--slide-trans-dur");
@@ -413,7 +414,7 @@ window.COURSE_DATA=${courseData.replace(/<\/script>/gi, '<\\/script>').replace(/
     startRestrictionTimer();
     startAudio(slide);
     setPlaying(true);
-    playSlideTransition(slide);
+    playSlideTransition();
     if(API){try{API.LMSSetValue("cmi.core.lesson_location",""+current)}catch(e){}}
   }
 
