@@ -285,6 +285,10 @@ export function Ribbon() {
           </>
         )}
 
+        {activeTab === 'Transitions' && (
+          <TransitionsTab />
+        )}
+
         {activeTab === 'View' && (
           <>
             <RibbonGroup label="Preview">
