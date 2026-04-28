@@ -3,17 +3,25 @@ import { Canvas } from './Canvas';
 import { ChevronLeft, ChevronRight, Play, Pause, Captions, CaptionsOff, Menu, FileText } from 'lucide-react';
 import { useState } from 'react';
 import { themeVarStyle } from '@/lib/themeVars';
+import type { PlayerSettings } from '@/types/course';
 
 type SidebarTab = 'menu' | 'notes';
+
+interface PlayerShellProps {
+  /** Optional override of playerSettings (e.g. for live preview in settings modal). Defaults to global state. */
+  playerSettings?: PlayerSettings;
+  /** When true, disables interactive nav/play actions (used for static previews). */
+  interactive?: boolean;
+}
 
 /**
  * Articulate Storyline–style player shell wrapping the Canvas during preview.
  * Layout: top title bar, optional left/right sidebar (Menu / Notes tabs),
  * stage area, bottom controls (Prev/Play/Next/CC).
  */
-export function PlayerShell() {
+export function PlayerShell({ playerSettings, interactive = true }: PlayerShellProps = {}) {
   const { state, dispatch } = useCourse();
-  const ps = state.playerSettings;
+  const ps = playerSettings ?? state.playerSettings;
   const slide = state.slides[state.activeSlideIndex];
 
   const tabsAvailable: SidebarTab[] = [];
@@ -73,7 +81,7 @@ export function PlayerShell() {
               <li key={s.id}>
                 <button
                   type="button"
-                  onClick={() => dispatch({ type: 'SET_ACTIVE_SLIDE', index: i })}
+                  onClick={() => interactive && dispatch({ type: 'SET_ACTIVE_SLIDE', index: i })}
                   className={`w-full text-left px-2.5 py-2 rounded transition-colors ${
                     i === state.activeSlideIndex ? 'text-white' : 'text-white/70 hover:bg-white/5'
                   }`}

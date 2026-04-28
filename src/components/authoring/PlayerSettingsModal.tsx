@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, useState, useLayoutEffect } from 'react';
 import { useCourse } from '@/context/CourseContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
@@ -10,7 +10,8 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { BackgroundMode, NavigationMode, PlayerSettings, SidebarPosition } from '@/types/course';
 import { ImageIcon, Trash2 } from 'lucide-react';
-import { themeVarRef, themeVarIndex, resolveColor, themeVarStyle } from '@/lib/themeVars';
+import { themeVarRef, themeVarIndex, resolveColor } from '@/lib/themeVars';
+import { PlayerShell } from './PlayerShell';
 
 const FONT_OPTIONS = [
   { value: 'system-ui, sans-serif', label: 'System Default' },
@@ -40,17 +41,6 @@ export function PlayerSettingsModal({ open, onOpenChange }: { open: boolean; onO
     e.target.value = '';
   };
 
-  const bgStyle = (): React.CSSProperties => {
-    const s: React.CSSProperties = { backgroundColor: ps.backgroundColor };
-    if (ps.backgroundImage) {
-      s.backgroundImage = `url(${ps.backgroundImage})`;
-      if (ps.backgroundMode === 'stretch') { s.backgroundSize = '100% 100%'; s.backgroundRepeat = 'no-repeat'; }
-      else if (ps.backgroundMode === 'fit') { s.backgroundSize = 'contain'; s.backgroundRepeat = 'no-repeat'; s.backgroundPosition = 'center'; }
-      else { s.backgroundRepeat = 'repeat'; s.backgroundSize = 'auto'; }
-    }
-    return s;
-  };
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[85vh] overflow-hidden flex flex-col">
@@ -59,56 +49,8 @@ export function PlayerSettingsModal({ open, onOpenChange }: { open: boolean; onO
         </DialogHeader>
 
         <div className="flex gap-6 flex-1 min-h-0 overflow-hidden">
-          {/* Left — Live Preview */}
-          <div className="flex-1 flex flex-col items-center justify-center rounded-lg border bg-muted/30 p-4 min-h-[400px]">
-            <div
-              className="w-full max-w-md aspect-video rounded-lg shadow-lg flex flex-col overflow-hidden"
-              style={{ ...themeVarStyle(state.courseSettings.themeColors), ...bgStyle(), fontFamily: ps.fontFamily }}
-            >
-              {/* Faux stage */}
-              <div className="flex-1 flex items-center justify-center">
-                <div className="w-[70%] aspect-video bg-white rounded shadow-sm flex items-center justify-center">
-                  <span className="text-muted-foreground text-xs">Slide Content Area</span>
-                </div>
-              </div>
-
-              {/* Controls bar */}
-              <div className="p-3 flex items-center justify-center gap-3">
-                {ps.showMenu && (
-                  <select
-                    className="text-xs px-2 py-1.5 rounded border bg-white/10 text-white/80"
-                    style={{ borderRadius: ps.buttonBorderRadius, fontFamily: ps.fontFamily }}
-                    defaultValue="0"
-                  >
-                    {state.slides.map((_, i) => (
-                      <option key={i} value={i}>Slide {i + 1}</option>
-                    ))}
-                  </select>
-                )}
-                <button
-                  className="text-xs font-medium px-4 py-1.5 text-white border-none"
-                  style={{
-                    backgroundColor: ps.buttonColor,
-                    borderRadius: ps.buttonBorderRadius,
-                    fontFamily: ps.fontFamily,
-                  }}
-                >
-                  ◀ Prev
-                </button>
-                <span className="text-xs text-white/60">1 / {state.slides.length}</span>
-                <button
-                  className="text-xs font-medium px-4 py-1.5 text-white border-none"
-                  style={{
-                    backgroundColor: ps.buttonColor,
-                    borderRadius: ps.buttonBorderRadius,
-                    fontFamily: ps.fontFamily,
-                  }}
-                >
-                  Next ▶
-                </button>
-              </div>
-            </div>
-          </div>
+          {/* Left — Live Preview (scaled real PlayerShell) */}
+          <ScaledPlayerPreview ps={ps} />
 
           {/* Right — Controls */}
           <div className="w-[260px] shrink-0 overflow-y-auto space-y-5 pr-1">
@@ -284,3 +226,51 @@ function ColorControl({ label, value, onChange, themeColors }: { label: string; 
     </div>
   );
 }
+
+/**
+ * Renders the real <PlayerShell /> at a fixed virtual size and scales it down
+ * via CSS transform to fit the modal's left pane. Live-binds to the same
+ * playerSettings object the right-pane controls mutate.
+ */
+function ScaledPlayerPreview({ ps }: { ps: PlayerSettings }) {
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(0.4);
+
+  // Virtual canvas the shell renders into before scaling.
+  const VW = 1280;
+  const VH = 720;
+
+  useLayoutEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return;
+    const update = () => {
+      const { clientWidth, clientHeight } = el;
+      if (!clientWidth || !clientHeight) return;
+      const s = Math.min(clientWidth / VW, clientHeight / VH);
+      setScale(Math.max(0.1, s));
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  return (
+    <div className="flex-1 min-w-0 rounded-lg border bg-muted/30 overflow-hidden">
+      <div ref={wrapRef} className="w-full h-full relative">
+        <div
+          className="absolute top-1/2 left-1/2 flex"
+          style={{
+            width: VW,
+            height: VH,
+            transform: `translate(-50%, -50%) scale(${scale})`,
+            transformOrigin: 'center center',
+          }}
+        >
+          <PlayerShell playerSettings={ps} interactive={false} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
