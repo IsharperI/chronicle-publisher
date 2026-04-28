@@ -1,4 +1,4 @@
-export type ElementType = 'text' | 'image' | 'shape' | 'video';
+export type ElementType = 'text' | 'image' | 'shape' | 'video' | 'hotspot' | 'checkbox';
 export type ShapeType = 'rectangle' | 'circle' | 'triangle';
 export type AnimationIn = 'none' | 'fade' | 'fly-in-left' | 'fly-in-right';
 export type AnimationOut = 'none' | 'fade' | 'fly-out-left' | 'fly-out-right';
@@ -67,9 +67,39 @@ export interface ShapeElement extends BaseElement {
   text?: string;
   textColor?: string;
   fontSize?: number;
+  /** Optional CSS border-radius (px) override for rectangle shapes. */
+  borderRadius?: number;
+  /** Optional CSS box-shadow value, applied to rectangle/circle shapes. */
+  boxShadow?: string;
 }
 
-export type SlideElement = TextElement | ImageElement | ShapeElement | VideoElement;
+/**
+ * Invisible interactive region. Renders a dashed outline in the editor so
+ * the author can locate it, but is fully transparent in preview/SCORM.
+ */
+export interface HotspotElement extends BaseElement {
+  type: 'hotspot';
+}
+
+/**
+ * Standard checkbox + label control.
+ */
+export interface CheckboxElement extends BaseElement {
+  type: 'checkbox';
+  label: string;
+  /** Default checked state when the slide loads. */
+  defaultChecked?: boolean;
+  textColor?: string;
+  fontSize?: number;
+}
+
+export type SlideElement =
+  | TextElement
+  | ImageElement
+  | ShapeElement
+  | VideoElement
+  | HotspotElement
+  | CheckboxElement;
 
 export interface Caption {
   startTime: number;

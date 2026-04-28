@@ -200,8 +200,31 @@ function sanitizeElement(raw: any): SlideElement | null {
       text: raw.text != null ? safeString(raw.text, '', 5_000) : undefined,
       textColor: raw.textColor != null ? safeColor(raw.textColor, '#000000') : undefined,
       fontSize: raw.fontSize != null ? safeNumber(raw.fontSize, 16, 1, 1000) : undefined,
+      borderRadius: raw.borderRadius != null ? safeNumber(raw.borderRadius, 0, 0, 1000) : undefined,
+      // box-shadow restricted to a small allowlist pattern to defend against
+      // CSS injection via imported JSON.
+      boxShadow:
+        typeof raw.boxShadow === 'string' &&
+        raw.boxShadow.length < 200 &&
+        /^[\d\s.,()a-zA-Z#%/-]+$/.test(raw.boxShadow) &&
+        !/[<>"'`\\]/.test(raw.boxShadow)
+          ? raw.boxShadow
+          : undefined,
     };
     return el;
+  }
+  if (raw.type === 'hotspot') {
+    return { ...base, type: 'hotspot' } as SlideElement;
+  }
+  if (raw.type === 'checkbox') {
+    return {
+      ...base,
+      type: 'checkbox',
+      label: safeString(raw.label, 'Checkbox', 500),
+      defaultChecked: safeBoolean(raw.defaultChecked, false),
+      textColor: raw.textColor != null ? safeColor(raw.textColor, '#ffffff') : undefined,
+      fontSize: raw.fontSize != null ? safeNumber(raw.fontSize, 16, 1, 1000) : undefined,
+    } as SlideElement;
   }
   if (raw.type === 'video') {
     const src = typeof raw.src === 'string' && raw.src.length < 50_000_000 &&

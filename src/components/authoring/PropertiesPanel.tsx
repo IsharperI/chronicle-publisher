@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Trash2, Upload, Plus, X, Sparkles, Loader2, Music } from 'lucide-react';
-import type { SlideElement, TextElement, ImageElement, ShapeElement, VideoElement, ShapeType, Trigger, AnimationIn, AnimationOut, SlideAudio, Caption } from '@/types/course';
+import type { SlideElement, TextElement, ImageElement, ShapeElement, VideoElement, ShapeType, Trigger, AnimationIn, AnimationOut, SlideAudio, Caption, CheckboxElement, HotspotElement } from '@/types/course';
 import { Switch } from '@/components/ui/switch';
 import { themeVarRef, themeVarIndex, resolveColor } from '@/lib/themeVars';
 import { transcribeAudio } from '@/lib/transcribe';
@@ -527,6 +527,50 @@ export function PropertiesPanel() {
                 <p className="text-[10px] text-muted-foreground">
                   Autoplayed videos are muted by default to comply with browser policies.
                 </p>
+              </>
+            )}
+
+            {activeElement.type === 'hotspot' && (
+              <div className="space-y-1 rounded border border-dashed border-emerald-500/50 bg-emerald-500/5 p-2">
+                <p className="text-xs font-medium text-foreground">Hotspot</p>
+                <p className="text-[10px] text-muted-foreground leading-relaxed">
+                  Invisible interactive region. The dashed outline is only visible
+                  in the editor — it renders fully transparent in Preview and SCORM.
+                  Add Triggers (e.g. onClick) to make it interactive.
+                </p>
+              </div>
+            )}
+
+            {activeElement.type === 'checkbox' && (
+              <>
+                <div className="space-y-1">
+                  <Label className="text-xs">Label</Label>
+                  <Input
+                    value={(activeElement as CheckboxElement).label}
+                    onChange={(e) => update({ label: e.target.value } as Partial<CheckboxElement>)}
+                    className="h-8 text-xs"
+                    placeholder="Checkbox label"
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="cb-default" className="text-xs cursor-pointer">Checked by default</Label>
+                  <Switch
+                    id="cb-default"
+                    checked={!!(activeElement as CheckboxElement).defaultChecked}
+                    onCheckedChange={(v) => update({ defaultChecked: v } as Partial<CheckboxElement>)}
+                  />
+                </div>
+                <NumField
+                  label="Font Size"
+                  value={(activeElement as CheckboxElement).fontSize ?? 16}
+                  onChange={(v) => update({ fontSize: Math.max(1, v) } as Partial<CheckboxElement>)}
+                />
+                <ColorField
+                  label="Text Color"
+                  value={(activeElement as CheckboxElement).textColor ?? '#ffffff'}
+                  onChange={(v) => update({ textColor: v } as Partial<CheckboxElement>)}
+                  themeColors={themeColors}
+                />
               </>
             )}
 
