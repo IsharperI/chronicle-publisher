@@ -5,9 +5,10 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import type { BackgroundMode, NavigationMode, PlayerSettings } from '@/types/course';
+import type { BackgroundMode, NavigationMode, PlayerSettings, SidebarPosition } from '@/types/course';
 import { ImageIcon, Trash2 } from 'lucide-react';
 import { themeVarRef, themeVarIndex, resolveColor, themeVarStyle } from '@/lib/themeVars';
 
