@@ -166,4 +166,6 @@ export interface CourseState {
   showGrid: boolean;
   /** Editor-only: snap drag/resize to 20px grid. Not exported. */
   snapToGrid: boolean;
+  /** Runtime: closed-captions enabled in preview/player. */
+  ccEnabled: boolean;
 }
