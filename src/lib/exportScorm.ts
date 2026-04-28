@@ -299,7 +299,12 @@ window.COURSE_DATA=${courseData.replace(/<\/script>/gi, '<\\/script>').replace(/
       } else {
         d.style.backgroundColor=fillColor;
         d.style.border=borderWidth+"px solid "+borderColor;
-        if(st==="circle")d.style.borderRadius="50%";
+        if(st==="circle"){d.style.borderRadius="50%";}
+        else if(typeof el.borderRadius==="number"){d.style.borderRadius=el.borderRadius+"px";}
+        else {d.style.borderRadius="4px";}
+        if(typeof el.boxShadow==="string"&&el.boxShadow.length<200&&!/[<>"'`\\]/.test(el.boxShadow)){
+          d.style.boxShadow=el.boxShadow;
+        }
         if(el.hoverFillColor||el.hoverBorderColor){
           d.addEventListener("mouseenter",function(){
             if(el.hoverFillColor)d.style.backgroundColor=el.hoverFillColor;
@@ -322,6 +327,31 @@ window.COURSE_DATA=${courseData.replace(/<\/script>/gi, '<\\/script>').replace(/
         d.style.position="absolute";
         d.appendChild(txt);
       }
+    } else if(el.type==="hotspot"){
+      // Fully invisible interactive region in the published player.
+      d.style.background="transparent";
+      d.style.cursor="pointer";
+    } else if(el.type==="checkbox"){
+      d.style.display="flex";
+      d.style.alignItems="center";
+      d.style.gap="8px";
+      d.style.padding="4px";
+      d.style.color=el.textColor||"#fff";
+      d.style.fontSize=(el.fontSize||16)+"px";
+      d.style.overflow="hidden";
+      var cb=document.createElement("input");
+      cb.type="checkbox";
+      if(el.defaultChecked)cb.checked=true;
+      cb.style.width="18px";cb.style.height="18px";cb.style.flexShrink="0";cb.style.cursor="pointer";
+      var lbl=document.createElement("label");
+      lbl.textContent=el.label||"Checkbox";
+      lbl.style.cursor="pointer";
+      lbl.style.overflow="hidden";lbl.style.textOverflow="ellipsis";lbl.style.whiteSpace="nowrap";
+      // Generate a unique id so clicking the label toggles the checkbox.
+      var cbId="cb_"+Math.random().toString(36).slice(2,10);
+      cb.id=cbId;lbl.htmlFor=cbId;
+      d.appendChild(cb);
+      d.appendChild(lbl);
     }
 
     // Apply entrance animation with custom duration
