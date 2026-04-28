@@ -203,6 +203,20 @@ function sanitizeElement(raw: any): SlideElement | null {
     };
     return el;
   }
+  if (raw.type === 'video') {
+    const src = typeof raw.src === 'string' && raw.src.length < 50_000_000 &&
+      (/^https?:\/\//i.test(raw.src.trim()) || /^data:video\/(mp4|webm|ogg);base64,[A-Za-z0-9+/=]+$/i.test(raw.src.trim()))
+      ? raw.src.trim()
+      : '';
+    const el: any = {
+      ...base,
+      type: 'video',
+      src,
+      controls: safeBoolean(raw.controls, true),
+      autoplay: safeBoolean(raw.autoplay, false),
+    };
+    return el as SlideElement;
+  }
   return null;
 }
 
