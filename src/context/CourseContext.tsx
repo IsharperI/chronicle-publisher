@@ -57,7 +57,9 @@ type Action =
   | { type: 'UPDATE_AUDIO'; id: string; updates: Partial<SlideAudio> }
   | { type: 'SET_ACTIVE_AUDIO'; id: string | null }
   | { type: 'SET_SHOW_GRID'; value: boolean }
-  | { type: 'SET_SNAP_TO_GRID'; value: boolean };
+  | { type: 'SET_SNAP_TO_GRID'; value: boolean }
+  | { type: 'SET_CC_ENABLED'; value: boolean }
+  | { type: 'TOGGLE_PLAY' };
 
 function getActiveSlides(state: CourseState): Slide[] {
   return state.viewMode === 'master' ? state.masterSlides : state.slides;
