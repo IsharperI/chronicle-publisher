@@ -23,6 +23,7 @@ const initialState: CourseState = {
   courseSettings: { ...defaultCourseSettings, themeColors: [...defaultCourseSettings.themeColors] },
   showGrid: false,
   snapToGrid: false,
+  ccEnabled: true,
 };
 
 type Action =
