@@ -107,6 +107,7 @@ function ElementRenderer({ element, isPreview }: { element: SlideElement; isPrev
             position: 'relative',
             width: '100%', height: '100%', borderRadius: '50%', backgroundColor: fill,
             border: `${se.borderWidth}px solid ${border}`,
+            boxShadow: se.boxShadow,
             transition: isPreview ? 'background-color 0.2s, border-color 0.2s' : undefined,
             cursor: isPreview && (se.hoverFillColor || se.hoverBorderColor) ? 'pointer' : undefined,
           }}
@@ -133,13 +134,70 @@ function ElementRenderer({ element, isPreview }: { element: SlideElement; isPrev
         style={{
           position: 'relative',
           width: '100%', height: '100%', backgroundColor: fill,
-          border: `${se.borderWidth}px solid ${border}`, borderRadius: 4,
+          border: `${se.borderWidth}px solid ${border}`,
+          borderRadius: se.borderRadius != null ? se.borderRadius : 4,
+          boxShadow: se.boxShadow,
           transition: isPreview ? 'background-color 0.2s, border-color 0.2s' : undefined,
           cursor: isPreview && (se.hoverFillColor || se.hoverBorderColor) ? 'pointer' : undefined,
         }}
       >
         <ShapeText se={se} isPreview={isPreview} />
       </div>
+    );
+  }
+  if (element.type === 'hotspot') {
+    // In preview/SCORM the hotspot is fully invisible; in editor it gets a
+    // dashed green outline so the author can locate and select it.
+    if (isPreview) {
+      return (
+        <div
+          style={{
+            width: '100%', height: '100%',
+            background: 'transparent',
+            cursor: 'pointer',
+          }}
+        />
+      );
+    }
+    return (
+      <div
+        style={{
+          width: '100%', height: '100%',
+          background: 'transparent',
+          border: '3px dashed #10b981',
+          borderRadius: 4,
+          boxSizing: 'border-box',
+        }}
+      />
+    );
+  }
+  if (element.type === 'checkbox') {
+    const ce = element as any;
+    return (
+      <label
+        style={{
+          width: '100%', height: '100%',
+          display: 'flex', alignItems: 'center', gap: 8,
+          padding: 4,
+          color: ce.textColor ?? '#ffffff',
+          fontSize: ce.fontSize ?? 16,
+          cursor: isPreview ? 'pointer' : 'default',
+          userSelect: 'none',
+          overflow: 'hidden',
+        }}
+        onMouseDown={(e) => { if (!isPreview) e.preventDefault(); }}
+      >
+        <input
+          type="checkbox"
+          defaultChecked={!!ce.defaultChecked}
+          disabled={!isPreview}
+          style={{ width: 18, height: 18, flexShrink: 0, cursor: isPreview ? 'pointer' : 'default' }}
+          onClick={(e) => { if (!isPreview) e.preventDefault(); }}
+        />
+        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {ce.label || 'Checkbox'}
+        </span>
+      </label>
     );
   }
   return null;
