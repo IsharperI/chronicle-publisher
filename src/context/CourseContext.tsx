@@ -350,6 +350,10 @@ function courseReducer(state: CourseState, action: Action): CourseState {
       return { ...state, showGrid: action.value };
     case 'SET_SNAP_TO_GRID':
       return { ...state, snapToGrid: action.value };
+    case 'SET_CC_ENABLED':
+      return { ...state, ccEnabled: action.value };
+    case 'TOGGLE_PLAY':
+      return { ...state, isPlaying: !state.isPlaying };
     default:
       return state;
   }
