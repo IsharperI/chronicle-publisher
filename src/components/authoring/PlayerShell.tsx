@@ -81,7 +81,7 @@ export function PlayerShell({ playerSettings, interactive = true }: PlayerShellP
               <li key={s.id}>
                 <button
                   type="button"
-                  onClick={() => dispatch({ type: 'SET_ACTIVE_SLIDE', index: i })}
+                  onClick={() => interactive && dispatch({ type: 'SET_ACTIVE_SLIDE', index: i })}
                   className={`w-full text-left px-2.5 py-2 rounded transition-colors ${
                     i === state.activeSlideIndex ? 'text-white' : 'text-white/70 hover:bg-white/5'
                   }`}
