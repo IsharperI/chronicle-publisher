@@ -112,6 +112,16 @@ export function PlayerSettingsModal({ open, onOpenChange }: { open: boolean; onO
 
           {/* Right — Controls */}
           <div className="w-[260px] shrink-0 overflow-y-auto space-y-5 pr-1">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Course Title</Label>
+              <Input
+                value={ps.courseTitle}
+                onChange={(e) => update({ courseTitle: e.target.value })}
+                className="h-8 text-xs"
+                placeholder="Untitled Course"
+              />
+            </div>
+
             <ColorControl label="Background Color" value={ps.backgroundColor} onChange={(v) => update({ backgroundColor: v })} themeColors={state.courseSettings.themeColors} />
             <div className="space-y-1.5">
               <Label className="text-xs">Background Image</Label>
