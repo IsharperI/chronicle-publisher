@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useCourse } from '@/context/CourseContext';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -39,6 +39,72 @@ function SecondsField({ label, valueMs, onChangeMs, min = 0, step = 0.1 }: { lab
         />
         <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground pointer-events-none">s</span>
       </div>
+    </div>
+  );
+}
+
+const SLIDE_MIN_S = 2;
+const SLIDE_MAX_S = 600;
+
+function SlideDurationControl({ valueMs, onChangeMs }: { valueMs: number; onChangeMs: (ms: number) => void }) {
+  const seconds = Math.min(SLIDE_MAX_S, Math.max(SLIDE_MIN_S, valueMs / 1000));
+  const [text, setText] = useState<string>(seconds.toString());
+
+  useEffect(() => {
+    setText(seconds.toString());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [valueMs]);
+
+  const commit = () => {
+    const parsed = Number(text);
+    let clamped = Number.isFinite(parsed) ? parsed : seconds;
+    if (clamped < SLIDE_MIN_S) clamped = SLIDE_MIN_S;
+    if (clamped > SLIDE_MAX_S) clamped = SLIDE_MAX_S;
+    setText(clamped.toString());
+    onChangeMs(Math.round(clamped * 1000));
+  };
+
+  return (
+    <div className="space-y-2">
+      <Label className="text-xs">Duration (s)</Label>
+      <div className="flex items-center gap-2">
+        <input
+          type="range"
+          min={SLIDE_MIN_S}
+          max={SLIDE_MAX_S}
+          step={0.1}
+          value={seconds}
+          onChange={(e) => {
+            const v = Number(e.target.value);
+            setText(v.toString());
+            onChangeMs(Math.round(v * 1000));
+          }}
+          className="flex-1 accent-primary cursor-pointer"
+          aria-label="Slide duration slider"
+        />
+        <div className="relative w-20 shrink-0">
+          <Input
+            type="number"
+            step={0.1}
+            min={SLIDE_MIN_S}
+            max={SLIDE_MAX_S}
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onBlur={commit}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                commit();
+                (e.target as HTMLInputElement).blur();
+              }
+            }}
+            className="h-8 text-xs pr-5"
+            aria-label="Slide duration (seconds)"
+          />
+          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground pointer-events-none">s</span>
+        </div>
+      </div>
+      <p className="text-[10px] text-muted-foreground">Min {SLIDE_MIN_S}s · Max {SLIDE_MAX_S}s (10 min)</p>
     </div>
   );
 }
@@ -273,11 +339,9 @@ export function PropertiesPanel() {
             <p className="text-sm font-medium text-foreground">
               {isMasterMode ? 'Master Slide Properties' : 'Slide Properties'}
             </p>
-            <SecondsField
-              label="Duration (s)"
+            <SlideDurationControl
               valueMs={activeSlide?.duration ?? 5000}
-              onChangeMs={(v) => dispatch({ type: 'UPDATE_SLIDE', index: state.activeSlideIndex, updates: { duration: Math.max(1000, v) } })}
-              min={1000}
+              onChangeMs={(v) => dispatch({ type: 'UPDATE_SLIDE', index: state.activeSlideIndex, updates: { duration: v } })}
             />
             <p className="text-xs text-muted-foreground">Sets the total timeline length for this slide.</p>
 
