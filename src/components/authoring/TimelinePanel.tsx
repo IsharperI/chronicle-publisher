@@ -337,9 +337,17 @@ export function TimelinePanel() {
     window.addEventListener('mouseup', onUp);
   };
 
-  const tickCount = Math.ceil(slideDuration / 1000);
+  const slideDurationS = slideDuration / 1000;
+  const tickInterval = slideDurationS <= 15 ? 1 : slideDurationS <= 60 ? 5 : slideDurationS <= 180 ? 10 : 30;
+  const useMinutes = slideDurationS > 180;
   const ticks: number[] = [];
-  for (let s = 0; s <= tickCount; s++) ticks.push(s);
+  for (let s = 0; s <= slideDurationS; s += tickInterval) ticks.push(s);
+  const formatTick = (s: number) => {
+    if (!useMinutes) return `${s}s`;
+    const m = Math.floor(s / 60);
+    const r = Math.round(s % 60);
+    return `${m}:${r.toString().padStart(2, '0')}`;
+  };
 
   const playheadLeft = (state.playheadTime / slideDuration) * trackWidth;
 
@@ -425,9 +433,9 @@ export function TimelinePanel() {
                     <span
                       key={s}
                       className="absolute text-[9px] text-muted-foreground top-0"
-                      style={{ left: (s / (slideDuration / 1000)) * trackWidth }}
+                      style={{ left: (s / slideDurationS) * trackWidth }}
                     >
-                      {s}s
+                      {formatTick(s)}
                     </span>
                   ))}
                 </div>
