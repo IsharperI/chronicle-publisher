@@ -382,18 +382,32 @@ window.COURSE_DATA=${courseData.replace(/<\/script>/gi, '<\\/script>').replace(/
     var masterEls=getMasterElements(slide);
     masterEls.forEach(function(el){stage.appendChild(renderElement(el))});
     (slide.elements||[]).forEach(function(el){stage.appendChild(renderElement(el))});
-    info.textContent="Slide "+(current+1)+" / "+slides.length;
+    if(meta)meta.textContent="Slide "+(current+1)+" / "+slides.length;
     prevBtn.disabled=current===0;
     buildMenu();
+    updateNotes();
     startRestrictionTimer();
     startAudio(slide);
+    setPlaying(true);
     if(API){try{API.LMSSetValue("cmi.core.lesson_location",""+current)}catch(e){}}
   }
+
+  // Play/pause control: pauses all active audio. (Engine timeline is driven
+  // off audio in the exported player, so pausing audio is sufficient here.)
+  var playing=true;
+  function setPlaying(v){
+    playing=v;
+    for(var i=0;i<activeAudio.length;i++){
+      try{if(playing){activeAudio[i].play().catch(function(){})}else{activeAudio[i].pause()}}catch(e){}
+    }
+    if(ppBtn)ppBtn.innerHTML=playing?"&#10074;&#10074;":"&#9658;";
+    if(ppBtn)ppBtn.setAttribute("aria-label",playing?"Pause":"Play");
+  }
+  if(ppBtn)ppBtn.onclick=function(){setPlaying(!playing)};
 
   function goTo(idx){if(idx<0||idx>=slides.length||idx===current)return;stopAudio();applyExitAnimations(stage,function(){current=idx;render()})}
   prevBtn.onclick=function(){if(current>0)goTo(current-1)};
   nextBtn.onclick=function(){if(current<slides.length-1)goTo(current+1)};
-  if(menuEl){menuEl.onchange=function(){var v=parseInt(menuEl.value,10);if(!isNaN(v)&&v>=0&&v<slides.length)goTo(v)}}
 
   // ===== Closed captions =====
   var ccOverlay=document.getElementById("cc-overlay");
