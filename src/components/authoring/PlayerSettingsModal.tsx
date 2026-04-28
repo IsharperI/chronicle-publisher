@@ -237,3 +237,51 @@ function ColorControl({ label, value, onChange, themeColors }: { label: string; 
     </div>
   );
 }
+
+/**
+ * Renders the real <PlayerShell /> at a fixed virtual size and scales it down
+ * via CSS transform to fit the modal's left pane. Live-binds to the same
+ * playerSettings object the right-pane controls mutate.
+ */
+function ScaledPlayerPreview({ ps }: { ps: PlayerSettings }) {
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(0.4);
+
+  // Virtual canvas the shell renders into before scaling.
+  const VW = 1280;
+  const VH = 720;
+
+  useLayoutEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return;
+    const update = () => {
+      const { clientWidth, clientHeight } = el;
+      if (!clientWidth || !clientHeight) return;
+      const s = Math.min(clientWidth / VW, clientHeight / VH);
+      setScale(Math.max(0.1, s));
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  return (
+    <div className="flex-1 min-w-0 rounded-lg border bg-muted/30 overflow-hidden">
+      <div ref={wrapRef} className="w-full h-full relative">
+        <div
+          className="absolute top-1/2 left-1/2 flex"
+          style={{
+            width: VW,
+            height: VH,
+            transform: `translate(-50%, -50%) scale(${scale})`,
+            transformOrigin: 'center center',
+          }}
+        >
+          <PlayerShell playerSettings={ps} interactive={false} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
