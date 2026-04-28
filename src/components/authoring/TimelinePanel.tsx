@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ChevronUp, ChevronDown, Type, ImageIcon, Square, Play, Pause, Music, X } from 'lucide-react';
+import { ChevronUp, ChevronDown, Type, ImageIcon, Square, Play, Pause, Music, X, Eye, EyeOff, Lock, Unlock } from 'lucide-react';
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import type { SlideElement, TextElement, ShapeElement } from '@/types/course';
@@ -381,17 +381,35 @@ export function TimelinePanel() {
               {/* Labels */}
               <div className="w-[180px] shrink-0 border-r overflow-y-auto">
                 {elements.map((el) => (
-                  <button
+                  <div
                     key={el.id}
-                    onClick={() => dispatch({ type: 'SET_ACTIVE_ELEMENT', id: el.id })}
                     className={cn(
-                      'w-full h-7 flex items-center gap-1.5 px-2 text-xs truncate hover:bg-accent/50 transition-colors',
+                      'w-full h-7 flex items-center gap-1 px-2 text-xs hover:bg-accent/50 transition-colors',
                       state.activeElementId === el.id && 'bg-accent text-accent-foreground'
                     )}
                   >
-                    {typeIcons[el.type]}
-                    <span className="truncate">{getElementLabel(el)}</span>
-                  </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); dispatch({ type: 'UPDATE_ELEMENT', id: el.id, updates: { isHidden: !el.isHidden } }); }}
+                      className="opacity-70 hover:opacity-100 shrink-0"
+                      title={el.isHidden ? 'Show' : 'Hide'}
+                    >
+                      {el.isHidden ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); dispatch({ type: 'UPDATE_ELEMENT', id: el.id, updates: { isLocked: !el.isLocked } }); }}
+                      className="opacity-70 hover:opacity-100 shrink-0"
+                      title={el.isLocked ? 'Unlock' : 'Lock'}
+                    >
+                      {el.isLocked ? <Lock className="h-3 w-3" /> : <Unlock className="h-3 w-3" />}
+                    </button>
+                    <button
+                      onClick={() => dispatch({ type: 'SET_ACTIVE_ELEMENT', id: el.id })}
+                      className="flex items-center gap-1.5 flex-1 min-w-0 truncate text-left"
+                    >
+                      {typeIcons[el.type]}
+                      <span className="truncate">{getElementLabel(el)}</span>
+                    </button>
+                  </div>
                 ))}
                 {elements.length === 0 && (
                   <p className="text-xs text-muted-foreground text-center py-4">No elements</p>
