@@ -254,6 +254,8 @@ export function Ribbon() {
                 onModeChange={setAlignMode}
                 disabled={state.selectedElementIds.length === 0 || (alignMode === 'selection' && state.selectedElementIds.length < 2)}
                 onAlign={(alignment) => dispatch({ type: 'ALIGN_ELEMENTS', mode: alignMode, alignment })}
+                onDistribute={(axis) => dispatch({ type: 'DISTRIBUTE_ELEMENTS', axis })}
+                distributeDisabled={state.selectedElementIds.length < 3}
                 selectionCount={state.selectedElementIds.length}
               />
             </RibbonGroup>
