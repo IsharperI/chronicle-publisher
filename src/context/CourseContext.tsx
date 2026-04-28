@@ -59,7 +59,8 @@ type Action =
   | { type: 'SET_SHOW_GRID'; value: boolean }
   | { type: 'SET_SNAP_TO_GRID'; value: boolean }
   | { type: 'SET_CC_ENABLED'; value: boolean }
-  | { type: 'TOGGLE_PLAY' };
+  | { type: 'TOGGLE_PLAY' }
+  | { type: 'APPLY_TRANSITION_TO_ALL'; transitionType: NonNullable<Slide['transitionType']>; transitionDuration: number };
 
 function getActiveSlides(state: CourseState): Slide[] {
   return state.viewMode === 'master' ? state.masterSlides : state.slides;
@@ -354,6 +355,14 @@ function courseReducer(state: CourseState, action: Action): CourseState {
       return { ...state, ccEnabled: action.value };
     case 'TOGGLE_PLAY':
       return { ...state, isPlaying: !state.isPlaying };
+    case 'APPLY_TRANSITION_TO_ALL': {
+      const slides = getActiveSlides(state).map((s) => ({
+        ...s,
+        transitionType: action.transitionType,
+        transitionDuration: action.transitionDuration,
+      }));
+      return { ...state, ...updateActiveSlides(state, slides) };
+    }
     default:
       return state;
   }

@@ -1,18 +1,18 @@
 import { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Save, Upload, Play, X, Type, ImageIcon, Square, Eye, Package, Settings, Music, AlignLeft, AlignCenter, AlignRight, AlignStartVertical, AlignCenterVertical, AlignEndVertical, AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter } from 'lucide-react';
+import { Save, Upload, Play, X, Type, ImageIcon, Square, Eye, Package, Settings, Music, AlignLeft, AlignCenter, AlignRight, AlignStartVertical, AlignCenterVertical, AlignEndVertical, AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter, Ban, Sparkles, ArrowUpFromLine, ArrowLeftFromLine, ZoomIn, CopyCheck } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { exportScorm } from '@/lib/exportScorm';
 import { useCourse } from '@/context/CourseContext';
 import { cn } from '@/lib/utils';
-import type { TextElement, ImageElement, ShapeElement, SlideAudio } from '@/types/course';
+import type { TextElement, ImageElement, ShapeElement, SlideAudio, SlideTransitionType } from '@/types/course';
 import { Separator } from '@/components/ui/separator';
 import { PlayerSettingsModal } from './PlayerSettingsModal';
 import { sanitizeSlides, sanitizePlayerSettings, sanitizeCourseSettings } from '@/lib/sanitize';
 
 import { StorySizeControl, ThemeColorsControl } from './DesignControls';
 
-const TABS = ['Home', 'Insert', 'Design', 'View'] as const;
+const TABS = ['Home', 'Insert', 'Design', 'Transitions', 'View'] as const;
 type RibbonTab = typeof TABS[number];
 
 export function Ribbon() {
@@ -285,6 +285,10 @@ export function Ribbon() {
           </>
         )}
 
+        {activeTab === 'Transitions' && (
+          <TransitionsTab />
+        )}
+
         {activeTab === 'View' && (
           <>
             <RibbonGroup label="Preview">
@@ -392,5 +396,101 @@ function ArrangeControls({
         </Button>
       </div>
     </div>
+  );
+}
+
+const TRANSITION_OPTIONS: Array<{ type: SlideTransitionType; label: string; icon: React.ComponentType<any> }> = [
+  { type: 'none',       label: 'None',      icon: Ban },
+  { type: 'fade',       label: 'Fade',      icon: Sparkles },
+  { type: 'push-up',    label: 'Push Up',   icon: ArrowUpFromLine },
+  { type: 'push-left',  label: 'Push Left', icon: ArrowLeftFromLine },
+  { type: 'zoom-in',    label: 'Zoom',      icon: ZoomIn },
+];
+
+function TransitionsTab() {
+  const { state, dispatch } = useCourse();
+  const slide = state.viewMode === 'master'
+    ? state.masterSlides[state.activeSlideIndex]
+    : state.slides[state.activeSlideIndex];
+  const tType: SlideTransitionType = slide?.transitionType ?? 'none';
+  const tDur = slide?.transitionDuration ?? 0.5;
+
+  const setType = (transitionType: SlideTransitionType) => {
+    if (!slide) return;
+    dispatch({
+      type: 'UPDATE_SLIDE',
+      index: state.activeSlideIndex,
+      updates: { transitionType, transitionDuration: tDur },
+    });
+  };
+
+  const setDur = (v: number) => {
+    if (!slide) return;
+    const clamped = Math.max(0, Math.min(10, Number.isFinite(v) ? v : 0.5));
+    dispatch({
+      type: 'UPDATE_SLIDE',
+      index: state.activeSlideIndex,
+      updates: { transitionDuration: clamped },
+    });
+  };
+
+  const applyAll = () => {
+    dispatch({
+      type: 'APPLY_TRANSITION_TO_ALL',
+      transitionType: tType,
+      transitionDuration: tDur,
+    });
+  };
+
+  return (
+    <>
+      <RibbonGroup label="Slide Transition">
+        <div className="flex items-center gap-1 px-1">
+          {TRANSITION_OPTIONS.map(({ type, label, icon: Icon }) => {
+            const active = tType === type;
+            return (
+              <Button
+                key={type}
+                variant="ghost"
+                onClick={() => setType(type)}
+                className={cn(
+                  'h-12 w-16 flex flex-col items-center justify-center gap-0.5 px-1 rounded border',
+                  active ? 'border-primary bg-primary/10 text-foreground' : 'border-transparent text-foreground hover:bg-accent/60',
+                )}
+                title={label}
+                aria-pressed={active}
+              >
+                <Icon className="h-4 w-4" />
+                <span className="text-[10px] font-medium leading-none">{label}</span>
+              </Button>
+            );
+          })}
+        </div>
+      </RibbonGroup>
+
+      <Separator orientation="vertical" className="h-12 mx-2" />
+
+      <RibbonGroup label="Timing">
+        <div className="flex flex-col gap-1 px-1">
+          <label className="text-[10px] text-muted-foreground font-medium">Duration (s)</label>
+          <input
+            type="number"
+            min={0}
+            max={10}
+            step={0.1}
+            value={tDur}
+            onChange={(e) => setDur(parseFloat(e.target.value))}
+            className="h-7 w-20 rounded border bg-background px-2 text-xs"
+            disabled={!slide}
+          />
+        </div>
+      </RibbonGroup>
+
+      <Separator orientation="vertical" className="h-12 mx-2" />
+
+      <RibbonGroup label="Apply">
+        <RibbonButton icon={CopyCheck} label="Apply to All" onClick={applyAll} />
+      </RibbonGroup>
+    </>
   );
 }

@@ -129,8 +129,23 @@ export function PlayerShell({ playerSettings, interactive = true }: PlayerShellP
       {/* Body: sidebar + stage */}
       <div className="flex-1 flex min-h-0">
         {ps.sidebarPosition === 'left' && sidebar}
-        <div className="flex-1 flex min-w-0">
-          <Canvas />
+        <div className="flex-1 flex min-w-0 overflow-hidden">
+          {(() => {
+            const tType = slide?.transitionType ?? 'none';
+            const tDur = slide?.transitionDuration ?? 0.5;
+            const animClass = tType !== 'none' ? `slide-trans-${tType}` : '';
+            // Re-keying the wrapper on slide id forces React to remount, which
+            // restarts the CSS animation cleanly on every slide change.
+            return (
+              <div
+                key={slide?.id ?? state.activeSlideIndex}
+                className={`flex-1 flex min-w-0 ${animClass}`}
+                style={animClass ? ({ ['--slide-trans-dur' as any]: `${tDur}s` }) : undefined}
+              >
+                <Canvas />
+              </div>
+            );
+          })()}
         </div>
         {ps.sidebarPosition === 'right' && sidebar}
       </div>

@@ -114,8 +114,17 @@ body{background-color:${ps.backgroundColor};${ps.backgroundImage ? `background-i
 #controls button:hover{filter:brightness(1.15)}
 #controls button:disabled{opacity:.4;cursor:default;filter:none}
 #controls #cc.off{opacity:.55}
+@keyframes slide-trans-fade{from{opacity:0}to{opacity:1}}
+@keyframes slide-trans-push-up{from{opacity:0;transform:translateY(100%)}to{opacity:1;transform:translateY(0)}}
+@keyframes slide-trans-push-left{from{opacity:0;transform:translateX(100%)}to{opacity:1;transform:translateX(0)}}
+@keyframes slide-trans-zoom-in{from{opacity:0;transform:scale(.92)}to{opacity:1;transform:scale(1)}}
+.slide-trans-fade{animation:slide-trans-fade var(--slide-trans-dur,.5s) ease-out both}
+.slide-trans-push-up{animation:slide-trans-push-up var(--slide-trans-dur,.5s) ease-out both}
+.slide-trans-push-left{animation:slide-trans-push-left var(--slide-trans-dur,.5s) ease-out both}
+.slide-trans-zoom-in{animation:slide-trans-zoom-in var(--slide-trans-dur,.5s) ease-out both}
 </style>
 </head>
+
 <body>
 <div id="topbar">
   <h1>${titleSafe}</h1>
@@ -375,6 +384,21 @@ window.COURSE_DATA=${courseData.replace(/<\/script>/gi, '<\\/script>').replace(/
     timer=setTimeout(function(){unlocked=true;setNavLock(false)},dur);
   }
 
+  function playSlideTransition(slide){
+    var wrapper=document.getElementById("stage-wrapper");
+    if(!wrapper)return;
+    var t=(slide&&slide.transitionType)||"none";
+    var dur=(slide&&typeof slide.transitionDuration==="number")?slide.transitionDuration:0.5;
+    // Strip any prior transition class so the animation can replay.
+    wrapper.classList.remove("slide-trans-fade","slide-trans-push-up","slide-trans-push-left","slide-trans-zoom-in");
+    wrapper.style.removeProperty("--slide-trans-dur");
+    if(t==="none")return;
+    // Force reflow before re-adding the class to restart the CSS animation.
+    void wrapper.offsetWidth;
+    wrapper.style.setProperty("--slide-trans-dur",dur+"s");
+    wrapper.classList.add("slide-trans-"+t);
+  }
+
   function render(){
     stage.innerHTML="";
     if(current<0||current>=slides.length)return;
@@ -389,6 +413,7 @@ window.COURSE_DATA=${courseData.replace(/<\/script>/gi, '<\\/script>').replace(/
     startRestrictionTimer();
     startAudio(slide);
     setPlaying(true);
+    playSlideTransition(slide);
     if(API){try{API.LMSSetValue("cmi.core.lesson_location",""+current)}catch(e){}}
   }
 

@@ -230,6 +230,11 @@ function sanitizeAudio(raw: any) {
 }
 
 function sanitizeSlide(raw: any): Slide {
+  const transitionType = safeEnum(
+    raw?.transitionType,
+    ['none', 'fade', 'push-up', 'push-left', 'zoom-in'] as const,
+    'none',
+  );
   return {
     id: safeId(raw?.id),
     duration: safeNumber(raw?.duration, 5000, 0, 3_600_000),
@@ -242,6 +247,9 @@ function sanitizeSlide(raw: any): Slide {
     audio: Array.isArray(raw?.audio)
       ? raw.audio.slice(0, 20).map(sanitizeAudio).filter((a: any): a is NonNullable<typeof a> => a !== null)
       : [],
+    notes: typeof raw?.notes === 'string' ? raw.notes.slice(0, 10_000) : undefined,
+    transitionType,
+    transitionDuration: safeNumber(raw?.transitionDuration, 0.5, 0, 10),
   };
 }
 
