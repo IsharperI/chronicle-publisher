@@ -180,6 +180,29 @@ export function Ribbon() {
     dispatch({ type: 'ADD_ELEMENT', element: el as SlideElement });
   };
 
+  const addTable = (rows: number, cols: number) => {
+    const r = Math.max(1, Math.min(20, Math.round(rows)));
+    const c = Math.max(1, Math.min(20, Math.round(cols)));
+    const w = Math.min(state.courseSettings.canvasDimensions.width - 40, Math.max(240, c * 120));
+    const h = Math.min(state.courseSettings.canvasDimensions.height - 40, Math.max(120, r * 40));
+    const { x, y } = centerXY(w, h);
+    const cellData: string[][] = Array.from({ length: r }, () =>
+      Array.from({ length: c }, () => ''),
+    );
+    const el: TableElement = {
+      id: crypto.randomUUID(), type: 'table',
+      x, y, width: w, height: h,
+      rowCount: r, colCount: c, cellData,
+      borderColor: '#94a3b8',
+      textColor: '#0f172a',
+      fontSize: 14,
+      startTime: 0, duration: 5000, triggers: [],
+      animationIn: 'none', animationOut: 'none',
+      entranceDuration: 500, exitDuration: 500,
+    };
+    dispatch({ type: 'ADD_ELEMENT', element: el as SlideElement });
+  };
+
   const handleAudioFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
