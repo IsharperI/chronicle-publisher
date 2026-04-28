@@ -412,10 +412,10 @@ export function Ribbon() {
                 </DropdownMenuContent>
               </DropdownMenu>
             </RibbonGroup>
-          </>
-        )}
-
-        {activeTab === 'Design' && (
+            <Separator orientation="vertical" className="h-12 mx-2" />
+            <RibbonGroup label="Data">
+              <TableInsertPopover onInsert={addTable} />
+            </RibbonGroup>
           <>
             <RibbonGroup label="Story Size">
               <StorySizeControl />
