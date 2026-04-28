@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Save, Upload, Play, X, Type, ImageIcon, Square, Eye, Package, Settings, Music, AlignLeft, AlignCenter, AlignRight, AlignStartVertical, AlignCenterVertical, AlignEndVertical } from 'lucide-react';
+import { Save, Upload, Play, X, Type, ImageIcon, Square, Eye, Package, Settings, Music, AlignLeft, AlignCenter, AlignRight, AlignStartVertical, AlignCenterVertical, AlignEndVertical, AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { exportScorm } from '@/lib/exportScorm';
 import { useCourse } from '@/context/CourseContext';
@@ -254,6 +254,8 @@ export function Ribbon() {
                 onModeChange={setAlignMode}
                 disabled={state.selectedElementIds.length === 0 || (alignMode === 'selection' && state.selectedElementIds.length < 2)}
                 onAlign={(alignment) => dispatch({ type: 'ALIGN_ELEMENTS', mode: alignMode, alignment })}
+                onDistribute={(axis) => dispatch({ type: 'DISTRIBUTE_ELEMENTS', axis })}
+                distributeDisabled={state.selectedElementIds.length < 3}
                 selectionCount={state.selectedElementIds.length}
               />
             </RibbonGroup>
@@ -321,12 +323,14 @@ function RibbonButton({ icon: Icon, label, onClick, disabled }: { icon: React.Co
 type Alignment = 'left' | 'center' | 'right' | 'top' | 'middle' | 'bottom';
 
 function ArrangeControls({
-  mode, onModeChange, onAlign, disabled, selectionCount,
+  mode, onModeChange, onAlign, onDistribute, disabled, distributeDisabled, selectionCount,
 }: {
   mode: 'canvas' | 'selection';
   onModeChange: (m: 'canvas' | 'selection') => void;
   onAlign: (alignment: Alignment) => void;
+  onDistribute: (axis: 'horizontal' | 'vertical') => void;
   disabled: boolean;
+  distributeDisabled: boolean;
   selectionCount: number;
 }) {
   const buttons: Array<{ icon: React.ComponentType<any>; label: string; alignment: Alignment }> = [
@@ -363,6 +367,29 @@ function ArrangeControls({
             <Icon className="h-4 w-4" />
           </Button>
         ))}
+        <Separator orientation="vertical" className="h-5 mx-0.5" />
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7"
+          disabled={distributeDisabled}
+          onClick={() => onDistribute('horizontal')}
+          title={`Distribute Horizontally (${selectionCount} selected, requires 3+)`}
+          aria-label="Distribute Horizontally"
+        >
+          <AlignHorizontalDistributeCenter className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7"
+          disabled={distributeDisabled}
+          onClick={() => onDistribute('vertical')}
+          title={`Distribute Vertically (${selectionCount} selected, requires 3+)`}
+          aria-label="Distribute Vertically"
+        >
+          <AlignVerticalDistributeCenter className="h-4 w-4" />
+        </Button>
       </div>
     </div>
   );

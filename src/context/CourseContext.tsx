@@ -36,6 +36,7 @@ type Action =
   | { type: 'TOGGLE_SELECT_ELEMENT'; id: string }
   | { type: 'CLEAR_SELECTION' }
   | { type: 'ALIGN_ELEMENTS'; mode: 'canvas' | 'selection'; alignment: 'left' | 'center' | 'right' | 'top' | 'middle' | 'bottom' }
+  | { type: 'DISTRIBUTE_ELEMENTS'; axis: 'horizontal' | 'vertical' }
   | { type: 'LOAD_COURSE'; slides: Slide[]; masterSlides?: Slide[]; playerSettings?: Partial<PlayerSettings>; courseSettings?: Partial<CourseSettings> }
   | { type: 'SET_PREVIEW_MODE'; enabled: boolean }
   | { type: 'PREVIEW_NEXT' }
@@ -183,6 +184,44 @@ function courseReducer(state: CourseState, action: Action): CourseState {
       const updatedElements = slide.elements.map((el) => {
         if (!ids.includes(el.id)) return el;
         return { ...el, ...computeXY(el) } as SlideElement;
+      });
+      const updatedSlides = slides.map((s, i) => i === state.activeSlideIndex ? { ...s, elements: updatedElements } : s);
+      return { ...state, ...updateActiveSlides(state, updatedSlides) };
+    }
+    case 'DISTRIBUTE_ELEMENTS': {
+      const ids = state.selectedElementIds;
+      if (ids.length < 3) return state;
+      const slides = getActiveSlides(state);
+      const slide = slides[state.activeSlideIndex];
+      if (!slide) return state;
+      const targets = slide.elements.filter((el) => ids.includes(el.id));
+      if (targets.length < 3) return state;
+
+      const horizontal = action.axis === 'horizontal';
+      const sorted = [...targets].sort((a, b) =>
+        horizontal
+          ? (a.x + a.width / 2) - (b.x + b.width / 2)
+          : (a.y + a.height / 2) - (b.y + b.height / 2)
+      );
+      const first = sorted[0];
+      const last = sorted[sorted.length - 1];
+      const firstCenter = horizontal ? first.x + first.width / 2 : first.y + first.height / 2;
+      const lastCenter = horizontal ? last.x + last.width / 2 : last.y + last.height / 2;
+      const step = (lastCenter - firstCenter) / (sorted.length - 1);
+
+      const newCoords = new Map<string, { x?: number; y?: number }>();
+      for (let i = 1; i < sorted.length - 1; i++) {
+        const el = sorted[i];
+        const targetCenter = firstCenter + step * i;
+        if (horizontal) {
+          newCoords.set(el.id, { x: Math.round(targetCenter - el.width / 2) });
+        } else {
+          newCoords.set(el.id, { y: Math.round(targetCenter - el.height / 2) });
+        }
+      }
+      const updatedElements = slide.elements.map((el) => {
+        const c = newCoords.get(el.id);
+        return c ? ({ ...el, ...c } as SlideElement) : el;
       });
       const updatedSlides = slides.map((s, i) => i === state.activeSlideIndex ? { ...s, elements: updatedElements } : s);
       return { ...state, ...updateActiveSlides(state, updatedSlides) };
