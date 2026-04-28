@@ -258,6 +258,14 @@ window.COURSE_DATA=${courseData.replace(/<\/script>/gi, '<\\/script>').replace(/
       img.src=el.src||"";img.alt=el.alt||"";
       img.style.width="100%";img.style.height="100%";img.style.objectFit="contain";
       d.appendChild(img);
+    } else if(el.type==="video"){
+      var vid=document.createElement("video");
+      vid.src=el.src||"";
+      if(el.controls!==false)vid.setAttribute("controls","");
+      if(el.autoplay){vid.setAttribute("autoplay","");vid.muted=true;vid.setAttribute("muted","");}
+      vid.setAttribute("playsinline","");
+      vid.style.width="100%";vid.style.height="100%";vid.style.objectFit="contain";vid.style.background="#000";
+      d.appendChild(vid);
     } else if(el.type==="shape"){
       var st=el.shapeType||"rectangle";
       var fillColor=el.fillColor||"#3b82f6";
