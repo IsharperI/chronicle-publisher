@@ -268,6 +268,8 @@ export function Ribbon() {
             <RibbonGroup label="Media">
               <RibbonButton icon={Music} label="Audio" onClick={() => audioInputRef.current?.click()} />
               <input ref={audioInputRef} type="file" accept="audio/*,.mp3,.wav,.ogg,.m4a" className="hidden" onChange={handleAudioFile} />
+              <RibbonButton icon={VideoIcon} label="Video" onClick={() => videoInputRef.current?.click()} />
+              <input ref={videoInputRef} type="file" accept="video/mp4,video/webm,.mp4,.webm" className="hidden" onChange={handleVideoFile} />
             </RibbonGroup>
           </>
         )}
