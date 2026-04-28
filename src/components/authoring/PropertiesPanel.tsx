@@ -574,7 +574,62 @@ export function PropertiesPanel() {
               </>
             )}
 
-            <AnimationsSection element={activeElement} onUpdate={update} />
+            {activeElement.type === 'table' && (
+              <>
+                <div className="grid grid-cols-2 gap-2">
+                  <NumField
+                    label="Rows"
+                    value={(activeElement as TableElement).rowCount}
+                    onChange={(v) => {
+                      const te = activeElement as TableElement;
+                      const r = Math.max(1, Math.min(50, Math.round(v || 1)));
+                      const c = te.colCount;
+                      const next: string[][] = [];
+                      for (let i = 0; i < r; i++) {
+                        const row: string[] = [];
+                        for (let j = 0; j < c; j++) row.push(te.cellData[i]?.[j] ?? '');
+                        next.push(row);
+                      }
+                      update({ rowCount: r, cellData: next } as Partial<TableElement>);
+                    }}
+                  />
+                  <NumField
+                    label="Columns"
+                    value={(activeElement as TableElement).colCount}
+                    onChange={(v) => {
+                      const te = activeElement as TableElement;
+                      const c = Math.max(1, Math.min(20, Math.round(v || 1)));
+                      const r = te.rowCount;
+                      const next: string[][] = [];
+                      for (let i = 0; i < r; i++) {
+                        const row: string[] = [];
+                        for (let j = 0; j < c; j++) row.push(te.cellData[i]?.[j] ?? '');
+                        next.push(row);
+                      }
+                      update({ colCount: c, cellData: next } as Partial<TableElement>);
+                    }}
+                  />
+                </div>
+                <NumField
+                  label="Font Size"
+                  value={(activeElement as TableElement).fontSize ?? 14}
+                  onChange={(v) => update({ fontSize: Math.max(1, v) } as Partial<TableElement>)}
+                />
+                <ColorField
+                  label="Border Color"
+                  value={(activeElement as TableElement).borderColor ?? '#94a3b8'}
+                  onChange={(v) => update({ borderColor: v } as Partial<TableElement>)}
+                  themeColors={themeColors}
+                />
+                <ColorField
+                  label="Text Color"
+                  value={(activeElement as TableElement).textColor ?? '#0f172a'}
+                  onChange={(v) => update({ textColor: v } as Partial<TableElement>)}
+                  themeColors={themeColors}
+                />
+                <p className="text-[10px] text-muted-foreground">Click any cell on the canvas to edit its content.</p>
+              </>
+            )}
 
             <div className="space-y-2 pt-2 border-t">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Timeline</p>
