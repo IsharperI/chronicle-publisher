@@ -359,6 +359,33 @@ export function Ribbon() {
               <RibbonButton icon={VideoIcon} label="Video" onClick={() => videoInputRef.current?.click()} />
               <input ref={videoInputRef} type="file" accept="video/mp4,video/webm,.mp4,.webm" className="hidden" onChange={handleVideoFile} />
             </RibbonGroup>
+            <Separator orientation="vertical" className="h-12 mx-2" />
+            <RibbonGroup label="Interactive">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    className="h-11 flex flex-col items-center justify-center gap-0.5 px-3 text-foreground"
+                  >
+                    <MousePointerClick className="h-5 w-5" />
+                    <span className="text-[10px] font-medium leading-none flex items-center gap-0.5">
+                      Interactive <ChevronDown className="h-3 w-3" />
+                    </span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  <DropdownMenuItem onClick={addInteractiveButton}>
+                    <MousePointerClick className="h-4 w-4 mr-2" /> Button
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={addHotspot}>
+                    <Target className="h-4 w-4 mr-2" /> Hotspot
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={addCheckbox}>
+                    <CheckSquare className="h-4 w-4 mr-2" /> Checkbox
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </RibbonGroup>
           </>
         )}
 
