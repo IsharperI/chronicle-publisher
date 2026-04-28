@@ -5,7 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { exportScorm } from '@/lib/exportScorm';
 import { useCourse } from '@/context/CourseContext';
 import { cn } from '@/lib/utils';
-import type { TextElement, ImageElement, ShapeElement, SlideAudio } from '@/types/course';
+import type { TextElement, ImageElement, ShapeElement, SlideAudio, SlideTransitionType } from '@/types/course';
 import { Separator } from '@/components/ui/separator';
 import { PlayerSettingsModal } from './PlayerSettingsModal';
 import { sanitizeSlides, sanitizePlayerSettings, sanitizeCourseSettings } from '@/lib/sanitize';
