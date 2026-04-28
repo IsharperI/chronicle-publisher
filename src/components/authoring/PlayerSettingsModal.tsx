@@ -41,17 +41,6 @@ export function PlayerSettingsModal({ open, onOpenChange }: { open: boolean; onO
     e.target.value = '';
   };
 
-  const bgStyle = (): React.CSSProperties => {
-    const s: React.CSSProperties = { backgroundColor: ps.backgroundColor };
-    if (ps.backgroundImage) {
-      s.backgroundImage = `url(${ps.backgroundImage})`;
-      if (ps.backgroundMode === 'stretch') { s.backgroundSize = '100% 100%'; s.backgroundRepeat = 'no-repeat'; }
-      else if (ps.backgroundMode === 'fit') { s.backgroundSize = 'contain'; s.backgroundRepeat = 'no-repeat'; s.backgroundPosition = 'center'; }
-      else { s.backgroundRepeat = 'repeat'; s.backgroundSize = 'auto'; }
-    }
-    return s;
-  };
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[85vh] overflow-hidden flex flex-col">
