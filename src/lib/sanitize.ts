@@ -240,6 +240,30 @@ function sanitizeElement(raw: any): SlideElement | null {
     };
     return el as SlideElement;
   }
+  if (raw.type === 'table') {
+    const rowCount = safeNumber(raw.rowCount, 3, 1, 50);
+    const colCount = safeNumber(raw.colCount, 3, 1, 20);
+    const rawCells = Array.isArray(raw.cellData) ? raw.cellData : [];
+    const cellData: string[][] = [];
+    for (let i = 0; i < rowCount; i++) {
+      const row: string[] = [];
+      const rawRow = Array.isArray(rawCells[i]) ? rawCells[i] : [];
+      for (let j = 0; j < colCount; j++) {
+        row.push(safeString(rawRow[j], '', 2_000));
+      }
+      cellData.push(row);
+    }
+    return {
+      ...base,
+      type: 'table',
+      rowCount,
+      colCount,
+      cellData,
+      borderColor: raw.borderColor != null ? safeColor(raw.borderColor, '#94a3b8') : undefined,
+      textColor: raw.textColor != null ? safeColor(raw.textColor, '#0f172a') : undefined,
+      fontSize: raw.fontSize != null ? safeNumber(raw.fontSize, 14, 1, 1000) : undefined,
+    } as SlideElement;
+  }
   return null;
 }
 
