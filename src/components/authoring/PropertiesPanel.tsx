@@ -494,6 +494,42 @@ export function PropertiesPanel() {
               </>
             )}
 
+            {activeElement.type === 'video' && (
+              <>
+                <div className="space-y-1">
+                  <Label className="text-xs">Video Source</Label>
+                  {(activeElement as VideoElement).src ? (
+                    <video
+                      src={(activeElement as VideoElement).src}
+                      controls
+                      className="w-full h-32 rounded border bg-black"
+                    />
+                  ) : (
+                    <div className="text-xs text-muted-foreground">No video loaded.</div>
+                  )}
+                </div>
+                <div className="flex items-center justify-between pt-1">
+                  <Label htmlFor="video-controls" className="text-xs cursor-pointer">Show Controls</Label>
+                  <Switch
+                    id="video-controls"
+                    checked={(activeElement as VideoElement).controls !== false}
+                    onCheckedChange={(v) => update({ controls: v } as Partial<VideoElement>)}
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="video-autoplay" className="text-xs cursor-pointer">Autoplay</Label>
+                  <Switch
+                    id="video-autoplay"
+                    checked={!!(activeElement as VideoElement).autoplay}
+                    onCheckedChange={(v) => update({ autoplay: v } as Partial<VideoElement>)}
+                  />
+                </div>
+                <p className="text-[10px] text-muted-foreground">
+                  Autoplayed videos are muted by default to comply with browser policies.
+                </p>
+              </>
+            )}
+
             <AnimationsSection element={activeElement} onUpdate={update} />
 
             <div className="space-y-2 pt-2 border-t">
