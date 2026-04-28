@@ -181,6 +181,58 @@ export function PlayerSettingsModal({ open, onOpenChange }: { open: boolean; onO
             </div>
 
             <div className="space-y-1.5">
+              <Label className="text-xs">Sidebar Position</Label>
+              <Select value={ps.sidebarPosition} onValueChange={(v) => update({ sidebarPosition: v as SidebarPosition })}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="left">Left</SelectItem>
+                  <SelectItem value="right">Right</SelectItem>
+                  <SelectItem value="none">None (Hide Sidebar)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-xs">Player Tabs</Label>
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="tab-menu"
+                  checked={ps.playerTabs.showMenu}
+                  onCheckedChange={(v) => update({ playerTabs: { ...ps.playerTabs, showMenu: !!v } })}
+                />
+                <Label htmlFor="tab-menu" className="text-xs font-normal cursor-pointer">Menu</Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="tab-notes"
+                  checked={ps.playerTabs.showNotes}
+                  onCheckedChange={(v) => update({ playerTabs: { ...ps.playerTabs, showNotes: !!v } })}
+                />
+                <Label htmlFor="tab-notes" className="text-xs font-normal cursor-pointer">Notes</Label>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-xs">Player Controls</Label>
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="ctrl-pp"
+                  checked={ps.playerControls.showPlayPause}
+                  onCheckedChange={(v) => update({ playerControls: { ...ps.playerControls, showPlayPause: !!v } })}
+                />
+                <Label htmlFor="ctrl-pp" className="text-xs font-normal cursor-pointer">Play/Pause</Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="ctrl-cc"
+                  checked={ps.playerControls.showCaptions}
+                  onCheckedChange={(v) => update({ playerControls: { ...ps.playerControls, showCaptions: !!v } })}
+                />
+                <Label htmlFor="ctrl-cc" className="text-xs font-normal cursor-pointer">Captions (CC)</Label>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
               <Label className="text-xs">Navigation Mode</Label>
               <Select value={ps.navigationMode} onValueChange={(v) => update({ navigationMode: v as NavigationMode })}>
                 <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
