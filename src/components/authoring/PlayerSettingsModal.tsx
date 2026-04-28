@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, useEffect, useState, useLayoutEffect } from 'react';
 import { useCourse } from '@/context/CourseContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import type { BackgroundMode, NavigationMode, PlayerSettings, SidebarPosition } from '@/types/course';
 import { ImageIcon, Trash2 } from 'lucide-react';
 import { themeVarRef, themeVarIndex, resolveColor, themeVarStyle } from '@/lib/themeVars';
+import { PlayerShell } from './PlayerShell';
 
 const FONT_OPTIONS = [
   { value: 'system-ui, sans-serif', label: 'System Default' },
