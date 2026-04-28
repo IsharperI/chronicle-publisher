@@ -7,7 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Trash2, Upload, Plus, X, Sparkles, Loader2, Music } from 'lucide-react';
-import type { SlideElement, TextElement, ImageElement, ShapeElement, ShapeType, Trigger, AnimationIn, AnimationOut, SlideAudio, Caption } from '@/types/course';
+import type { SlideElement, TextElement, ImageElement, ShapeElement, VideoElement, ShapeType, Trigger, AnimationIn, AnimationOut, SlideAudio, Caption } from '@/types/course';
+import { Switch } from '@/components/ui/switch';
 import { themeVarRef, themeVarIndex, resolveColor } from '@/lib/themeVars';
 import { transcribeAudio } from '@/lib/transcribe';
 
