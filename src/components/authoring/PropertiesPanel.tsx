@@ -339,11 +339,9 @@ export function PropertiesPanel() {
             <p className="text-sm font-medium text-foreground">
               {isMasterMode ? 'Master Slide Properties' : 'Slide Properties'}
             </p>
-            <SecondsField
-              label="Duration (s)"
+            <SlideDurationControl
               valueMs={activeSlide?.duration ?? 5000}
-              onChangeMs={(v) => dispatch({ type: 'UPDATE_SLIDE', index: state.activeSlideIndex, updates: { duration: Math.max(1000, v) } })}
-              min={1000}
+              onChangeMs={(v) => dispatch({ type: 'UPDATE_SLIDE', index: state.activeSlideIndex, updates: { duration: v } })}
             />
             <p className="text-xs text-muted-foreground">Sets the total timeline length for this slide.</p>
 
