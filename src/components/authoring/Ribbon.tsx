@@ -120,6 +120,63 @@ export function Ribbon() {
     dispatch({ type: 'ADD_ELEMENT', element: el });
   };
 
+  const centerXY = (w: number, h: number) => {
+    const { width: cw, height: ch } = state.courseSettings.canvasDimensions;
+    return { x: Math.round((cw - w) / 2), y: Math.round((ch - h) / 2) };
+  };
+
+  const addInteractiveButton = () => {
+    const w = 200, h = 60;
+    const { x, y } = centerXY(w, h);
+    const el: ShapeElement = {
+      id: crypto.randomUUID(), type: 'shape',
+      x, y, width: w, height: h,
+      shapeType: 'rectangle',
+      fillColor: '#3b82f6',
+      borderColor: 'transparent',
+      borderWidth: 0,
+      borderRadius: 4,
+      boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+      text: 'Button',
+      textColor: '#ffffff',
+      fontSize: 18,
+      startTime: 0, duration: 5000, triggers: [],
+      animationIn: 'none', animationOut: 'none',
+      entranceDuration: 500, exitDuration: 500,
+    };
+    dispatch({ type: 'ADD_ELEMENT', element: el });
+  };
+
+  const addHotspot = () => {
+    const w = 240, h = 160;
+    const { x, y } = centerXY(w, h);
+    const el: HotspotElement = {
+      id: crypto.randomUUID(), type: 'hotspot',
+      x, y, width: w, height: h,
+      startTime: 0, duration: 5000, triggers: [],
+      animationIn: 'none', animationOut: 'none',
+      entranceDuration: 500, exitDuration: 500,
+    };
+    dispatch({ type: 'ADD_ELEMENT', element: el as SlideElement });
+  };
+
+  const addCheckbox = () => {
+    const w = 220, h = 36;
+    const { x, y } = centerXY(w, h);
+    const el: CheckboxElement = {
+      id: crypto.randomUUID(), type: 'checkbox',
+      x, y, width: w, height: h,
+      label: 'Checkbox option',
+      defaultChecked: false,
+      textColor: '#ffffff',
+      fontSize: 16,
+      startTime: 0, duration: 5000, triggers: [],
+      animationIn: 'none', animationOut: 'none',
+      entranceDuration: 500, exitDuration: 500,
+    };
+    dispatch({ type: 'ADD_ELEMENT', element: el as SlideElement });
+  };
+
   const handleAudioFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
