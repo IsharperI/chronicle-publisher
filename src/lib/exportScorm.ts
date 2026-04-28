@@ -154,15 +154,19 @@ window.COURSE_DATA=${courseData.replace(/<\/script>/gi, '<\\/script>').replace(/
   var masters=data.masterSlides||[];
   var ps=data.playerSettings||{};
   var navMode=ps.navigationMode||"free";
-  var showMenu=!!ps.showMenu;
   var current=0;
   var unlocked=false;
   var timer=null;
   var stage=document.getElementById("stage");
-  var info=document.getElementById("info");
+  var meta=document.getElementById("meta");
   var prevBtn=document.getElementById("prev");
   var nextBtn=document.getElementById("next");
-  var menuEl=document.getElementById("slideMenu");
+  var slideListEl=document.getElementById("slideList");
+  var notesPane=document.getElementById("notes-pane");
+  var menuPane=document.getElementById("menu-pane");
+  var tabMenuBtn=document.getElementById("tab-menu");
+  var tabNotesBtn=document.getElementById("tab-notes");
+  var ppBtn=document.getElementById("playpause");
 
   function scaleStage(){
     var wrapper=document.getElementById("stage-wrapper");
@@ -173,16 +177,38 @@ window.COURSE_DATA=${courseData.replace(/<\/script>/gi, '<\\/script>').replace(/
   scaleStage();
 
   function buildMenu(){
-    if(!menuEl||!showMenu)return;
-    menuEl.innerHTML="";
+    if(!slideListEl)return;
+    slideListEl.innerHTML="";
     for(var i=0;i<slides.length;i++){
-      var opt=document.createElement("option");
-      opt.value=i;
-      opt.textContent="Slide "+(i+1);
-      if(i===current)opt.selected=true;
-      menuEl.appendChild(opt);
+      (function(idx){
+        var li=document.createElement("li");
+        var b=document.createElement("button");
+        b.type="button";
+        b.textContent="Slide "+(idx+1);
+        if(idx===current)b.className="active";
+        b.onclick=function(){goTo(idx)};
+        li.appendChild(b);
+        slideListEl.appendChild(li);
+      })(i);
     }
   }
+
+  function updateNotes(){
+    if(!notesPane)return;
+    var s=slides[current];
+    var n=(s&&s.notes)||"";
+    if(n&&n.trim()){notesPane.textContent=n;notesPane.classList.remove("empty")}
+    else{notesPane.textContent="No notes for this slide.";notesPane.classList.add("empty")}
+  }
+
+  function activateTab(name){
+    if(tabMenuBtn)tabMenuBtn.classList.toggle("active",name==="menu");
+    if(tabNotesBtn)tabNotesBtn.classList.toggle("active",name==="notes");
+    if(menuPane)menuPane.style.display=name==="menu"?"":"none";
+    if(notesPane)notesPane.style.display=name==="notes"?"":"none";
+  }
+  if(tabMenuBtn)tabMenuBtn.onclick=function(){activateTab("menu")};
+  if(tabNotesBtn)tabNotesBtn.onclick=function(){activateTab("notes")};
 
   function getMasterElements(slide){
     if(!slide.masterId)return[];
