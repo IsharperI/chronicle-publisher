@@ -131,8 +131,10 @@ export function PlayerShell({ playerSettings, interactive = true }: PlayerShellP
         {ps.sidebarPosition === 'left' && sidebar}
         <div className="flex-1 flex min-w-0 overflow-hidden">
           {(() => {
-            const tType = slide?.transitionType ?? 'none';
-            const tDur = slide?.transitionDuration ?? 0.5;
+            // Global transition (applies to every slide change).
+            const gt = state.courseSettings.transition ?? { type: 'none' as const, duration: 1 };
+            const tType = gt.type;
+            const tDur = gt.duration;
             const animClass = tType !== 'none' ? `slide-trans-${tType}` : '';
             // Re-keying the wrapper on slide id forces React to remount, which
             // restarts the CSS animation cleanly on every slide change.

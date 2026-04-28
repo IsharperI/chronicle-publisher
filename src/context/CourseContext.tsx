@@ -20,7 +20,11 @@ const initialState: CourseState = {
   isPlaying: false,
   viewMode: 'main',
   playerSettings: { ...defaultPlayerSettings },
-  courseSettings: { ...defaultCourseSettings, themeColors: [...defaultCourseSettings.themeColors] },
+  courseSettings: {
+    ...defaultCourseSettings,
+    themeColors: [...defaultCourseSettings.themeColors],
+    transition: { ...defaultCourseSettings.transition },
+  },
   showGrid: false,
   snapToGrid: false,
   ccEnabled: true,
@@ -253,6 +257,9 @@ function courseReducer(state: CourseState, action: Action): CourseState {
           themeColors: Array.isArray(loadedThemeColors) && loadedThemeColors.length === 6
             ? [...loadedThemeColors]
             : [...defaultCourseSettings.themeColors],
+          transition: action.courseSettings?.transition
+            ? { ...defaultCourseSettings.transition, ...action.courseSettings.transition }
+            : { ...defaultCourseSettings.transition },
         },
         activeSlideIndex: 0,
         activeElementId: null,

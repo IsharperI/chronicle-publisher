@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Save, Upload, Play, X, Type, ImageIcon, Square, Eye, Package, Settings, Music, AlignLeft, AlignCenter, AlignRight, AlignStartVertical, AlignCenterVertical, AlignEndVertical, AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter, Ban, Sparkles, ArrowUpFromLine, ArrowLeftFromLine, ZoomIn, CopyCheck } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -409,42 +409,34 @@ const TRANSITION_OPTIONS: Array<{ type: SlideTransitionType; label: string; icon
 
 function TransitionsTab() {
   const { state, dispatch } = useCourse();
-  const slide = state.viewMode === 'master'
-    ? state.masterSlides[state.activeSlideIndex]
-    : state.slides[state.activeSlideIndex];
-  const tType: SlideTransitionType = slide?.transitionType ?? 'none';
-  const tDur = slide?.transitionDuration ?? 0.5;
+  const transition = state.courseSettings.transition ?? { type: 'none' as SlideTransitionType, duration: 1 };
+  const tType: SlideTransitionType = transition.type;
+  // Local buffered input so the user can freely type "1.5" etc. without
+  // every keystroke triggering a clamp/global update.
+  const [durInput, setDurInput] = useState<string>(String(transition.duration));
+  // Keep local input in sync if the global value changes elsewhere.
+  React.useEffect(() => { setDurInput(String(transition.duration)); }, [transition.duration]);
 
-  const setType = (transitionType: SlideTransitionType) => {
-    if (!slide) return;
+  const setType = (type: SlideTransitionType) => {
     dispatch({
-      type: 'UPDATE_SLIDE',
-      index: state.activeSlideIndex,
-      updates: { transitionType, transitionDuration: tDur },
+      type: 'UPDATE_COURSE_SETTINGS',
+      updates: { transition: { type, duration: transition.duration } },
     });
   };
 
-  const setDur = (v: number) => {
-    if (!slide) return;
-    const clamped = Math.max(0, Math.min(10, Number.isFinite(v) ? v : 0.5));
+  const commitDuration = () => {
+    const parsed = parseFloat(durInput);
+    const next = Number.isFinite(parsed) ? Math.max(1, Math.min(5, parsed)) : 1;
+    setDurInput(String(next));
     dispatch({
-      type: 'UPDATE_SLIDE',
-      index: state.activeSlideIndex,
-      updates: { transitionDuration: clamped },
-    });
-  };
-
-  const applyAll = () => {
-    dispatch({
-      type: 'APPLY_TRANSITION_TO_ALL',
-      transitionType: tType,
-      transitionDuration: tDur,
+      type: 'UPDATE_COURSE_SETTINGS',
+      updates: { transition: { type: tType, duration: next } },
     });
   };
 
   return (
     <>
-      <RibbonGroup label="Slide Transition">
+      <RibbonGroup label="Slide Transition (Global)">
         <div className="flex items-center gap-1 px-1">
           {TRANSITION_OPTIONS.map(({ type, label, icon: Icon }) => {
             const active = tType === type;
@@ -454,8 +446,10 @@ function TransitionsTab() {
                 variant="ghost"
                 onClick={() => setType(type)}
                 className={cn(
-                  'h-12 w-16 flex flex-col items-center justify-center gap-0.5 px-1 rounded border',
-                  active ? 'border-primary bg-primary/10 text-foreground' : 'border-transparent text-foreground hover:bg-accent/60',
+                  'h-12 w-16 flex flex-col items-center justify-center gap-0.5 px-1 rounded border transition-colors',
+                  active
+                    ? 'border-primary bg-primary/15 text-foreground ring-1 ring-primary/40'
+                    : 'border-transparent text-foreground hover:bg-accent/60',
                 )}
                 title={label}
                 aria-pressed={active}
@@ -472,24 +466,19 @@ function TransitionsTab() {
 
       <RibbonGroup label="Timing">
         <div className="flex flex-col gap-1 px-1">
-          <label className="text-[10px] text-muted-foreground font-medium">Duration (s)</label>
+          <label className="text-[10px] text-muted-foreground font-medium">Duration (s) — 1 to 5</label>
           <input
             type="number"
-            min={0}
-            max={10}
+            min={1}
+            max={5}
             step={0.1}
-            value={tDur}
-            onChange={(e) => setDur(parseFloat(e.target.value))}
-            className="h-7 w-20 rounded border bg-background px-2 text-xs"
-            disabled={!slide}
+            value={durInput}
+            onChange={(e) => setDurInput(e.target.value)}
+            onBlur={commitDuration}
+            onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+            className="h-7 w-24 rounded border bg-background px-2 text-xs"
           />
         </div>
-      </RibbonGroup>
-
-      <Separator orientation="vertical" className="h-12 mx-2" />
-
-      <RibbonGroup label="Apply">
-        <RibbonButton icon={CopyCheck} label="Apply to All" onClick={applyAll} />
       </RibbonGroup>
     </>
   );
