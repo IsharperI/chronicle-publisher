@@ -355,6 +355,14 @@ function courseReducer(state: CourseState, action: Action): CourseState {
       return { ...state, ccEnabled: action.value };
     case 'TOGGLE_PLAY':
       return { ...state, isPlaying: !state.isPlaying };
+    case 'APPLY_TRANSITION_TO_ALL': {
+      const slides = getActiveSlides(state).map((s) => ({
+        ...s,
+        transitionType: action.transitionType,
+        transitionDuration: action.transitionDuration,
+      }));
+      return { ...state, ...updateActiveSlides(state, slides) };
+    }
     default:
       return state;
   }
