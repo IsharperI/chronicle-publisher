@@ -77,6 +77,8 @@ export interface SlideAudio {
   captions: Caption[];
 }
 
+export type SlideTransitionType = 'none' | 'fade' | 'push-up' | 'push-left' | 'zoom-in';
+
 export interface Slide {
   id: string;
   elements: SlideElement[];
@@ -84,6 +86,10 @@ export interface Slide {
   masterId?: string;
   audio?: SlideAudio[];
   notes?: string;
+  /** Slide entrance transition played when this slide becomes active. */
+  transitionType?: SlideTransitionType;
+  /** Transition duration in seconds. Default 0.5. */
+  transitionDuration?: number;
 }
 
 export type NavigationMode = 'free' | 'restricted';
