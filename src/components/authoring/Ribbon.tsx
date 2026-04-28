@@ -259,14 +259,6 @@ export function Ribbon() {
                 selectionCount={state.selectedElementIds.length}
               />
             </RibbonGroup>
-          </>
-        )}
-
-        {activeTab === 'View' && (
-          <>
-            <RibbonGroup label="Preview">
-              <RibbonButton icon={Eye} label="Preview Mode" onClick={() => dispatch({ type: 'SET_PREVIEW_MODE', enabled: true })} />
-            </RibbonGroup>
             <Separator orientation="vertical" className="h-12 mx-2" />
             <RibbonGroup label="Grid">
               <div className="flex flex-col gap-1.5 px-2 py-1">
@@ -289,6 +281,14 @@ export function Ribbon() {
                   Snap to Grid
                 </label>
               </div>
+            </RibbonGroup>
+          </>
+        )}
+
+        {activeTab === 'View' && (
+          <>
+            <RibbonGroup label="Preview">
+              <RibbonButton icon={Eye} label="Preview Mode" onClick={() => dispatch({ type: 'SET_PREVIEW_MODE', enabled: true })} />
             </RibbonGroup>
           </>
         )}
