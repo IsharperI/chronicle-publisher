@@ -159,6 +159,39 @@ export function Ribbon() {
     e.target.value = '';
   };
 
+  const handleVideoFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const MAX = 15 * 1024 * 1024;
+    if (file.size > MAX) {
+      alert(`Video is too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Maximum size is 15MB. Please use a smaller file or host the video externally.`);
+      e.target.value = '';
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const base64 = ev.target?.result as string;
+      const w = 800, h = 450;
+      const { width: cw, height: ch } = state.courseSettings.canvasDimensions;
+      const x = Math.round((cw - w) / 2);
+      const y = Math.round((ch - h) / 2);
+      const el: VideoElement = {
+        id: crypto.randomUUID(), type: 'video',
+        x, y, width: w, height: h,
+        src: base64,
+        controls: true,
+        autoplay: false,
+        startTime: 0, duration: 5000, triggers: [],
+        animationIn: 'none', animationOut: 'none',
+        entranceDuration: 500, exitDuration: 500,
+        isLocked: false, isHidden: false,
+      };
+      dispatch({ type: 'ADD_ELEMENT', element: el });
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
   if (state.previewMode) {
     return (
       <div className="h-12 border-b bg-card flex items-center px-4 shrink-0">
