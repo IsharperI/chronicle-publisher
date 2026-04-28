@@ -280,11 +280,19 @@ export function sanitizeCourseSettings(raw: unknown): Partial<CourseSettings> | 
   const themeColors = Array.isArray(r.themeColors) && r.themeColors.length === 6
     ? r.themeColors.map((c: unknown) => safeColor(c, '#000000'))
     : undefined;
+  const tr = r.transition;
+  const transition = tr && typeof tr === 'object'
+    ? {
+        type: safeEnum(tr.type, ['none', 'fade', 'push-up', 'push-left', 'zoom-in'] as const, 'none'),
+        duration: safeNumber(tr.duration, 1, 1, 5),
+      }
+    : undefined;
   return {
     canvasDimensions: dims && typeof dims === 'object' ? {
       width: safeNumber(dims.width, 1920, 320, 7680),
       height: safeNumber(dims.height, 1080, 240, 4320),
     } : undefined,
     themeColors,
+    transition,
   };
 }

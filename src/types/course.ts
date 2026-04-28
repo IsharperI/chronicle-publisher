@@ -142,15 +142,24 @@ export interface CanvasDimensions {
   height: number;
 }
 
+export interface GlobalTransition {
+  type: SlideTransitionType;
+  /** Duration in seconds. Bound to 1–5s in UI. */
+  duration: number;
+}
+
 export interface CourseSettings {
   canvasDimensions: CanvasDimensions;
   /** 6 hex colors: Primary, Secondary, Accent 1, Accent 2, Dark, Light */
   themeColors: string[];
+  /** Global slide transition applied to every slide change in preview/SCORM. */
+  transition: GlobalTransition;
 }
 
 export const defaultCourseSettings: CourseSettings = {
   canvasDimensions: { width: 1024, height: 768 },
   themeColors: ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#1f2937', '#f9fafb'],
+  transition: { type: 'none', duration: 1 },
 };
 
 export interface CourseState {
