@@ -81,6 +81,19 @@ function ElementRenderer({ element, isPreview }: { element: SlideElement; isPrev
   if (element.type === 'image') {
     return <img src={element.src} alt={element.alt} style={{ width: '100%', height: '100%', objectFit: 'contain' }} draggable={false} />;
   }
+  if (element.type === 'video') {
+    const ve = element as any;
+    return (
+      <video
+        src={ve.src}
+        controls={ve.controls !== false}
+        autoPlay={isPreview && !!ve.autoplay}
+        muted={isPreview && !!ve.autoplay}
+        playsInline
+        style={{ width: '100%', height: '100%', objectFit: 'contain', backgroundColor: '#000', pointerEvents: isPreview ? 'auto' : 'none' }}
+      />
+    );
+  }
   if (element.type === 'shape') {
     const se = element as ShapeElement;
     const fill = hovered && se.hoverFillColor ? se.hoverFillColor : se.fillColor;

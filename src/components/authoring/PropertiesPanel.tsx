@@ -7,7 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Trash2, Upload, Plus, X, Sparkles, Loader2, Music } from 'lucide-react';
-import type { SlideElement, TextElement, ImageElement, ShapeElement, ShapeType, Trigger, AnimationIn, AnimationOut, SlideAudio, Caption } from '@/types/course';
+import type { SlideElement, TextElement, ImageElement, ShapeElement, VideoElement, ShapeType, Trigger, AnimationIn, AnimationOut, SlideAudio, Caption } from '@/types/course';
+import { Switch } from '@/components/ui/switch';
 import { themeVarRef, themeVarIndex, resolveColor } from '@/lib/themeVars';
 import { transcribeAudio } from '@/lib/transcribe';
 
@@ -490,6 +491,42 @@ export function PropertiesPanel() {
                     themeColors={themeColors}
                   />
                 </div>
+              </>
+            )}
+
+            {activeElement.type === 'video' && (
+              <>
+                <div className="space-y-1">
+                  <Label className="text-xs">Video Source</Label>
+                  {(activeElement as VideoElement).src ? (
+                    <video
+                      src={(activeElement as VideoElement).src}
+                      controls
+                      className="w-full h-32 rounded border bg-black"
+                    />
+                  ) : (
+                    <div className="text-xs text-muted-foreground">No video loaded.</div>
+                  )}
+                </div>
+                <div className="flex items-center justify-between pt-1">
+                  <Label htmlFor="video-controls" className="text-xs cursor-pointer">Show Controls</Label>
+                  <Switch
+                    id="video-controls"
+                    checked={(activeElement as VideoElement).controls !== false}
+                    onCheckedChange={(v) => update({ controls: v } as Partial<VideoElement>)}
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="video-autoplay" className="text-xs cursor-pointer">Autoplay</Label>
+                  <Switch
+                    id="video-autoplay"
+                    checked={!!(activeElement as VideoElement).autoplay}
+                    onCheckedChange={(v) => update({ autoplay: v } as Partial<VideoElement>)}
+                  />
+                </div>
+                <p className="text-[10px] text-muted-foreground">
+                  Autoplayed videos are muted by default to comply with browser policies.
+                </p>
               </>
             )}
 

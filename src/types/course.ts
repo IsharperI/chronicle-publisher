@@ -1,4 +1,4 @@
-export type ElementType = 'text' | 'image' | 'shape';
+export type ElementType = 'text' | 'image' | 'shape' | 'video';
 export type ShapeType = 'rectangle' | 'circle' | 'triangle';
 export type AnimationIn = 'none' | 'fade' | 'fly-in-left' | 'fly-in-right';
 export type AnimationOut = 'none' | 'fade' | 'fly-out-left' | 'fly-out-right';
@@ -45,6 +45,16 @@ export interface ImageElement extends BaseElement {
   alt: string;
 }
 
+export interface VideoElement extends BaseElement {
+  type: 'video';
+  /** Base64 data URI of the video file. */
+  src: string;
+  /** Show native HTML5 controls. Default true. */
+  controls: boolean;
+  /** Autoplay when slide enters. Default false. */
+  autoplay: boolean;
+}
+
 export interface ShapeElement extends BaseElement {
   type: 'shape';
   shapeType: ShapeType;
@@ -59,7 +69,7 @@ export interface ShapeElement extends BaseElement {
   fontSize?: number;
 }
 
-export type SlideElement = TextElement | ImageElement | ShapeElement;
+export type SlideElement = TextElement | ImageElement | ShapeElement | VideoElement;
 
 export interface Caption {
   startTime: number;

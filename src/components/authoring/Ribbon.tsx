@@ -1,11 +1,11 @@
 import React, { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Save, Upload, Play, X, Type, ImageIcon, Square, Eye, Package, Settings, Music, AlignLeft, AlignCenter, AlignRight, AlignStartVertical, AlignCenterVertical, AlignEndVertical, AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter, Ban, Sparkles, ArrowUpFromLine, ArrowLeftFromLine, ZoomIn, CopyCheck } from 'lucide-react';
+import { Save, Upload, Play, X, Type, ImageIcon, Square, Eye, Package, Settings, Music, Video as VideoIcon, AlignLeft, AlignCenter, AlignRight, AlignStartVertical, AlignCenterVertical, AlignEndVertical, AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter, Ban, Sparkles, ArrowUpFromLine, ArrowLeftFromLine, ZoomIn, CopyCheck } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { exportScorm } from '@/lib/exportScorm';
 import { useCourse } from '@/context/CourseContext';
 import { cn } from '@/lib/utils';
-import type { TextElement, ImageElement, ShapeElement, SlideAudio, SlideTransitionType } from '@/types/course';
+import type { TextElement, ImageElement, ShapeElement, VideoElement, SlideAudio, SlideTransitionType } from '@/types/course';
 import { Separator } from '@/components/ui/separator';
 import { PlayerSettingsModal } from './PlayerSettingsModal';
 import { sanitizeSlides, sanitizePlayerSettings, sanitizeCourseSettings } from '@/lib/sanitize';
@@ -23,6 +23,7 @@ export function Ribbon() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const audioInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
 
   const saveProject = () => {
     const json = JSON.stringify({ slides: state.slides, masterSlides: state.masterSlides, playerSettings: state.playerSettings, courseSettings: state.courseSettings }, null, 2);
@@ -158,6 +159,39 @@ export function Ribbon() {
     e.target.value = '';
   };
 
+  const handleVideoFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const MAX = 15 * 1024 * 1024;
+    if (file.size > MAX) {
+      alert(`Video is too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Maximum size is 15MB. Please use a smaller file or host the video externally.`);
+      e.target.value = '';
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const base64 = ev.target?.result as string;
+      const w = 800, h = 450;
+      const { width: cw, height: ch } = state.courseSettings.canvasDimensions;
+      const x = Math.round((cw - w) / 2);
+      const y = Math.round((ch - h) / 2);
+      const el: VideoElement = {
+        id: crypto.randomUUID(), type: 'video',
+        x, y, width: w, height: h,
+        src: base64,
+        controls: true,
+        autoplay: false,
+        startTime: 0, duration: 5000, triggers: [],
+        animationIn: 'none', animationOut: 'none',
+        entranceDuration: 500, exitDuration: 500,
+        isLocked: false, isHidden: false,
+      };
+      dispatch({ type: 'ADD_ELEMENT', element: el });
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
   if (state.previewMode) {
     return (
       <div className="h-12 border-b bg-card flex items-center px-4 shrink-0">
@@ -234,6 +268,8 @@ export function Ribbon() {
             <RibbonGroup label="Media">
               <RibbonButton icon={Music} label="Audio" onClick={() => audioInputRef.current?.click()} />
               <input ref={audioInputRef} type="file" accept="audio/*,.mp3,.wav,.ogg,.m4a" className="hidden" onChange={handleAudioFile} />
+              <RibbonButton icon={VideoIcon} label="Video" onClick={() => videoInputRef.current?.click()} />
+              <input ref={videoInputRef} type="file" accept="video/mp4,video/webm,.mp4,.webm" className="hidden" onChange={handleVideoFile} />
             </RibbonGroup>
           </>
         )}

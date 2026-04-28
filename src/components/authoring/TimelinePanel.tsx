@@ -22,11 +22,13 @@ const typeIcons: Record<string, React.ReactNode> = {
   text: <Type className="h-3 w-3" />,
   image: <ImageIcon className="h-3 w-3" />,
   shape: <Square className="h-3 w-3" />,
+  video: <ImageIcon className="h-3 w-3" />,
 };
 
 function getElementLabel(el: SlideElement): string {
   if (el.type === 'text') return el.content.slice(0, 20) || 'Text';
   if (el.type === 'image') return el.alt || 'Image';
+  if (el.type === 'video') return 'Video';
   return el.shapeType;
 }
 
