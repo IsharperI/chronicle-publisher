@@ -1,7 +1,7 @@
 import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import { Rnd } from 'react-rnd';
 import { useCourse } from '@/context/CourseContext';
-import type { SlideElement, TextElement, ShapeElement, AnimationIn, AnimationOut } from '@/types/course';
+import type { SlideElement, TextElement, ShapeElement, AnimationIn, AnimationOut, TableElement } from '@/types/course';
 import { themeVarStyle } from '@/lib/themeVars';
 
 function getAnimInClass(anim: AnimationIn): string {
@@ -54,6 +54,7 @@ function ShapeText({ se, isPreview }: { se: ShapeElement; isPreview?: boolean })
 
 function ElementRenderer({ element, isPreview }: { element: SlideElement; isPreview?: boolean }) {
   const [hovered, setHovered] = useState(false);
+  const { dispatch } = useCourse();
 
   const hoverProps = isPreview ? {
     onMouseEnter: () => setHovered(true),
@@ -198,6 +199,70 @@ function ElementRenderer({ element, isPreview }: { element: SlideElement; isPrev
           {ce.label || 'Checkbox'}
         </span>
       </label>
+    );
+  }
+  if (element.type === 'table') {
+    const te = element as TableElement;
+    const rows = te.rowCount;
+    const cols = te.colCount;
+    const data = te.cellData ?? [];
+    const borderColor = te.borderColor ?? '#94a3b8';
+    const textColor = te.textColor ?? '#0f172a';
+    const fontSize = te.fontSize ?? 14;
+    const onCellBlur = (r: number, c: number, value: string) => {
+      // Build new 2D data matrix matching dimensions, mutating only [r][c].
+      const next: string[][] = [];
+      for (let i = 0; i < rows; i++) {
+        const row: string[] = [];
+        for (let j = 0; j < cols; j++) {
+          if (i === r && j === c) row.push(value);
+          else row.push(data[i]?.[j] ?? '');
+        }
+        next.push(row);
+      }
+      // Avoid dispatching when nothing changed.
+      if ((data[r]?.[c] ?? '') === value) return;
+      dispatch({ type: 'UPDATE_ELEMENT', id: te.id, updates: { cellData: next } as Partial<TableElement> });
+    };
+    return (
+      <table
+        style={{
+          width: '100%', height: '100%', tableLayout: 'fixed',
+          borderCollapse: 'collapse', background: '#ffffff',
+          color: textColor, fontSize,
+        }}
+      >
+        <tbody>
+          {Array.from({ length: rows }).map((_, r) => (
+            <tr key={r}>
+              {Array.from({ length: cols }).map((__, c) => (
+                <td
+                  key={c}
+                  contentEditable={!isPreview}
+                  suppressContentEditableWarning
+                  onMouseDown={(e) => {
+                    if (isPreview) return;
+                    e.stopPropagation();
+                    dispatch({ type: 'SET_ACTIVE_ELEMENT', id: te.id });
+                  }}
+                  onBlur={(e) => { if (!isPreview) onCellBlur(r, c, e.currentTarget.textContent ?? ''); }}
+                  style={{
+                    border: `1px solid ${borderColor}`,
+                    padding: '4px 6px',
+                    verticalAlign: 'top',
+                    overflow: 'hidden',
+                    wordBreak: 'break-word',
+                    cursor: isPreview ? 'default' : 'text',
+                    outline: 'none',
+                  }}
+                >
+                  {data[r]?.[c] ?? ''}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
     );
   }
   return null;

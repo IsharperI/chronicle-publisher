@@ -1,12 +1,15 @@
 import React, { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Save, Upload, Play, X, Type, ImageIcon, Square, Eye, Package, Settings, Music, Video as VideoIcon, AlignLeft, AlignCenter, AlignRight, AlignStartVertical, AlignCenterVertical, AlignEndVertical, AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter, Ban, Sparkles, ArrowUpFromLine, ArrowLeftFromLine, ZoomIn, CopyCheck, MousePointerClick, Target, CheckSquare, ChevronDown } from 'lucide-react';
+import { Save, Upload, Play, X, Type, ImageIcon, Square, Eye, Package, Settings, Music, Video as VideoIcon, AlignLeft, AlignCenter, AlignRight, AlignStartVertical, AlignCenterVertical, AlignEndVertical, AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter, Ban, Sparkles, ArrowUpFromLine, ArrowLeftFromLine, ZoomIn, CopyCheck, MousePointerClick, Target, CheckSquare, ChevronDown, Table as TableIcon } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { exportScorm } from '@/lib/exportScorm';
 import { useCourse } from '@/context/CourseContext';
 import { cn } from '@/lib/utils';
-import type { TextElement, ImageElement, ShapeElement, VideoElement, SlideAudio, SlideTransitionType, HotspotElement, CheckboxElement, SlideElement } from '@/types/course';
+import type { TextElement, ImageElement, ShapeElement, VideoElement, SlideAudio, SlideTransitionType, HotspotElement, CheckboxElement, SlideElement, TableElement } from '@/types/course';
 import { Separator } from '@/components/ui/separator';
 import { PlayerSettingsModal } from './PlayerSettingsModal';
 import { sanitizeSlides, sanitizePlayerSettings, sanitizeCourseSettings } from '@/lib/sanitize';
@@ -170,6 +173,29 @@ export function Ribbon() {
       defaultChecked: false,
       textColor: '#ffffff',
       fontSize: 16,
+      startTime: 0, duration: 5000, triggers: [],
+      animationIn: 'none', animationOut: 'none',
+      entranceDuration: 500, exitDuration: 500,
+    };
+    dispatch({ type: 'ADD_ELEMENT', element: el as SlideElement });
+  };
+
+  const addTable = (rows: number, cols: number) => {
+    const r = Math.max(1, Math.min(20, Math.round(rows)));
+    const c = Math.max(1, Math.min(20, Math.round(cols)));
+    const w = Math.min(state.courseSettings.canvasDimensions.width - 40, Math.max(240, c * 120));
+    const h = Math.min(state.courseSettings.canvasDimensions.height - 40, Math.max(120, r * 40));
+    const { x, y } = centerXY(w, h);
+    const cellData: string[][] = Array.from({ length: r }, () =>
+      Array.from({ length: c }, () => ''),
+    );
+    const el: TableElement = {
+      id: crypto.randomUUID(), type: 'table',
+      x, y, width: w, height: h,
+      rowCount: r, colCount: c, cellData,
+      borderColor: '#94a3b8',
+      textColor: '#0f172a',
+      fontSize: 14,
       startTime: 0, duration: 5000, triggers: [],
       animationIn: 'none', animationOut: 'none',
       entranceDuration: 500, exitDuration: 500,
@@ -385,6 +411,10 @@ export function Ribbon() {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
+            </RibbonGroup>
+            <Separator orientation="vertical" className="h-12 mx-2" />
+            <RibbonGroup label="Data">
+              <TableInsertPopover onInsert={addTable} />
             </RibbonGroup>
           </>
         )}
@@ -632,5 +662,56 @@ function TransitionsTab() {
         </div>
       </RibbonGroup>
     </>
+  );
+}
+
+function TableInsertPopover({ onInsert }: { onInsert: (rows: number, cols: number) => void }) {
+  const [open, setOpen] = useState(false);
+  const [rows, setRows] = useState(3);
+  const [cols, setCols] = useState(3);
+  const clamp = (n: number) => Math.max(1, Math.min(20, Math.round(n || 1)));
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="ghost"
+          className="h-11 flex flex-col items-center justify-center gap-0.5 px-3 text-foreground"
+        >
+          <TableIcon className="h-5 w-5" />
+          <span className="text-[10px] font-medium leading-none">Table</span>
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-56 p-3 space-y-3">
+        <div className="space-y-1">
+          <Label className="text-xs">Rows</Label>
+          <Input
+            type="number"
+            min={1}
+            max={20}
+            value={rows}
+            onChange={(e) => setRows(clamp(Number(e.target.value)))}
+            className="h-8 text-xs"
+          />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs">Columns</Label>
+          <Input
+            type="number"
+            min={1}
+            max={20}
+            value={cols}
+            onChange={(e) => setCols(clamp(Number(e.target.value)))}
+            className="h-8 text-xs"
+          />
+        </div>
+        <Button
+          size="sm"
+          className="w-full"
+          onClick={() => { onInsert(clamp(rows), clamp(cols)); setOpen(false); }}
+        >
+          Insert Table
+        </Button>
+      </PopoverContent>
+    </Popover>
   );
 }

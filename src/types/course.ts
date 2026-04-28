@@ -1,4 +1,4 @@
-export type ElementType = 'text' | 'image' | 'shape' | 'video' | 'hotspot' | 'checkbox';
+export type ElementType = 'text' | 'image' | 'shape' | 'video' | 'hotspot' | 'checkbox' | 'table';
 export type ShapeType = 'rectangle' | 'circle' | 'triangle';
 export type AnimationIn = 'none' | 'fade' | 'fly-in-left' | 'fly-in-right';
 export type AnimationOut = 'none' | 'fade' | 'fly-out-left' | 'fly-out-right';
@@ -93,13 +93,29 @@ export interface CheckboxElement extends BaseElement {
   fontSize?: number;
 }
 
+/**
+ * Editable data table. `cellData` is a 2D array sized rowCount x colCount of
+ * plain strings. Cells are contentEditable in the editor and rendered as a
+ * static <table> in preview / SCORM export.
+ */
+export interface TableElement extends BaseElement {
+  type: 'table';
+  rowCount: number;
+  colCount: number;
+  cellData: string[][];
+  borderColor?: string;
+  textColor?: string;
+  fontSize?: number;
+}
+
 export type SlideElement =
   | TextElement
   | ImageElement
   | ShapeElement
   | VideoElement
   | HotspotElement
-  | CheckboxElement;
+  | CheckboxElement
+  | TableElement;
 
 export interface Caption {
   startTime: number;
