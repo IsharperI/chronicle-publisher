@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { BackgroundMode, NavigationMode, PlayerSettings, SidebarPosition } from '@/types/course';
 import { ImageIcon, Trash2 } from 'lucide-react';
-import { themeVarRef, themeVarIndex, resolveColor, themeVarStyle } from '@/lib/themeVars';
+import { themeVarRef, themeVarIndex, resolveColor } from '@/lib/themeVars';
 import { PlayerShell } from './PlayerShell';
 
 const FONT_OPTIONS = [
