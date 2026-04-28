@@ -352,6 +352,32 @@ window.COURSE_DATA=${courseData.replace(/<\/script>/gi, '<\\/script>').replace(/
       cb.id=cbId;lbl.htmlFor=cbId;
       d.appendChild(cb);
       d.appendChild(lbl);
+    } else if(el.type==="table"){
+      var tbl=document.createElement("table");
+      tbl.style.width="100%";tbl.style.height="100%";tbl.style.tableLayout="fixed";
+      tbl.style.borderCollapse="collapse";tbl.style.background="#fff";
+      tbl.style.color=el.textColor||"#0f172a";
+      tbl.style.fontSize=(el.fontSize||14)+"px";
+      var tbody=document.createElement("tbody");
+      var rc=Math.max(1,el.rowCount|0),cc=Math.max(1,el.colCount|0);
+      var bcolor=el.borderColor||"#94a3b8";
+      var dataM=el.cellData||[];
+      for(var ri=0;ri<rc;ri++){
+        var tr=document.createElement("tr");
+        for(var ci=0;ci<cc;ci++){
+          var td=document.createElement("td");
+          td.textContent=(dataM[ri]&&dataM[ri][ci])||"";
+          td.style.border="1px solid "+bcolor;
+          td.style.padding="4px 6px";
+          td.style.verticalAlign="top";
+          td.style.overflow="hidden";
+          td.style.wordBreak="break-word";
+          tr.appendChild(td);
+        }
+        tbody.appendChild(tr);
+      }
+      tbl.appendChild(tbody);
+      d.appendChild(tbl);
     }
 
     // Apply entrance animation with custom duration
