@@ -175,18 +175,48 @@ export function Ribbon() {
       const { width: cw, height: ch } = state.courseSettings.canvasDimensions;
       const x = Math.round((cw - w) / 2);
       const y = Math.round((ch - h) / 2);
-      const el: VideoElement = {
-        id: crypto.randomUUID(), type: 'video',
-        x, y, width: w, height: h,
-        src: base64,
-        controls: true,
-        autoplay: false,
-        startTime: 0, duration: 5000, triggers: [],
-        animationIn: 'none', animationOut: 'none',
-        entranceDuration: 500, exitDuration: 500,
-        isLocked: false, isHidden: false,
+
+      const MAX_SLIDE_MS = 600 * 1000; // 10 minute hard cap
+      const DEFAULT_MS = 5000;
+
+      const finalize = (mediaDurationSec: number) => {
+        // Clamp media duration: must be a finite positive number, capped at 600s.
+        const validSec = Number.isFinite(mediaDurationSec) && mediaDurationSec > 0 ? mediaDurationSec : 0;
+        const cappedMs = validSec > 0 ? Math.min(Math.round(validSec * 1000), MAX_SLIDE_MS) : DEFAULT_MS;
+
+        const el: VideoElement = {
+          id: crypto.randomUUID(), type: 'video',
+          x, y, width: w, height: h,
+          src: base64,
+          controls: true,
+          autoplay: false,
+          startTime: 0, duration: cappedMs, triggers: [],
+          animationIn: 'none', animationOut: 'none',
+          entranceDuration: 500, exitDuration: 500,
+          isLocked: false, isHidden: false,
+        };
+        dispatch({ type: 'ADD_ELEMENT', element: el });
+
+        // Expand the active slide's duration to fit the video, capped at 10 min.
+        if (validSec > 0) {
+          const activeSlide = state.slides[state.activeSlideIndex];
+          const currentSlideMs = activeSlide?.duration ?? DEFAULT_MS;
+          if (cappedMs > currentSlideMs) {
+            dispatch({
+              type: 'UPDATE_SLIDE',
+              index: state.activeSlideIndex,
+              updates: { duration: cappedMs },
+            });
+          }
+        }
       };
-      dispatch({ type: 'ADD_ELEMENT', element: el });
+
+      // Probe intrinsic duration via a temporary <video> element.
+      const probe = document.createElement('video');
+      probe.preload = 'metadata';
+      probe.onloadedmetadata = () => finalize(probe.duration);
+      probe.onerror = () => finalize(0);
+      probe.src = base64;
     };
     reader.readAsDataURL(file);
     e.target.value = '';
