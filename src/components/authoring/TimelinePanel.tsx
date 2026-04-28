@@ -433,9 +433,9 @@ export function TimelinePanel() {
                     <span
                       key={s}
                       className="absolute text-[9px] text-muted-foreground top-0"
-                      style={{ left: (s / (slideDuration / 1000)) * trackWidth }}
+                      style={{ left: (s / slideDurationS) * trackWidth }}
                     >
-                      {s}s
+                      {formatTick(s)}
                     </span>
                   ))}
                 </div>
