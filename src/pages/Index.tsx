@@ -4,6 +4,7 @@ import { Canvas } from '@/components/authoring/Canvas';
 import { PropertiesPanel } from '@/components/authoring/PropertiesPanel';
 import { TimelinePanel } from '@/components/authoring/TimelinePanel';
 import { SlidePanel } from '@/components/authoring/SlidePanel';
+import { PlayerShell } from '@/components/authoring/PlayerShell';
 
 function AuthoringLayout() {
   const { state } = useCourse();
@@ -11,12 +12,18 @@ function AuthoringLayout() {
     <div className="h-screen flex flex-col bg-background overflow-hidden">
       <Ribbon />
       <div className="flex-1 flex flex-col min-h-0">
-        <div className="flex-1 flex min-h-0">
-          {!state.previewMode && <SlidePanel />}
-          <Canvas />
-          {!state.previewMode && <PropertiesPanel />}
-        </div>
-        {!state.previewMode && <TimelinePanel />}
+        {state.previewMode ? (
+          <PlayerShell />
+        ) : (
+          <>
+            <div className="flex-1 flex min-h-0">
+              <SlidePanel />
+              <Canvas />
+              <PropertiesPanel />
+            </div>
+            <TimelinePanel />
+          </>
+        )}
       </div>
     </div>
   );
