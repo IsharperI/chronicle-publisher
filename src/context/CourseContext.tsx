@@ -59,7 +59,8 @@ type Action =
   | { type: 'SET_SHOW_GRID'; value: boolean }
   | { type: 'SET_SNAP_TO_GRID'; value: boolean }
   | { type: 'SET_CC_ENABLED'; value: boolean }
-  | { type: 'TOGGLE_PLAY' };
+  | { type: 'TOGGLE_PLAY' }
+  | { type: 'APPLY_TRANSITION_TO_ALL'; transitionType: NonNullable<Slide['transitionType']>; transitionDuration: number };
 
 function getActiveSlides(state: CourseState): Slide[] {
   return state.viewMode === 'master' ? state.masterSlides : state.slides;
