@@ -725,6 +725,7 @@ export function PropertiesPanel() {
   );
 }
 
+function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdate: (u: Partial<SlideElement>) => void }) {
   const { state } = useCourse();
   const slides = state.slides;
   const triggers = element.triggers ?? [];
