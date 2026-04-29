@@ -1037,7 +1037,7 @@ function QuizSlideOverlay({ slide, isPreview }: { slide: Slide; isPreview: boole
   );
 }
 
-function MCPlay({ quiz, answer, onChange, disabled, revealCorrect }: { quiz: QuizConfig; answer: string[] | undefined; onChange: (a: string[]) => void; disabled: boolean; revealCorrect?: boolean }) {
+function MCPlay({ quiz, answer, onChange, disabled, revealCorrect, ts }: { quiz: QuizConfig; answer: string[] | undefined; onChange: (a: string[]) => void; disabled: boolean; revealCorrect?: boolean; ts: ResolvedQuizStyle }) {
   const single = quiz.singleSelect !== false;
   const choices = quiz.choices ?? [];
   const selected = new Set(answer ?? []);
@@ -1055,8 +1055,8 @@ function MCPlay({ quiz, answer, onChange, disabled, revealCorrect }: { quiz: Qui
       {choices.map((c) => {
         const isOn = selected.has(c.id);
         const showAsCorrect = revealCorrect && c.correct;
-        const borderColor = showAsCorrect ? '#16a34a' : (isOn ? '#3b82f6' : '#e2e8f0');
-        const bgColor = showAsCorrect ? '#dcfce7' : (isOn ? '#eff6ff' : '#fff');
+        const borderColor = showAsCorrect ? '#16a34a' : (isOn ? ts.optionSelectedBorderColor : ts.optionBorderColor);
+        const bgColor = showAsCorrect ? '#dcfce7' : (isOn ? ts.optionSelectedBackgroundColor : ts.optionBackgroundColor);
         return (
           <label
             key={c.id}
@@ -1065,9 +1065,10 @@ function MCPlay({ quiz, answer, onChange, disabled, revealCorrect }: { quiz: Qui
               padding: '10px 14px',
               border: `2px solid ${borderColor}`,
               background: bgColor,
-              borderRadius: 8,
+              borderRadius: ts.optionRadius,
               cursor: disabled ? 'default' : 'pointer',
-              fontSize: 16,
+              fontSize: ts.optionFontSize,
+              color: ts.textColor,
             }}
           >
             <input
