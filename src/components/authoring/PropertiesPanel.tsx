@@ -327,7 +327,7 @@ export function PropertiesPanel() {
   };
 
   return (
-    <div className="w-[280px] border-l bg-card flex flex-col shrink-0">
+    <div className="w-[280px] glass border-l border-white/60 flex flex-col shrink-0 rounded-none">
       {activeAudio ? (
         <AudioPanel audio={activeAudio} />
       ) : !activeElement ? (

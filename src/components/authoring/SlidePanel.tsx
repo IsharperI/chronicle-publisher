@@ -10,7 +10,7 @@ export function SlidePanel() {
   const slides = isMain ? state.slides : state.masterSlides;
 
   return (
-    <div className="w-[200px] border-r bg-card flex flex-col shrink-0">
+    <div className="w-[200px] glass border-r border-white/60 flex flex-col shrink-0 rounded-none">
       {/* Tabs */}
       <div className="flex border-b">
         <button

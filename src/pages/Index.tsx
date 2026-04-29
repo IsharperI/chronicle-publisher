@@ -9,7 +9,7 @@ import { PlayerShell } from '@/components/authoring/PlayerShell';
 function AuthoringLayout() {
   const { state } = useCourse();
   return (
-    <div className="h-screen flex flex-col bg-background overflow-hidden">
+    <div className="h-screen flex flex-col overflow-hidden">
       <Ribbon />
       <div className="flex-1 flex flex-col min-h-0">
         {state.previewMode ? (
