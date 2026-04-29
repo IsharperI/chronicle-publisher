@@ -473,6 +473,8 @@ export function Ribbon() {
             </RibbonGroup>
           </>
         )}
+
+        {activeTab === 'Transitions' && (
           <TransitionsTab />
         )}
 
