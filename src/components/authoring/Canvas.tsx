@@ -844,7 +844,7 @@ function QuizSlideOverlay({ slide, isPreview }: { slide: Slide; isPreview: boole
 
   // Inline incorrect message between attempts (when attempts remain).
   const showRetryHint =
-    isPreview && !isLocked && remainingRaw != null && remainingRaw < (isUnlimited ? Number.POSITIVE_INFINITY : maxAttempts);
+    isPreview && !isLocked && !retryDismissed && remainingRaw != null && remainingRaw < (isUnlimited ? Number.POSITIVE_INFINITY : maxAttempts);
 
   return (
     <div
