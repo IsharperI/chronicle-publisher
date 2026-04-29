@@ -314,7 +314,7 @@ function AudioPanel({ audio }: { audio: SlideAudio }) {
 function SlideNumberField({ index, total, onMove }: { index: number; total: number; onMove: (to: number) => void }) {
   const display = String(index + 1).padStart(2, '0');
   const [value, setValue] = useState(display);
-  React.useEffect(() => { setValue(display); }, [display]);
+  useEffect(() => { setValue(display); }, [display]);
   const commit = () => {
     const n = parseInt(value, 10);
     if (isNaN(n) || n < 1 || n > total) { setValue(display); return; }
