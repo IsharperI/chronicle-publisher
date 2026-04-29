@@ -475,6 +475,8 @@ function courseReducer(state: CourseState, action: Action): CourseState {
       return { ...state, quizFeedbackOpen: null };
     case 'RESET_QUIZ_PROGRESS':
       return { ...state, quizAnswers: {}, quizResults: {}, quizFeedbackOpen: null };
+    default:
+      return state;
   }
 }
 
