@@ -81,7 +81,7 @@ export function Ribbon() {
   const addText = () => {
     const el: TextElement = {
       id: crypto.randomUUID(), type: 'text',
-      x: 660, y: 440, width: 600, height: 200,
+      x: 0, y: 0, width: 600, height: 200,
       content: 'Double-click to edit', fontSize: 32, fontWeight: '400',
       textColor: '#000000', backgroundColor: 'transparent',
       startTime: 0, duration: 5000, triggers: [],
@@ -99,7 +99,7 @@ export function Ribbon() {
       const base64 = ev.target?.result as string;
       const el: ImageElement = {
         id: crypto.randomUUID(), type: 'image',
-        x: 560, y: 240, width: 800, height: 600,
+        x: 0, y: 0, width: 800, height: 600,
         src: base64, alt: file.name,
         startTime: 0, duration: 5000, triggers: [],
         animationIn: 'none', animationOut: 'none',
@@ -114,7 +114,7 @@ export function Ribbon() {
   const addShape = () => {
     const el: ShapeElement = {
       id: crypto.randomUUID(), type: 'shape',
-      x: 760, y: 390, width: 400, height: 300,
+      x: 0, y: 0, width: 400, height: 300,
       shapeType: 'rectangle', fillColor: '#3b82f6', borderColor: '#1e40af', borderWidth: 2,
       startTime: 0, duration: 5000, triggers: [],
       animationIn: 'none', animationOut: 'none',
@@ -129,11 +129,9 @@ export function Ribbon() {
   };
 
   const addInteractiveButton = () => {
-    const w = 200, h = 60;
-    const { x, y } = centerXY(w, h);
     const el: ShapeElement = {
       id: crypto.randomUUID(), type: 'shape',
-      x, y, width: w, height: h,
+      x: 0, y: 0, width: 200, height: 60,
       shapeType: 'rectangle',
       fillColor: '#3b82f6',
       borderColor: 'transparent',
@@ -151,11 +149,9 @@ export function Ribbon() {
   };
 
   const addHotspot = () => {
-    const w = 240, h = 160;
-    const { x, y } = centerXY(w, h);
     const el: HotspotElement = {
       id: crypto.randomUUID(), type: 'hotspot',
-      x, y, width: w, height: h,
+      x: 0, y: 0, width: 240, height: 160,
       startTime: 0, duration: 5000, triggers: [],
       animationIn: 'none', animationOut: 'none',
       entranceDuration: 500, exitDuration: 500,
@@ -164,11 +160,9 @@ export function Ribbon() {
   };
 
   const addCheckbox = () => {
-    const w = 220, h = 36;
-    const { x, y } = centerXY(w, h);
     const el: CheckboxElement = {
       id: crypto.randomUUID(), type: 'checkbox',
-      x, y, width: w, height: h,
+      x: 0, y: 0, width: 220, height: 36,
       label: 'Checkbox option',
       defaultChecked: false,
       textColor: '#ffffff',
@@ -185,13 +179,12 @@ export function Ribbon() {
     const c = Math.max(1, Math.min(20, Math.round(cols)));
     const w = Math.min(state.courseSettings.canvasDimensions.width - 40, Math.max(240, c * 120));
     const h = Math.min(state.courseSettings.canvasDimensions.height - 40, Math.max(120, r * 40));
-    const { x, y } = centerXY(w, h);
     const cellData: string[][] = Array.from({ length: r }, () =>
       Array.from({ length: c }, () => ''),
     );
     const el: TableElement = {
       id: crypto.randomUUID(), type: 'table',
-      x, y, width: w, height: h,
+      x: 0, y: 0, width: w, height: h,
       rowCount: r, colCount: c, cellData,
       borderColor: '#94a3b8',
       textColor: '#0f172a',
@@ -202,6 +195,7 @@ export function Ribbon() {
     };
     dispatch({ type: 'ADD_ELEMENT', element: el as SlideElement });
   };
+
 
   const handleAudioFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -256,9 +250,6 @@ export function Ribbon() {
     reader.onload = (ev) => {
       const base64 = ev.target?.result as string;
       const w = 800, h = 450;
-      const { width: cw, height: ch } = state.courseSettings.canvasDimensions;
-      const x = Math.round((cw - w) / 2);
-      const y = Math.round((ch - h) / 2);
 
       const MAX_SLIDE_MS = 600 * 1000; // 10 minute hard cap
       const DEFAULT_MS = 5000;
@@ -270,7 +261,7 @@ export function Ribbon() {
 
         const el: VideoElement = {
           id: crypto.randomUUID(), type: 'video',
-          x, y, width: w, height: h,
+          x: 0, y: 0, width: w, height: h,
           src: base64,
           controls: true,
           autoplay: false,
