@@ -837,7 +837,9 @@ function QuizEditor({ slide, index, allSlides }: { slide: Slide; index: number; 
     dispatch({ type: 'UPDATE_QUIZ', index, updates });
   };
 
-  const otherSlides = allSlides.filter((s) => s.id !== slide.id);
+  const otherSlides = allSlides
+    .map((s, i) => ({ slide: s, label: s.title?.trim() || `Slide ${i + 1}` }))
+    .filter(({ slide: s }) => s.id !== slide.id);
 
   return (
     <div className="space-y-3 pt-2 border-t">
