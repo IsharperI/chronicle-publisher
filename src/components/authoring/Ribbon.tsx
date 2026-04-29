@@ -478,11 +478,16 @@ export function Ribbon() {
             </RibbonGroup>
           </>
         )}
-
-        {activeTab === 'Quiz Templates' && (
-          <QuizTemplatesTab />
-        )}
       </div>
+
+      {/* Quiz Templates renders as a dedicated panel below the ribbon row,
+          not inside the fixed-height row above. This keeps its taller
+          content from bleeding over the canvas/filmstrip. */}
+      {activeTab === 'Quiz Templates' && (
+        <div className="border-t border-white/40 bg-white/40 px-4 py-2 max-h-[260px] overflow-y-auto">
+          <QuizTemplatesTab />
+        </div>
+      )}
     </div>
   );
 }
