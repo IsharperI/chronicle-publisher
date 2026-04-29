@@ -237,6 +237,15 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
   if(tabMenuBtn)tabMenuBtn.onclick=function(){activateTab("menu")};
   if(tabNotesBtn)tabNotesBtn.onclick=function(){activateTab("notes")};
 
+  var sidebarEl=document.getElementById("sidebar");
+  var sidebarToggleBtn=document.getElementById("sidebar-toggle");
+  if(sidebarToggleBtn&&sidebarEl){
+    sidebarToggleBtn.onclick=function(){
+      sidebarEl.classList.toggle("collapsed");
+      setTimeout(scaleStage,0);
+    };
+  }
+
   function getMasterElements(slide){
     if(!slide.masterId)return[];
     for(var i=0;i<masters.length;i++)if(masters[i].id===slide.masterId)return masters[i].elements||[];
