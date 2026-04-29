@@ -798,12 +798,25 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
   return (
     <div className="space-y-2">
       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Triggers</p>
-      {triggers.map((t, i) => (
-        <div key={i} className="flex items-center gap-1 text-[10px] bg-muted rounded p-1.5">
-          <span className="truncate flex-1">{t.event} → {t.action} ({t.action === 'jumpToSlide' ? slideLabel(t.targetId) : t.targetId.slice(0, 8)})</span>
-          <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0" onClick={() => removeTrigger(i)}><X className="h-3 w-3" /></Button>
-        </div>
-      ))}
+      {triggers.map((t, i) => {
+        const eventLabel = t.event === 'onClick' ? 'User clicks' : t.event === 'onHover' ? 'User hovers' : t.event;
+        let actionLabel: string;
+        if (t.action === 'jumpToSlide') actionLabel = `Jump to ${slideLabel(t.targetId)}`;
+        else if (t.action === 'hideElement') actionLabel = `Hide element (${t.targetId.slice(0, 8)})`;
+        else if (t.action === 'showElement') actionLabel = `Show element (${t.targetId.slice(0, 8)})`;
+        else actionLabel = `${t.action} (${t.targetId.slice(0, 8)})`;
+        return (
+          <div key={i} className="flex items-center gap-2 bg-white border border-slate-200 rounded-md shadow-sm p-2">
+            <div className="flex-1 min-w-0 space-y-0.5">
+              <p className="text-xs text-slate-800 truncate"><span className="font-semibold">Action:</span> {actionLabel}</p>
+              <p className="text-[11px] text-slate-500 truncate"><span className="font-semibold">When:</span> {eventLabel}</p>
+            </div>
+            <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-slate-500 hover:text-destructive" onClick={() => removeTrigger(i)} aria-label="Remove trigger">
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        );
+      })}
       <div className="space-y-1.5">
         <Select value={newEvent} onValueChange={setNewEvent}>
           <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
