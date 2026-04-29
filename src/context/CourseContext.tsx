@@ -108,7 +108,16 @@ type Action =
   | { type: 'SET_SNAP_TO_GRID'; value: boolean }
   | { type: 'SET_CC_ENABLED'; value: boolean }
   | { type: 'TOGGLE_PLAY' }
-  | { type: 'APPLY_TRANSITION_TO_ALL'; transitionType: NonNullable<Slide['transitionType']>; transitionDuration: number };
+  | { type: 'APPLY_TRANSITION_TO_ALL'; transitionType: NonNullable<Slide['transitionType']>; transitionDuration: number }
+  | { type: 'ADD_QUIZ_SLIDE' }
+  | { type: 'ADD_RESULTS_SLIDE' }
+  | { type: 'UPDATE_QUIZ'; index: number; updates: Partial<QuizConfig> }
+  | { type: 'UPDATE_RESULTS'; index: number; updates: Partial<ResultsConfig> }
+  | { type: 'SET_QUIZ_ANSWER'; slideId: string; answer: unknown }
+  | { type: 'SUBMIT_QUIZ'; slideId: string; correct: boolean }
+  | { type: 'OPEN_QUIZ_FEEDBACK'; slideId: string; correct: boolean }
+  | { type: 'CLOSE_QUIZ_FEEDBACK' }
+  | { type: 'RESET_QUIZ_PROGRESS' };
 
 function getActiveSlides(state: CourseState): Slide[] {
   return state.viewMode === 'master' ? state.masterSlides : state.slides;
