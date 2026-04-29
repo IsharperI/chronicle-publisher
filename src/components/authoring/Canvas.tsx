@@ -1,7 +1,8 @@
 import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import { Rnd } from 'react-rnd';
 import { useCourse } from '@/context/CourseContext';
-import type { SlideElement, TextElement, ShapeElement, AnimationIn, AnimationOut, TableElement, Slide, QuizConfig, QuizChoice, QuizMatchPair, QuizSortItem } from '@/types/course';
+import type { SlideElement, TextElement, ShapeElement, AnimationIn, AnimationOut, TableElement, Slide, QuizConfig, QuizChoice, QuizMatchPair, QuizSortItem, QuizStyleOverrides } from '@/types/course';
+import { resolveQuizStyle, type ResolvedQuizStyle } from '@/lib/quizTemplates';
 import { themeVarStyle } from '@/lib/themeVars';
 
 function getAnimInClass(anim: AnimationIn): string {
