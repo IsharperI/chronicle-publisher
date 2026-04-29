@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Save, Upload, Play, X, Type, ImageIcon, Square, Eye, Package, Settings, Music, Video as VideoIcon, AlignLeft, AlignCenter, AlignRight, AlignStartVertical, AlignCenterVertical, AlignEndVertical, AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter, Ban, Sparkles, ArrowUpFromLine, ArrowLeftFromLine, ZoomIn, CopyCheck, MousePointerClick, Target, CheckSquare, ChevronDown, Table as TableIcon, HelpCircle, Trophy, Layers } from 'lucide-react';
+import { Save, Upload, Play, X, Type, ImageIcon, Square, Eye, Package, Settings, Music, Video as VideoIcon, AlignLeft, AlignCenter, AlignRight, AlignStartVertical, AlignCenterVertical, AlignEndVertical, AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter, Ban, Sparkles, ArrowUpFromLine, ArrowLeftFromLine, ZoomIn, CopyCheck, MousePointerClick, Target, CheckSquare, ChevronDown, Table as TableIcon, HelpCircle, Trophy, Layers, FolderOpen } from 'lucide-react';
+import { MediaLibraryOverlay } from './MediaLibraryOverlay';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -25,6 +26,7 @@ export function Ribbon() {
   const [activeTab, setActiveTab] = useState<RibbonTab>('Home');
   const [alignMode, setAlignMode] = useState<'canvas' | 'selection'>('canvas');
   const [playerSettingsOpen, setPlayerSettingsOpen] = useState(false);
+  const [mediaLibraryOpen, setMediaLibraryOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const audioInputRef = useRef<HTMLInputElement>(null);
@@ -311,6 +313,7 @@ export function Ribbon() {
   }
 
   return (
+    <>
     <div className="glass border-b border-white/60 shrink-0 rounded-none">
       {/* Title bar + Tab row */}
       <div className="h-9 flex items-center px-4 border-b border-white/40 bg-white/30">
@@ -465,6 +468,10 @@ export function Ribbon() {
                 </label>
               </div>
             </RibbonGroup>
+            <Separator orientation="vertical" className="h-12 mx-2" />
+            <RibbonGroup label="Assets">
+              <RibbonButton icon={FolderOpen} label="Media Library" onClick={() => setMediaLibraryOpen(true)} />
+            </RibbonGroup>
           </>
         )}
 
@@ -499,6 +506,8 @@ export function Ribbon() {
         </div>
       )}
     </div>
+    <MediaLibraryOverlay open={mediaLibraryOpen} onClose={() => setMediaLibraryOpen(false)} />
+    </>
   );
 }
 
