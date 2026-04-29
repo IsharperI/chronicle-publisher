@@ -346,6 +346,7 @@ export function sanitizeCourseSettings(raw: unknown): Partial<CourseSettings> | 
     ? {
         type: safeEnum(tr.type, ['none', 'fade', 'push-up', 'push-left', 'zoom-in'] as const, 'none'),
         duration: safeNumber(tr.duration, 1, 1, 5),
+        color: safeColor(tr.color, '#000000'),
       }
     : undefined;
   return {
