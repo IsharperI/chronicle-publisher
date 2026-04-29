@@ -269,6 +269,8 @@ export interface Slide {
   quiz?: QuizConfig;
   /** Results configuration; only used when slideType === 'results'. */
   results?: ResultsConfig;
+  /** Optional visual style overrides applied via a Quiz Template. */
+  quizStyle?: QuizStyleOverrides;
 }
 
 export type NavigationMode = 'free' | 'restricted';
