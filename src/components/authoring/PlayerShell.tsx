@@ -1,6 +1,6 @@
 import { useCourse } from '@/context/CourseContext';
 import { Canvas } from './Canvas';
-import { ChevronLeft, ChevronRight, Play, Pause, Captions, CaptionsOff, Menu, FileText } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Play, Pause, Captions, CaptionsOff, Menu, FileText, Check, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { themeVarStyle } from '@/lib/themeVars';
 import type { PlayerSettings } from '@/types/course';
@@ -84,6 +84,17 @@ export function PlayerShell({ playerSettings, interactive = true }: PlayerShellP
   const sidebarVisible = ps.sidebarPosition !== 'none' && tabsAvailable.length > 0;
 
   const [activeTab, setActiveTab] = useState<SidebarTab>(tabsAvailable[0] ?? 'menu');
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [visitedIds, setVisitedIds] = useState<Set<string>>(() => new Set(slide ? [slide.id] : []));
+  useEffect(() => {
+    if (!slide) return;
+    setVisitedIds((prev) => {
+      if (prev.has(slide.id)) return prev;
+      const next = new Set(prev);
+      next.add(slide.id);
+      return next;
+    });
+  }, [slide?.id]);
   const currentTab = tabsAvailable.includes(activeTab) ? activeTab : (tabsAvailable[0] ?? 'menu');
 
   const bgStyle: React.CSSProperties = { backgroundColor: ps.backgroundColor };
@@ -101,7 +112,7 @@ export function PlayerShell({ playerSettings, interactive = true }: PlayerShellP
     }
   }
 
-  const sidebar = sidebarVisible && (
+  const sidebar = sidebarVisible && sidebarOpen && (
     <aside
       className="w-64 shrink-0 flex flex-col border-white/10 bg-black/30 backdrop-blur-sm"
       style={{
@@ -142,8 +153,13 @@ export function PlayerShell({ playerSettings, interactive = true }: PlayerShellP
                   }`}
                   style={i === state.activeSlideIndex ? { backgroundColor: `${ps.buttonColor}33` } : undefined}
                 >
-                  <span className="opacity-60 mr-1.5">{i + 1}.</span>
-                  {s.title?.trim() || `Slide ${i + 1}`}
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="inline-flex w-3.5 justify-center">
+                      {visitedIds.has(s.id) ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : null}
+                    </span>
+                    <span className="opacity-60">{i + 1}.</span>
+                    <span>{s.title?.trim() || `Slide ${i + 1}`}</span>
+                  </span>
                 </button>
               </li>
             ))}
@@ -172,7 +188,18 @@ export function PlayerShell({ playerSettings, interactive = true }: PlayerShellP
       style={{ ...themeVarStyle(state.courseSettings.themeColors), ...bgStyle, fontFamily: ps.fontFamily }}
     >
       {/* Top bar */}
-      <header className="h-12 shrink-0 flex items-center px-5 border-b border-white/10 bg-black/30 backdrop-blur-sm">
+      <header className="h-12 shrink-0 flex items-center gap-3 px-5 border-b border-white/10 bg-black/30 backdrop-blur-sm">
+        {sidebarVisible && (
+          <button
+            type="button"
+            onClick={() => setSidebarOpen((v) => !v)}
+            className="text-white/80 hover:text-white p-1 rounded hover:bg-white/10 transition-colors"
+            aria-label={sidebarOpen ? 'Collapse menu' : 'Expand menu'}
+            title={sidebarOpen ? 'Collapse menu' : 'Expand menu'}
+          >
+            {sidebarOpen ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeftOpen className="h-4 w-4" />}
+          </button>
+        )}
         <h1 className="text-sm font-semibold tracking-wide truncate">
           {ps.courseTitle || 'Untitled Course'}
         </h1>

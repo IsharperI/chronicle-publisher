@@ -61,9 +61,14 @@ export function buildPlayerHtml(state: CourseState, opts: PublishOptions, lmsRun
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{height:100%}
 body{background-color:${ps.backgroundColor};${ps.backgroundImage ? `background-image:url("${ps.backgroundImage.replace(/"/g, '%22')}");${ps.backgroundMode === 'stretch' ? 'background-size:100% 100%;background-repeat:no-repeat;' : ps.backgroundMode === 'fit' ? 'background-size:contain;background-repeat:no-repeat;background-position:center;' : 'background-repeat:repeat;background-size:auto;'}` : ''}font-family:${ps.fontFamily};color:#fff;display:flex;flex-direction:column;min-height:100vh}
-#topbar{flex:0 0 auto;height:48px;display:flex;align-items:center;padding:0 20px;background:rgba(0,0,0,.35);backdrop-filter:blur(6px);border-bottom:1px solid rgba(255,255,255,.08)}
+#topbar{flex:0 0 auto;height:48px;display:flex;align-items:center;padding:0 20px;background:rgba(0,0,0,.35);backdrop-filter:blur(6px);border-bottom:1px solid rgba(255,255,255,.08);gap:12px}
 #topbar h1{font-size:14px;font-weight:600;letter-spacing:.02em;margin:0}
 #topbar .meta{margin-left:auto;font-size:12px;color:rgba(255,255,255,.6)}
+#sidebar-toggle{background:transparent;border:none;color:#fff;cursor:pointer;padding:6px;border-radius:4px;display:inline-flex;align-items:center;justify-content:center;font-size:18px;line-height:1}
+#sidebar-toggle:hover{background:rgba(255,255,255,.1)}
+#sidebar.collapsed{display:none}
+#sidebar .menu-list button .check{display:inline-block;width:12px;margin-right:6px;color:#22c55e;font-weight:700;visibility:hidden}
+#sidebar .menu-list button.visited .check{visibility:visible}
 #body{flex:1 1 auto;display:flex;min-height:0}
 #sidebar{width:256px;flex-shrink:0;display:flex;flex-direction:column;background:rgba(0,0,0,.3);backdrop-filter:blur(6px)}
 #sidebar.left{border-right:1px solid rgba(255,255,255,.08)}
@@ -108,6 +113,7 @@ body{background-color:${ps.backgroundColor};${ps.backgroundImage ? `background-i
 
 <body>
 <div id="topbar">
+  ${ps.sidebarPosition !== 'none' && (ps.tabMenu || ps.tabNotes) ? '<button id="sidebar-toggle" type="button" aria-label="Toggle menu" title="Toggle menu">&#9776;</button>' : ''}
   <h1>${titleSafe}</h1>
   <span class="meta" id="meta"></span>
 </div>
@@ -199,14 +205,20 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
         var b=document.createElement("button");
         b.type="button";
         var t=slides[idx]&&slides[idx].title;
-        b.textContent=(t&&(""+t).replace(/^\\s+|\\s+$/g,""))||("Slide "+(idx+1));
-        if(idx===current)b.className="active";
+        var label=(t&&(""+t).replace(/^\\s+|\\s+$/g,""))||("Slide "+(idx+1));
+        var sid=slides[idx]&&slides[idx].id;
+        var classes=[];
+        if(idx===current)classes.push("active");
+        if(sid&&visited[sid])classes.push("visited");
+        if(classes.length)b.className=classes.join(" ");
+        b.innerHTML='<span class="check" aria-hidden="true">\\u2713</span>'+escapeHtml(label);
         b.onclick=function(){goTo(idx)};
         li.appendChild(b);
         slideListEl.appendChild(li);
       })(i);
     }
   }
+  function escapeHtml(s){return String(s).replace(/[&<>"']/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}
 
   function updateNotes(){
     if(!notesPane)return;
@@ -224,6 +236,15 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
   }
   if(tabMenuBtn)tabMenuBtn.onclick=function(){activateTab("menu")};
   if(tabNotesBtn)tabNotesBtn.onclick=function(){activateTab("notes")};
+
+  var sidebarEl=document.getElementById("sidebar");
+  var sidebarToggleBtn=document.getElementById("sidebar-toggle");
+  if(sidebarToggleBtn&&sidebarEl){
+    sidebarToggleBtn.onclick=function(){
+      sidebarEl.classList.toggle("collapsed");
+      setTimeout(scaleStage,0);
+    };
+  }
 
   function getMasterElements(slide){
     if(!slide.masterId)return[];
