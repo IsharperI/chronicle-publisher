@@ -41,6 +41,10 @@ function ThumbElement({ el }: { el: SlideElement }) {
   }
 
   if (el.type === 'shape') {
+    const fill = el.fillColor || 'transparent';
+    const strokeColor = el.borderColor || 'transparent';
+    const strokeWidth = typeof el.borderWidth === 'number' ? el.borderWidth : 0;
+
     if (el.shapeType === 'triangle') {
       return (
         <div style={baseStyle}>
@@ -51,30 +55,31 @@ function ThumbElement({ el }: { el: SlideElement }) {
           >
             <polygon
               points="50,5 95,95 5,95"
-              fill={el.fillColor}
-              stroke={el.borderColor}
-              strokeWidth={(el.borderWidth ?? 0) * 2}
+              fill={fill}
+              stroke={strokeColor}
+              strokeWidth={strokeWidth * 2}
             />
           </svg>
         </div>
       );
     }
-    return (
-      <div
-        style={{
-          ...baseStyle,
-          backgroundColor: el.fillColor,
-          border: `${el.borderWidth}px solid ${el.borderColor}`,
-          borderRadius:
-            el.shapeType === 'circle'
-              ? '50%'
-              : el.borderRadius != null
-              ? el.borderRadius
-              : 4,
-          boxShadow: el.boxShadow,
-        }}
-      />
-    );
+
+    const shapeStyle: React.CSSProperties = {
+      ...baseStyle,
+      backgroundColor: fill,
+      borderStyle: 'solid',
+      borderWidth: strokeWidth,
+      borderColor: strokeColor,
+      borderRadius:
+        el.shapeType === 'circle'
+          ? '50%'
+          : el.borderRadius != null
+          ? el.borderRadius
+          : 4,
+    };
+    if (el.boxShadow) shapeStyle.boxShadow = el.boxShadow;
+
+    return <div style={shapeStyle} />;
   }
 
   if (el.type === 'image') {
