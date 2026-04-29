@@ -313,4 +313,10 @@ export interface CourseState {
   snapToGrid: boolean;
   /** Runtime: closed-captions enabled in preview/player. */
   ccEnabled: boolean;
+  /** Runtime (preview/player): per-quiz-slide submission result. */
+  quizResults: Record<string, { correct: boolean; submitted: boolean }>;
+  /** Runtime (preview/player): in-progress learner answer for a quiz slide. */
+  quizAnswers: Record<string, unknown>;
+  /** Runtime: which quiz slide currently has its feedback overlay open. */
+  quizFeedbackOpen: { slideId: string; correct: boolean } | null;
 }
