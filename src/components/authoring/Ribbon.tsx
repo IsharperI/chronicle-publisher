@@ -839,10 +839,45 @@ function AnimationsTab() {
         </div>
       </RibbonGroup>
 
+      <Separator orientation="vertical" className="h-12 mx-2" />
+
+      <RibbonGroup label="Motion Path">
+        <MotionPathButton element={element} disabled={disabled} />
+      </RibbonGroup>
+
       {disabled && (
         <span className="ml-3 text-[11px] text-muted-foreground italic">Select an element on the canvas to edit animations.</span>
       )}
     </>
+  );
+}
+
+function MotionPathButton({ element, disabled }: { element: SlideElement | undefined; disabled: boolean }) {
+  const { dispatch } = useCourse();
+  const onClick = () => {
+    if (!element) return;
+    dispatch({ type: 'OPEN_MOTION_PATH_EDITOR', elementId: element.id });
+  };
+  const hasPath = !!element?.motionPath;
+  const btn = (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="flex flex-col items-center gap-1 px-3 py-1 rounded text-[11px] text-slate-700 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed"
+    >
+      <Spline className="h-5 w-5" />
+      <span>{hasPath ? 'Edit Path' : 'Motion Path'}</span>
+    </button>
+  );
+  if (!disabled) return btn;
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild><span>{btn}</span></TooltipTrigger>
+        <TooltipContent>Select an element to add a motion path.</TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 }
 
