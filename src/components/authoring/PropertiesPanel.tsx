@@ -311,6 +311,32 @@ function AudioPanel({ audio }: { audio: SlideAudio }) {
   );
 }
 
+function SlideNumberField({ index, total, onMove }: { index: number; total: number; onMove: (to: number) => void }) {
+  const display = String(index + 1).padStart(2, '0');
+  const [value, setValue] = useState(display);
+  useEffect(() => { setValue(display); }, [display]);
+  const commit = () => {
+    const n = parseInt(value, 10);
+    if (isNaN(n) || n < 1 || n > total) { setValue(display); return; }
+    const to = n - 1;
+    if (to === index) { setValue(display); return; }
+    onMove(to);
+  };
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Slide Number</Label>
+      <Input
+        value={value}
+        onChange={(e) => setValue(e.target.value.replace(/[^0-9]/g, ''))}
+        onBlur={commit}
+        onKeyDown={(e) => { if (e.key === 'Enter') { e.currentTarget.blur(); } }}
+        className="h-8 text-xs bg-white text-slate-800 w-20"
+      />
+      <p className="text-xs text-muted-foreground">Position in the slide list (1–{total}). Press Enter to reorder.</p>
+    </div>
+  );
+}
+
 export function PropertiesPanel() {
   const { state, dispatch } = useCourse();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -375,6 +401,14 @@ export function PropertiesPanel() {
               />
               <p className="text-xs text-muted-foreground">Up to 30 characters. Shown in the slide list and player menu.</p>
             </div>
+
+            {!isMasterMode && (
+              <SlideNumberField
+                index={state.activeSlideIndex}
+                total={state.slides.length}
+                onMove={(to) => dispatch({ type: 'MOVE_SLIDE', from: state.activeSlideIndex, to })}
+              />
+            )}
 
             {!isMasterMode && activeSlide?.slideType === 'quiz' && activeSlide.quiz && (
               <QuizEditor slide={activeSlide} index={state.activeSlideIndex} allSlides={state.slides} />

@@ -124,7 +124,8 @@ type Action =
   | { type: 'RESET_QUIZ_PROGRESS' }
   | { type: 'INIT_QUIZ_ATTEMPTS'; slideId: string; attempts: number }
   | { type: 'CONSUME_QUIZ_ATTEMPT'; slideId: string }
-  | { type: 'RESET_QUIZ_SLIDE_PROGRESS'; slideId: string };
+  | { type: 'RESET_QUIZ_SLIDE_PROGRESS'; slideId: string }
+  | { type: 'MOVE_SLIDE'; from: number; to: number };
 
 function getActiveSlides(state: CourseState): Slide[] {
   return state.viewMode === 'master' ? state.masterSlides : state.slides;
@@ -153,6 +154,16 @@ function courseReducer(state: CourseState, action: Action): CourseState {
     }
     case 'SET_ACTIVE_SLIDE':
       return { ...state, activeSlideIndex: action.index, activeElementId: null, selectedElementIds: [], activeAudioId: null, playheadTime: 0, isPlaying: false };
+    case 'MOVE_SLIDE': {
+      const slides = getActiveSlides(state);
+      const { from, to } = action;
+      if (from < 0 || from >= slides.length || to < 0 || to >= slides.length || from === to) return state;
+      const next = [...slides];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      const newActive = state.activeSlideIndex === from ? to : state.activeSlideIndex;
+      return { ...state, ...updateActiveSlides(state, next), activeSlideIndex: newActive };
+    }
     case 'ADD_ELEMENT': {
       const slides = getActiveSlides(state).map((slide, i) =>
         i === state.activeSlideIndex
