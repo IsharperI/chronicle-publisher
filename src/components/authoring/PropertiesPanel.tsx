@@ -800,7 +800,7 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Triggers</p>
       {triggers.map((t, i) => (
         <div key={i} className="flex items-center gap-1 text-[10px] bg-muted rounded p-1.5">
-          <span className="truncate flex-1">{t.event} → {t.action} ({t.targetId.slice(0, 8)})</span>
+          <span className="truncate flex-1">{t.event} → {t.action} ({t.action === 'jumpToSlide' ? slideLabel(t.targetId) : t.targetId.slice(0, 8)})</span>
           <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0" onClick={() => removeTrigger(i)}><X className="h-3 w-3" /></Button>
         </div>
       ))}
@@ -812,7 +812,7 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
             <SelectItem value="onHover">onHover</SelectItem>
           </SelectContent>
         </Select>
-        <Select value={newAction} onValueChange={setNewAction}>
+        <Select value={newAction} onValueChange={(v) => { setNewAction(v); setNewTarget(''); }}>
           <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="jumpToSlide">Jump to Slide</SelectItem>
@@ -820,7 +820,18 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
             <SelectItem value="showElement">Show Element</SelectItem>
           </SelectContent>
         </Select>
-        <Input placeholder="Target ID" value={newTarget} onChange={(e) => setNewTarget(e.target.value)} className="h-7 text-xs" />
+        {isSlideAction ? (
+          <Select value={newTarget} onValueChange={setNewTarget}>
+            <SelectTrigger className="h-7 text-xs bg-white text-slate-800 rounded-md"><SelectValue placeholder="Select slide..." /></SelectTrigger>
+            <SelectContent>
+              {slides.map((s, idx) => (
+                <SelectItem key={s.id} value={s.id}>{s.title || `Slide ${idx + 1}`}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : (
+          <Input placeholder="Target ID" value={newTarget} onChange={(e) => setNewTarget(e.target.value)} className="h-7 text-xs" />
+        )}
         <Button variant="outline" size="sm" className="w-full h-7 text-xs" onClick={addTrigger}><Plus className="h-3 w-3 mr-1" />Add Trigger</Button>
       </div>
     </div>
