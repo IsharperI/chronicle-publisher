@@ -438,10 +438,20 @@ export function PropertiesPanel() {
       ) : (
         /* Element selected — show tabbed Properties / Triggers */
         <Tabs defaultValue="properties" className="flex flex-col flex-1 min-h-0">
-          <div className="p-2 border-b shrink-0">
-            <TabsList className="w-full">
-              <TabsTrigger value="properties" className="flex-1 text-xs">Properties</TabsTrigger>
-              <TabsTrigger value="triggers" className="flex-1 text-xs">Triggers</TabsTrigger>
+          <div className="border-b shrink-0">
+            <TabsList className="w-full h-auto p-0 bg-transparent rounded-none gap-0 justify-start">
+              <TabsTrigger
+                value="properties"
+                className="flex-1 text-xs px-4 py-1.5 rounded-none border-t-2 border-transparent bg-sky-100 text-slate-600 hover:bg-sky-200 data-[state=active]:bg-white data-[state=active]:border-blue-600 data-[state=active]:text-slate-800 data-[state=active]:shadow-none"
+              >
+                Properties
+              </TabsTrigger>
+              <TabsTrigger
+                value="triggers"
+                className="flex-1 text-xs px-4 py-1.5 rounded-none border-t-2 border-transparent bg-sky-100 text-slate-600 hover:bg-sky-200 data-[state=active]:bg-white data-[state=active]:border-blue-600 data-[state=active]:text-slate-800 data-[state=active]:shadow-none"
+              >
+                Triggers
+              </TabsTrigger>
             </TabsList>
           </div>
 

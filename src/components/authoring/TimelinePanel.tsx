@@ -385,13 +385,13 @@ export function TimelinePanel() {
             <TabsList className="h-auto bg-transparent p-0 gap-0 rounded-none">
               <TabsTrigger
                 value="timeline"
-                className="text-xs px-4 py-1.5 rounded-none border-t-2 border-transparent bg-slate-100 text-slate-600 hover:bg-slate-200 data-[state=active]:bg-white data-[state=active]:border-blue-600 data-[state=active]:text-slate-800 data-[state=active]:shadow-none"
+                className="text-xs px-4 py-1.5 rounded-none border-t-2 border-transparent bg-sky-100 text-slate-600 hover:bg-sky-200 data-[state=active]:bg-white data-[state=active]:border-blue-600 data-[state=active]:text-slate-800 data-[state=active]:shadow-none"
               >
                 Timeline
               </TabsTrigger>
               <TabsTrigger
                 value="states"
-                className="text-xs px-4 py-1.5 rounded-none border-t-2 border-transparent bg-slate-100 text-slate-600 hover:bg-slate-200 data-[state=active]:bg-white data-[state=active]:border-blue-600 data-[state=active]:text-slate-800 data-[state=active]:shadow-none"
+                className="text-xs px-4 py-1.5 rounded-none border-t-2 border-transparent bg-sky-100 text-slate-600 hover:bg-sky-200 data-[state=active]:bg-white data-[state=active]:border-blue-600 data-[state=active]:text-slate-800 data-[state=active]:shadow-none"
               >
                 States
               </TabsTrigger>
