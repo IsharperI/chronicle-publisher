@@ -701,7 +701,7 @@ export function PropertiesPanel() {
               </>
             )}
 
-            <AnimationsSection element={activeElement} onUpdate={update} />
+            
 
             <div className="space-y-2 pt-2 border-t">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Timeline</p>
@@ -721,50 +721,6 @@ export function PropertiesPanel() {
           </TabsContent>
         </Tabs>
       )}
-    </div>
-  );
-}
-
-function AnimationsSection({ element, onUpdate }: { element: SlideElement; onUpdate: (u: Partial<SlideElement>) => void }) {
-  return (
-    <div className="space-y-2 pt-2 border-t">
-      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Animations</p>
-      <div className="space-y-1">
-        <Label className="text-xs">Entrance</Label>
-        <Select value={element.animationIn ?? 'none'} onValueChange={(v) => onUpdate({ animationIn: v as AnimationIn } as any)}>
-          <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="none">None</SelectItem>
-            <SelectItem value="fade">Fade In</SelectItem>
-            <SelectItem value="fly-in-left">Fly In Left</SelectItem>
-            <SelectItem value="fly-in-right">Fly In Right</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-      <SecondsField
-        label="Entrance Duration (s)"
-        valueMs={element.entranceDuration ?? 500}
-        onChangeMs={(v) => onUpdate({ entranceDuration: Math.max(0, v) } as any)}
-        step={0.1}
-      />
-      <div className="space-y-1">
-        <Label className="text-xs">Exit</Label>
-        <Select value={element.animationOut ?? 'none'} onValueChange={(v) => onUpdate({ animationOut: v as AnimationOut } as any)}>
-          <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="none">None</SelectItem>
-            <SelectItem value="fade">Fade Out</SelectItem>
-            <SelectItem value="fly-out-left">Fly Out Left</SelectItem>
-            <SelectItem value="fly-out-right">Fly Out Right</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-      <SecondsField
-        label="Exit Duration (s)"
-        valueMs={element.exitDuration ?? 500}
-        onChangeMs={(v) => onUpdate({ exitDuration: Math.max(0, v) } as any)}
-        step={0.1}
-      />
     </div>
   );
 }
