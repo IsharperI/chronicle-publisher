@@ -956,8 +956,9 @@ function QuizSlideOverlay({ slide, isPreview }: { slide: Slide; isPreview: boole
             dispatch({ type: 'SET_ACTIVE_SLIDE', index: next });
           };
           const tryAgain = () => {
-            // Clear selected answer so learner can re-attempt cleanly.
+            // Clear selected answer and dismiss inline retry banner.
             dispatch({ type: 'SET_QUIZ_ANSWER', slideId: slide.id, answer: null });
+            setRetryDismissed(true);
           };
           const goToSkipTarget = () => {
             const tid = quiz.skipTargetSlideId;
