@@ -134,6 +134,7 @@ export function PlayerShell({ playerSettings, interactive = true }: PlayerShellP
             slideKey={slide?.id ?? String(state.activeSlideIndex)}
             transitionType={state.courseSettings.transition?.type ?? 'none'}
             transitionDuration={state.courseSettings.transition?.duration ?? 1}
+            transitionColor={state.courseSettings.transition?.color ?? '#000000'}
           />
         </div>
         {ps.sidebarPosition === 'right' && sidebar}
