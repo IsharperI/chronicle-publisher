@@ -66,13 +66,11 @@ export function StoryViewOverlay({ open, onClose }: { open: boolean; onClose: ()
           }
         }
       }
-      // Quiz config jumps
-      const q = slide.quiz;
-      if (q) {
-        if (q.feedbackMode === 'jumpToSlide' && (q as any).targetSlideId) {
-          const idx = idToIndex.get((q as any).targetSlideId as string);
-          if (idx !== undefined) triggerTargets.push(idx);
-        }
+      // Quiz config jumps (best-effort, schema-agnostic)
+      const q: any = slide.quiz;
+      if (q && q.feedbackMode === 'jumpToSlide' && q.targetSlideId) {
+        const idx = idToIndex.get(q.targetSlideId as string);
+        if (idx !== undefined) triggerTargets.push(idx);
       }
 
       if (triggerTargets.length > 0) {
