@@ -158,10 +158,10 @@ export function SlidePanel() {
         <button
           onClick={() => dispatch({ type: 'SET_VIEW_MODE', mode: 'main' })}
           className={cn(
-            'flex-1 px-2 py-2 text-xs font-medium transition-colors',
+            'flex-1 px-2 py-2 text-xs font-medium transition-colors border-t-2',
             isMain
-              ? 'bg-background text-foreground border-b-2 border-primary'
-              : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'
+              ? 'bg-white border-blue-600 text-blue-600'
+              : 'bg-sky-50/60 border-transparent text-slate-500 hover:text-slate-700'
           )}
         >
           Main Timeline
@@ -169,10 +169,10 @@ export function SlidePanel() {
         <button
           onClick={() => dispatch({ type: 'SET_VIEW_MODE', mode: 'master' })}
           className={cn(
-            'flex-1 px-2 py-2 text-xs font-medium transition-colors',
+            'flex-1 px-2 py-2 text-xs font-medium transition-colors border-t-2',
             !isMain
-              ? 'bg-background text-foreground border-b-2 border-primary'
-              : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'
+              ? 'bg-white border-blue-600 text-blue-600'
+              : 'bg-sky-50/60 border-transparent text-slate-500 hover:text-slate-700'
           )}
         >
           Masters
