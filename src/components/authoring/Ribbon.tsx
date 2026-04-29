@@ -497,6 +497,11 @@ export function Ribbon() {
                 label="Master Slides"
                 onClick={() => dispatch({ type: 'SET_VIEW_MODE', mode: state.viewMode === 'master' ? 'main' : 'master' })}
               />
+              <RibbonButton
+                icon={MapIcon}
+                label="Story View"
+                onClick={() => setStoryViewOpen(true)}
+              />
             </RibbonGroup>
           </>
         )}
