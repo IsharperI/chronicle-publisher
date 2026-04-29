@@ -738,26 +738,97 @@ function QuizSlideOverlay({ slide, isPreview }: { slide: Slide; isPreview: boole
   const quiz = slide.quiz!;
   const answer = state.quizAnswers?.[slide.id];
   const result = state.quizResults?.[slide.id];
-  const interactive = isPreview && !result?.submitted;
+
+  // Attempts: 0 = unlimited, otherwise 1–10. Default 1.
+  const maxAttempts = quiz.attempts ?? 1;
+  const isUnlimited = maxAttempts === 0;
+  const exhaustedBehavior = quiz.attemptsExhaustedBehavior ?? 'reveal';
+  const quizRevisit = quiz.quizRevisitMode ?? 'reset';
+
+  // Track whether we've initialized this slide's runtime state for the
+  // current visit, and which mode was applied. On slide change in preview,
+  // either reset (clear answer/attempts/result) or resume (initialize
+  // attempts only if missing).
+  const visitedRef = useRef<{ slideId: string; mode: 'reset' | 'resume' } | null>(null);
+  useEffect(() => {
+    if (!isPreview) return;
+    const prev = visitedRef.current;
+    const sameVisit = prev && prev.slideId === slide.id && prev.mode === quizRevisit;
+    if (sameVisit) return;
+    if (quizRevisit === 'reset') {
+      dispatch({ type: 'RESET_QUIZ_SLIDE_PROGRESS', slideId: slide.id });
+    }
+    // Initialize attempts (only if not already set — INIT is a no-op otherwise,
+    // which preserves "resume" state across revisits).
+    dispatch({
+      type: 'INIT_QUIZ_ATTEMPTS',
+      slideId: slide.id,
+      attempts: isUnlimited ? Number.POSITIVE_INFINITY : maxAttempts,
+    });
+    visitedRef.current = { slideId: slide.id, mode: quizRevisit };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isPreview, slide.id, quizRevisit, maxAttempts, isUnlimited]);
+
+  const remainingRaw = state.quizAttemptsRemaining?.[slide.id];
+  const remaining = remainingRaw == null
+    ? (isUnlimited ? Number.POSITIVE_INFINITY : maxAttempts)
+    : remainingRaw;
+  const isLocked = !!result?.submitted;
+  const interactive = isPreview && !isLocked;
+  const revealCorrect = isLocked && !result?.correct && exhaustedBehavior === 'reveal';
 
   const setAnswer = (a: unknown) => {
-    if (!isPreview) return;
+    if (!isPreview || isLocked) return;
     dispatch({ type: 'SET_QUIZ_ANSWER', slideId: slide.id, answer: a });
   };
 
   const submit = () => {
-    if (!isPreview) return;
+    if (!isPreview || isLocked) return;
     const correct = gradeQuiz(quiz, answer);
-    dispatch({ type: 'SUBMIT_QUIZ', slideId: slide.id, correct });
-    const target = correct ? quiz.correctFeedback : quiz.incorrectFeedback;
-    if (target.mode === 'jumpToSlide' && target.targetSlideId) {
-      const idx = state.slides.findIndex((s) => s.id === target.targetSlideId);
-      if (idx >= 0) dispatch({ type: 'SET_ACTIVE_SLIDE', index: idx });
-    } else if (target.mode === 'overlay') {
-      dispatch({ type: 'OPEN_QUIZ_FEEDBACK', slideId: slide.id, correct });
+
+    if (correct) {
+      dispatch({ type: 'SUBMIT_QUIZ', slideId: slide.id, correct: true });
+      const target = quiz.correctFeedback;
+      if (target.mode === 'jumpToSlide' && target.targetSlideId) {
+        const idx = state.slides.findIndex((s) => s.id === target.targetSlideId);
+        if (idx >= 0) dispatch({ type: 'SET_ACTIVE_SLIDE', index: idx });
+      } else if (target.mode === 'overlay') {
+        dispatch({ type: 'OPEN_QUIZ_FEEDBACK', slideId: slide.id, correct: true });
+      }
+      return;
     }
-    // 'inline' is handled by re-render below.
+
+    // Incorrect: consume an attempt.
+    const attemptsLeftAfter = isUnlimited ? Number.POSITIVE_INFINITY : Math.max(0, remaining - 1);
+    if (!isUnlimited) dispatch({ type: 'CONSUME_QUIZ_ATTEMPT', slideId: slide.id });
+
+    const exhausted = !isUnlimited && attemptsLeftAfter <= 0;
+
+    if (exhausted) {
+      // Final incorrect submission — lock the question.
+      dispatch({ type: 'SUBMIT_QUIZ', slideId: slide.id, correct: false });
+      const target = quiz.incorrectFeedback;
+      if (target.mode === 'jumpToSlide' && target.targetSlideId) {
+        const idx = state.slides.findIndex((s) => s.id === target.targetSlideId);
+        if (idx >= 0) dispatch({ type: 'SET_ACTIVE_SLIDE', index: idx });
+      } else if (target.mode === 'overlay') {
+        dispatch({ type: 'OPEN_QUIZ_FEEDBACK', slideId: slide.id, correct: false });
+      }
+      return;
+    }
+
+    // Attempts remain — show feedback for this incorrect try and let learner retry.
+    const target = quiz.incorrectFeedback;
+    if (target.mode === 'overlay') {
+      dispatch({ type: 'OPEN_QUIZ_FEEDBACK', slideId: slide.id, correct: false });
+    }
+    // For 'inline' / 'jumpToSlide' between attempts: keep submission unsubmitted
+    // so Submit re-enables. We don't jump slides on intermediate failures.
   };
+
+  // Inline incorrect message between attempts (when attempts remain).
+  const showRetryHint =
+    isPreview && !isLocked && remainingRaw != null && remainingRaw < (isUnlimited ? Number.POSITIVE_INFINITY : maxAttempts);
 
   return (
     <div
@@ -790,7 +861,13 @@ function QuizSlideOverlay({ slide, isPreview }: { slide: Slide; isPreview: boole
         </h2>
 
         {quiz.questionType === 'multiple-choice' && (
-          <MCPlay quiz={quiz} answer={answer as string[] | undefined} onChange={setAnswer} disabled={!interactive} />
+          <MCPlay
+            quiz={quiz}
+            answer={answer as string[] | undefined}
+            onChange={setAnswer}
+            disabled={!interactive}
+            revealCorrect={revealCorrect}
+          />
         )}
         {quiz.questionType === 'dnd-matching' && (
           <MatchPlay quiz={quiz} answer={answer as Record<string, string> | undefined} onChange={setAnswer} disabled={!interactive} />
@@ -799,7 +876,36 @@ function QuizSlideOverlay({ slide, isPreview }: { slide: Slide; isPreview: boole
           <SortPlay quiz={quiz} answer={answer as string[] | undefined} onChange={setAnswer} disabled={!interactive} />
         )}
 
-        {/* Inline feedback (after submit) */}
+        {/* Attempts remaining indicator — preview only, only when attempts are limited and quiz is not locked. */}
+        {isPreview && !isLocked && !isUnlimited && (
+          <p style={{ marginTop: 16, fontSize: 13, color: '#475569', fontWeight: 500 }}>
+            Attempts remaining: {remaining}
+          </p>
+        )}
+        {isPreview && !isLocked && isUnlimited && (
+          <p style={{ marginTop: 16, fontSize: 13, color: '#475569', fontWeight: 500 }}>
+            Unlimited attempts
+          </p>
+        )}
+
+        {/* Inline retry hint shown after a failed attempt when attempts remain. */}
+        {showRetryHint && quiz.incorrectFeedback.mode === 'inline' && (
+          <div
+            style={{
+              marginTop: 12,
+              padding: 12,
+              borderRadius: 8,
+              background: '#fef3c7',
+              color: '#92400e',
+              fontWeight: 500,
+              fontSize: 14,
+            }}
+          >
+            {quiz.incorrectFeedback.message || 'Not quite. Try again.'}
+          </div>
+        )}
+
+        {/* Inline feedback (after final submit) */}
         {result?.submitted && (
           (() => {
             const target = result.correct ? quiz.correctFeedback : quiz.incorrectFeedback;
@@ -821,7 +927,7 @@ function QuizSlideOverlay({ slide, isPreview }: { slide: Slide; isPreview: boole
           })()
         )}
 
-        {isPreview && !result?.submitted && (
+        {isPreview && !isLocked && (
           <div style={{ marginTop: 24, display: 'flex', justifyContent: 'flex-end' }}>
             <button
               type="button"
