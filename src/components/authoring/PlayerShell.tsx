@@ -84,6 +84,17 @@ export function PlayerShell({ playerSettings, interactive = true }: PlayerShellP
   const sidebarVisible = ps.sidebarPosition !== 'none' && tabsAvailable.length > 0;
 
   const [activeTab, setActiveTab] = useState<SidebarTab>(tabsAvailable[0] ?? 'menu');
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [visitedIds, setVisitedIds] = useState<Set<string>>(() => new Set(slide ? [slide.id] : []));
+  useEffect(() => {
+    if (!slide) return;
+    setVisitedIds((prev) => {
+      if (prev.has(slide.id)) return prev;
+      const next = new Set(prev);
+      next.add(slide.id);
+      return next;
+    });
+  }, [slide?.id]);
   const currentTab = tabsAvailable.includes(activeTab) ? activeTab : (tabsAvailable[0] ?? 'menu');
 
   const bgStyle: React.CSSProperties = { backgroundColor: ps.backgroundColor };
