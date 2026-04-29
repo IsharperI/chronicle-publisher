@@ -182,7 +182,7 @@ export function PlayerShell({ playerSettings, interactive = true }: PlayerShellP
       </header>
 
       {/* Body: sidebar + stage */}
-      <div className="flex-1 flex min-h-0">
+      <div className="flex-1 flex min-h-0 relative">
         {ps.sidebarPosition === 'left' && sidebar}
         <div className="flex-1 flex min-w-0 overflow-hidden">
           <SlideStage
@@ -194,6 +194,7 @@ export function PlayerShell({ playerSettings, interactive = true }: PlayerShellP
           />
         </div>
         {ps.sidebarPosition === 'right' && sidebar}
+        <QuizFeedbackOverlay onContinue={() => navigateToIndex(state.activeSlideIndex + 1)} />
       </div>
 
       {/* Bottom controls */}
