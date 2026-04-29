@@ -142,6 +142,8 @@ export type SlideRevisitMode = 'reset' | 'resume';
 
 export interface Slide {
   id: string;
+  /** Optional human-readable title (max 30 chars). Falls back to "Slide N". */
+  title?: string;
   elements: SlideElement[];
   duration: number;
   masterId?: string;
