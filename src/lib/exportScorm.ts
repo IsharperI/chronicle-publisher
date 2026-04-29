@@ -102,10 +102,11 @@ body{background-color:${ps.backgroundColor};${ps.backgroundImage ? `background-i
 #sidebar .menu-list button.active{color:#fff;background:${ps.buttonColor}33}
 #notes-pane{white-space:pre-wrap;line-height:1.5}
 #notes-pane.empty{color:rgba(255,255,255,.4);font-style:italic}
-#stage-area{flex:1;display:flex;align-items:center;justify-content:center;min-width:0;padding:16px;order:1}
- #stage-wrapper{position:relative;width:100%;max-width:${Math.min(dims.width, 1280)}px;aspect-ratio:${aspect};background:#fff;overflow:hidden;border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,.4)}
- #stage{position:absolute;top:0;left:0;width:${dims.width}px;height:${dims.height}px;transform-origin:top left;z-index:2}
- .stage-prev{position:absolute;top:0;left:0;width:${dims.width}px;height:${dims.height}px;transform-origin:top left;z-index:1;pointer-events:none}
+ #stage-area{flex:1;display:flex;align-items:center;justify-content:center;min-width:0;padding:16px;order:1}
+ #stage-wrapper{position:relative;width:100%;max-width:${Math.min(dims.width, 1280)}px;aspect-ratio:${aspect};overflow:hidden;border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,.4);background:#000}
+ #stage-fader{position:absolute;inset:0;display:block}
+ #stage{position:absolute;top:0;left:0;width:${dims.width}px;height:${dims.height}px;transform-origin:top left;background:#fff;opacity:1;transition:opacity .25s ease-in-out}
+ #stage.fading{opacity:0}
  #cc-overlay{position:absolute;left:5%;right:5%;bottom:6%;text-align:center;pointer-events:none;z-index:50;font-family:${ps.fontFamily}}
  #cc-overlay span{display:inline-block;background:rgba(0,0,0,0.75);color:#fff;padding:8px 16px;border-radius:6px;font-size:clamp(12px,2.4vw,28px);line-height:1.3;max-width:90%;white-space:pre-wrap}
  #cc-overlay.hidden{display:none}
@@ -115,18 +116,6 @@ body{background-color:${ps.backgroundColor};${ps.backgroundImage ? `background-i
  #controls button:hover{filter:brightness(1.15)}
  #controls button:disabled{opacity:.4;cursor:default;filter:none}
  #controls #cc.off{opacity:.55}
- @keyframes slide-in-fade{from{opacity:0}to{opacity:1}}
- @keyframes slide-in-push-up{from{transform:translateY(100%)}to{transform:translateY(0)}}
- @keyframes slide-in-push-left{from{transform:translateX(100%)}to{transform:translateX(0)}}
- @keyframes slide-in-zoom-in{from{opacity:0;transform:scale(.92)}to{opacity:1;transform:scale(1)}}
- @keyframes slide-out-push-up{from{transform:translateY(0)}to{transform:translateY(-100%)}}
- @keyframes slide-out-push-left{from{transform:translateX(0)}to{transform:translateX(-100%)}}
- .slide-in-fade{animation:slide-in-fade var(--slide-trans-dur,.5s) ease-out both}
- .slide-in-push-up{animation:slide-in-push-up var(--slide-trans-dur,.5s) ease-out both}
- .slide-in-push-left{animation:slide-in-push-left var(--slide-trans-dur,.5s) ease-out both}
- .slide-in-zoom-in{animation:slide-in-zoom-in var(--slide-trans-dur,.5s) ease-out both}
- .slide-out-push-up{animation:slide-out-push-up var(--slide-trans-dur,.5s) ease-out both}
- .slide-out-push-left{animation:slide-out-push-left var(--slide-trans-dur,.5s) ease-out both}
 </style>
 </head>
 
