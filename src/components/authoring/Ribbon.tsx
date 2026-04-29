@@ -319,7 +319,12 @@ export function Ribbon() {
           {TABS.map((tab) => (
             <button
               key={tab}
-              onClick={() => setActiveTab(tab)}
+              onClick={() => {
+                setActiveTab(tab);
+                if (state.viewMode === 'master') {
+                  dispatch({ type: 'SET_VIEW_MODE', mode: 'main' });
+                }
+              }}
               className={cn(
                 'px-4 py-1.5 text-xs font-medium transition-colors border-t-2',
                 activeTab === tab
