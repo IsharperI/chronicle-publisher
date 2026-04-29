@@ -502,14 +502,35 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
                 : phase === 'exiting' ? getAnimOutClass(el.animationOut) : '';
               const animDurMs = phase === 'entering' ? (el.entranceDuration ?? 500)
                 : phase === 'exiting' ? (el.exitDuration ?? 500) : 0;
+              const clickTriggers = (el.triggers ?? []).filter(
+                (t) => (t.event === 'onClick' || t.event === 'click')
+              );
+              const hasClickTrigger = clickTriggers.length > 0;
+              const handleTriggerClick = hasClickTrigger ? (e: React.MouseEvent) => {
+                e.stopPropagation();
+                for (const t of clickTriggers) {
+                  if (t.action === 'jumpToSlide') {
+                    const idx = state.slides.findIndex((s) => s.id === t.targetId);
+                    if (idx >= 0) {
+                      dispatch({ type: 'SET_PLAYING', playing: false });
+                      dispatch({ type: 'SET_ACTIVE_SLIDE', index: idx });
+                    }
+                  } else if (t.action === 'hideElement') {
+                    dispatch({ type: 'UPDATE_ELEMENT', id: t.targetId, updates: { isHidden: true } as any });
+                  } else if (t.action === 'showElement') {
+                    dispatch({ type: 'UPDATE_ELEMENT', id: t.targetId, updates: { isHidden: false } as any });
+                  }
+                }
+              } : undefined;
               return (
                 <div
                   key={el.id}
-                  className={animClass}
+                  className={`${animClass}${hasClickTrigger ? ' cursor-pointer' : ''}`}
                   style={{
                     position: 'absolute', left: el.x, top: el.y, width: el.width, height: el.height, zIndex: 2,
                     ...(animClass ? { animationDuration: `${animDurMs}ms` } : {}),
                   }}
+                  onClick={handleTriggerClick}
                 >
                   <ElementRenderer element={el} isPreview />
                 </div>
