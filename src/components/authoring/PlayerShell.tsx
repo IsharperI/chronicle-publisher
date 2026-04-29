@@ -1,9 +1,9 @@
 import { useCourse } from '@/context/CourseContext';
 import { Canvas } from './Canvas';
 import { ChevronLeft, ChevronRight, Play, Pause, Captions, CaptionsOff, Menu, FileText } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { themeVarStyle } from '@/lib/themeVars';
-import type { PlayerSettings, Slide } from '@/types/course';
+import type { PlayerSettings } from '@/types/course';
 
 type SidebarTab = 'menu' | 'notes';
 
@@ -23,6 +23,60 @@ export function PlayerShell({ playerSettings, interactive = true }: PlayerShellP
   const { state, dispatch } = useCourse();
   const ps = playerSettings ?? state.playerSettings;
   const slide = state.slides[state.activeSlideIndex];
+  const transitionType = state.courseSettings.transition?.type ?? 'none';
+  const transitionDuration = state.courseSettings.transition?.duration ?? 1;
+  const transitionColor = state.courseSettings.transition?.color ?? '#000000';
+  const [stagePhase, setStagePhase] = useState<'idle' | 'exit' | 'enter-from' | 'enter-to'>('idle');
+  const [navLocked, setNavLocked] = useState(false);
+  const timersRef = useRef<{ swap: number | null; finish: number | null; raf1: number | null; raf2: number | null }>({
+    swap: null,
+    finish: null,
+    raf1: null,
+    raf2: null,
+  });
+
+  const clearTransition = useCallback(() => {
+    if (timersRef.current.swap !== null) window.clearTimeout(timersRef.current.swap);
+    if (timersRef.current.finish !== null) window.clearTimeout(timersRef.current.finish);
+    if (timersRef.current.raf1 !== null) cancelAnimationFrame(timersRef.current.raf1);
+    if (timersRef.current.raf2 !== null) cancelAnimationFrame(timersRef.current.raf2);
+    timersRef.current = { swap: null, finish: null, raf1: null, raf2: null };
+  }, []);
+
+  useEffect(() => () => clearTransition(), [clearTransition]);
+
+  const navigateToIndex = useCallback((nextIndex: number) => {
+    if (!interactive || navLocked) return;
+    if (nextIndex < 0 || nextIndex >= state.slides.length || nextIndex === state.activeSlideIndex) return;
+
+    clearTransition();
+
+    if (transitionType === 'none' || transitionDuration <= 0) {
+      setStagePhase('idle');
+      setNavLocked(false);
+      dispatch({ type: 'SET_ACTIVE_SLIDE', index: nextIndex });
+      return;
+    }
+
+    const halfMs = Math.max(50, (transitionDuration * 1000) / 2);
+    dispatch({ type: 'SET_PLAYING', playing: false });
+    setNavLocked(true);
+    setStagePhase('exit');
+
+    timersRef.current.swap = window.setTimeout(() => {
+      dispatch({ type: 'SET_ACTIVE_SLIDE', index: nextIndex });
+      setStagePhase('enter-from');
+      timersRef.current.raf1 = requestAnimationFrame(() => {
+        timersRef.current.raf2 = requestAnimationFrame(() => setStagePhase('enter-to'));
+      });
+      timersRef.current.finish = window.setTimeout(() => {
+        setStagePhase('idle');
+        setNavLocked(false);
+        timersRef.current.finish = null;
+      }, halfMs);
+      timersRef.current.swap = null;
+    }, halfMs);
+  }, [clearTransition, dispatch, interactive, navLocked, state.activeSlideIndex, state.slides.length, transitionDuration, transitionType]);
 
   const tabsAvailable: SidebarTab[] = [];
   if (ps.playerTabs?.showMenu) tabsAvailable.push('menu');
@@ -81,7 +135,8 @@ export function PlayerShell({ playerSettings, interactive = true }: PlayerShellP
               <li key={s.id}>
                 <button
                   type="button"
-                  onClick={() => interactive && dispatch({ type: 'SET_ACTIVE_SLIDE', index: i })}
+                  onClick={() => navigateToIndex(i)}
+                  disabled={navLocked}
                   className={`w-full text-left px-2.5 py-2 rounded transition-colors ${
                     i === state.activeSlideIndex ? 'text-white' : 'text-white/70 hover:bg-white/5'
                   }`}
@@ -131,13 +186,11 @@ export function PlayerShell({ playerSettings, interactive = true }: PlayerShellP
         {ps.sidebarPosition === 'left' && sidebar}
         <div className="flex-1 flex min-w-0 overflow-hidden">
           <SlideStage
-            slide={slide}
-            activeSlideIndex={state.activeSlideIndex}
-            slides={state.slides}
-            transitionType={state.courseSettings.transition?.type ?? 'none'}
-            transitionDuration={state.courseSettings.transition?.duration ?? 1}
-            transitionColor={state.courseSettings.transition?.color ?? '#000000'}
-            interactive={interactive}
+            transitionType={transitionType}
+            transitionDuration={transitionDuration}
+            transitionColor={transitionColor}
+            phase={stagePhase}
+            onPreviewNext={() => navigateToIndex(state.activeSlideIndex + 1)}
           />
         </div>
         {ps.sidebarPosition === 'right' && sidebar}
@@ -147,8 +200,8 @@ export function PlayerShell({ playerSettings, interactive = true }: PlayerShellP
       <footer className="h-14 shrink-0 flex items-center justify-center gap-2 px-5 border-t border-white/10 bg-black/40 backdrop-blur-sm">
         <button
           type="button"
-          onClick={() => dispatch({ type: 'PREVIEW_PREV' })}
-          disabled={isFirst}
+          onClick={() => navigateToIndex(state.activeSlideIndex - 1)}
+          disabled={isFirst || navLocked}
           className="text-white text-xs font-medium px-4 py-2 disabled:opacity-40"
           style={btnStyle}
         >
@@ -170,8 +223,8 @@ export function PlayerShell({ playerSettings, interactive = true }: PlayerShellP
 
         <button
           type="button"
-          onClick={() => dispatch({ type: 'PREVIEW_NEXT' })}
-          disabled={isLast}
+          onClick={() => navigateToIndex(state.activeSlideIndex + 1)}
+          disabled={isLast || navLocked}
           className="text-white text-xs font-medium px-4 py-2 disabled:opacity-40"
           style={btnStyle}
         >
@@ -205,165 +258,64 @@ export function PlayerShell({ playerSettings, interactive = true }: PlayerShellP
  * canvas scaling.
  */
 interface SlideStageProps {
-  slide: Slide | undefined;
-  activeSlideIndex: number;
-  slides: Slide[];
   transitionType: 'none' | 'fade' | 'push-up' | 'push-left' | 'zoom-in';
   transitionDuration: number;
   transitionColor: string;
-  interactive: boolean;
+  phase: 'idle' | 'exit' | 'enter-from' | 'enter-to';
+  onPreviewNext: () => void;
 }
 
-function SlideStage({
-  slide,
-  activeSlideIndex,
-  slides,
-  transitionType,
-  transitionDuration,
-  transitionColor,
-  interactive,
-}: SlideStageProps) {
-  const { dispatch } = useCourse();
-  const currentKey = slide?.id ?? String(activeSlideIndex);
-  const [renderIndex, setRenderIndex] = useState(activeSlideIndex);
-  const [outgoingIndex, setOutgoingIndex] = useState<number | null>(null);
-  const [phase, setPhase] = useState<'idle' | 'animating'>('idle');
-  const [navLocked, setNavLocked] = useState(false);
-  const prevIndexRef = useRef(activeSlideIndex);
-  const timerRef = useRef<number | null>(null);
+function SlideStage({ transitionType, transitionDuration, transitionColor, phase, onPreviewNext }: SlideStageProps) {
+  const halfMs = Math.max(50, (transitionDuration * 1000) / 2);
+  const animatedStyle: React.CSSProperties = {
+    width: '100%',
+    height: '100%',
+    display: 'flex',
+    willChange: 'transform, opacity',
+    transformOrigin: 'center center',
+    transition: phase === 'enter-from' || phase === 'idle' ? 'none' : `opacity ${halfMs}ms ease, transform ${halfMs}ms ease`,
+    opacity: 1,
+    transform: 'none',
+  };
 
-  const clearTimer = useCallback(() => {
-    if (timerRef.current !== null) {
-      window.clearTimeout(timerRef.current);
-      timerRef.current = null;
-    }
-  }, []);
-
-  useEffect(() => () => clearTimer(), [clearTimer]);
-
-  useEffect(() => {
-    if (prevIndexRef.current === activeSlideIndex) return;
-
-    const previousIndex = prevIndexRef.current;
-    prevIndexRef.current = activeSlideIndex;
-    clearTimer();
-
-    if (transitionType === 'none' || transitionDuration <= 0) {
-      setOutgoingIndex(null);
-      setRenderIndex(activeSlideIndex);
-      setPhase('idle');
-      setNavLocked(false);
-      return;
-    }
-
-    setOutgoingIndex(previousIndex);
-    setRenderIndex(activeSlideIndex);
-    setNavLocked(true);
-
-    const raf1 = requestAnimationFrame(() => {
-      const raf2 = requestAnimationFrame(() => setPhase('animating'));
-      timerRef.current = window.setTimeout(() => {
-        setOutgoingIndex(null);
-        setPhase('idle');
-        setNavLocked(false);
-        timerRef.current = null;
-      }, Math.max(50, transitionDuration * 1000));
-      return () => cancelAnimationFrame(raf2);
-    });
-
-    setPhase('idle');
-    return () => cancelAnimationFrame(raf1);
-  }, [activeSlideIndex, transitionDuration, transitionType, clearTimer]);
-
-  const durationMs = Math.max(50, transitionDuration * 1000);
-  const outgoingSlide = outgoingIndex != null ? slides[outgoingIndex] : null;
-  const incomingSlide = slides[renderIndex] ?? slide;
-
-  const navigateTo = useCallback((nextIndex: number) => {
-    if (!interactive || navLocked) return;
-    dispatch({ type: 'SET_ACTIVE_SLIDE', index: nextIndex });
-  }, [dispatch, interactive, navLocked]);
-
-  const handlePreviewNext = useCallback(() => {
-    if (!interactive || navLocked) return;
-    dispatch({ type: 'PREVIEW_NEXT' });
-  }, [dispatch, interactive, navLocked]);
-
-  const stageLayerStyle = useMemo(() => {
-    const base: React.CSSProperties = {
-      position: 'absolute',
-      inset: 0,
-      display: 'flex',
-      willChange: 'transform, opacity',
-      transition: `opacity ${durationMs}ms ease, transform ${durationMs}ms ease`,
-      transformOrigin: 'center center',
-      backfaceVisibility: 'hidden',
-    };
-
-    if (transitionType === 'none') return { incoming: { ...base }, outgoing: { ...base } };
-
+  if (transitionType !== 'none') {
     switch (transitionType) {
       case 'fade':
-        return {
-          incoming: { ...base, opacity: phase === 'animating' ? 1 : 0 },
-          outgoing: { ...base, opacity: phase === 'animating' ? 0 : 1 },
-        };
+        if (phase === 'exit' || phase === 'enter-from') animatedStyle.opacity = 0;
+        if (phase === 'enter-to') animatedStyle.opacity = 1;
+        break;
       case 'push-up':
-        return {
-          incoming: {
-            ...base,
-            transform: phase === 'animating' ? 'translateY(0%)' : 'translateY(100%)',
-          },
-          outgoing: {
-            ...base,
-            transform: phase === 'animating' ? 'translateY(-100%)' : 'translateY(0%)',
-          },
-        };
+        if (phase === 'exit') animatedStyle.transform = 'translateY(-100%)';
+        if (phase === 'enter-from') animatedStyle.transform = 'translateY(100%)';
+        if (phase === 'enter-to') animatedStyle.transform = 'translateY(0%)';
+        break;
       case 'push-left':
-        return {
-          incoming: {
-            ...base,
-            transform: phase === 'animating' ? 'translateX(0%)' : 'translateX(100%)',
-          },
-          outgoing: {
-            ...base,
-            transform: phase === 'animating' ? 'translateX(-100%)' : 'translateX(0%)',
-          },
-        };
+        if (phase === 'exit') animatedStyle.transform = 'translateX(-100%)';
+        if (phase === 'enter-from') animatedStyle.transform = 'translateX(100%)';
+        if (phase === 'enter-to') animatedStyle.transform = 'translateX(0%)';
+        break;
       case 'zoom-in':
-        return {
-          incoming: {
-            ...base,
-            opacity: phase === 'animating' ? 1 : 0,
-            transform: phase === 'animating' ? 'scale(1)' : 'scale(0.86)',
-          },
-          outgoing: {
-            ...base,
-            opacity: phase === 'animating' ? 0 : 1,
-            transform: phase === 'animating' ? 'scale(1.08)' : 'scale(1)',
-          },
-        };
-      default:
-        return { incoming: { ...base }, outgoing: { ...base } };
+        if (phase === 'exit') {
+          animatedStyle.transform = 'scale(1.08)';
+          animatedStyle.opacity = 0;
+        }
+        if (phase === 'enter-from') {
+          animatedStyle.transform = 'scale(0.86)';
+          animatedStyle.opacity = 0;
+        }
+        if (phase === 'enter-to') {
+          animatedStyle.transform = 'scale(1)';
+          animatedStyle.opacity = 1;
+        }
+        break;
     }
-  }, [durationMs, phase, transitionType]);
+  }
 
   return (
     <div className="relative flex-1 min-w-0 overflow-hidden flex" style={{ backgroundColor: transitionColor }}>
-      {outgoingSlide && (
-        <div className="pointer-events-none z-10" style={stageLayerStyle.outgoing}>
-          <Canvas key={`outgoing-${outgoingSlide.id}`} />
-        </div>
-      )}
-      {incomingSlide && (
-        <div className="z-20 flex-1" style={outgoingSlide ? stageLayerStyle.incoming : { position: 'absolute', inset: 0, display: 'flex' }}>
-          <Canvas
-            key={`incoming-${incomingSlide.id}`}
-            onPreviewNext={handlePreviewNext}
-          />
-        </div>
-      )}
-      <div className="sr-only" aria-hidden="true">{currentKey}</div>
+      <div className="flex-1" style={animatedStyle}>
+        <Canvas onPreviewNext={onPreviewNext} />
+      </div>
     </div>
   );
 }
