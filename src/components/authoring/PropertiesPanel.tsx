@@ -1136,7 +1136,7 @@ function SortEditor({ quiz, update }: { quiz: QuizConfig; update: (u: Partial<Qu
   );
 }
 
-function FeedbackEditor({ target, otherSlides, onChange }: { target: QuizFeedbackTarget; otherSlides: Slide[]; onChange: (t: QuizFeedbackTarget) => void }) {
+function FeedbackEditor({ target, otherSlides, onChange }: { target: QuizFeedbackTarget; otherSlides: { slide: Slide; label: string }[]; onChange: (t: QuizFeedbackTarget) => void }) {
   return (
     <div className="space-y-1.5">
       <Select value={target.mode} onValueChange={(v) => onChange({ ...target, mode: v as QuizFeedbackMode })}>
