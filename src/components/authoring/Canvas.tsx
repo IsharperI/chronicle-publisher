@@ -736,8 +736,8 @@ function gradeQuiz(quiz: QuizConfig, answer: unknown): boolean {
 function QuizSlideOverlay({ slide, isPreview }: { slide: Slide; isPreview: boolean }) {
   const { state, dispatch } = useCourse();
   const quiz = slide.quiz!;
-  const answer = state.quizAnswers[slide.id];
-  const result = state.quizResults[slide.id];
+  const answer = state.quizAnswers?.[slide.id];
+  const result = state.quizResults?.[slide.id];
   const interactive = isPreview && !result?.submitted;
 
   const setAnswer = (a: unknown) => {
@@ -1006,7 +1006,7 @@ function ResultsSlideOverlay({ slide, isPreview }: { slide: Slide; isPreview: bo
   // Compute score across all quiz slides in the course.
   const quizSlides = state.slides.filter((s) => s.slideType === 'quiz');
   const total = quizSlides.length;
-  const correct = quizSlides.reduce((acc, s) => acc + (state.quizResults[s.id]?.correct ? 1 : 0), 0);
+  const correct = quizSlides.reduce((acc, s) => acc + (state.quizResults?.[s.id]?.correct ? 1 : 0), 0);
   const pct = total > 0 ? (correct / total) * 100 : 0;
   const passed = pct >= cfg.passThreshold;
 
