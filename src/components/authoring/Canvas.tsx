@@ -1188,46 +1188,6 @@ function SortPlay({ quiz, answer, onChange, disabled, ts }: { quiz: QuizConfig; 
   );
 }
 
-function SortPlay({ quiz, answer, onChange, disabled }: { quiz: QuizConfig; answer: string[] | undefined; onChange: (a: string[]) => void; disabled: boolean }) {
-  const items = quiz.sortItems ?? [];
-  // Initial display order: shuffled (deterministic by id hash) if no answer yet.
-  const order = answer && answer.length === items.length
-    ? answer
-    : items.slice().sort((a, b) => a.id.localeCompare(b.id)).map((i) => i.id);
-  const byId = new Map(items.map((i) => [i.id, i]));
-
-  const move = (idx: number, dir: -1 | 1) => {
-    if (disabled) return;
-    const swap = idx + dir;
-    if (swap < 0 || swap >= order.length) return;
-    const next = order.slice();
-    [next[idx], next[swap]] = [next[swap], next[idx]];
-    onChange(next);
-  };
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      {order.map((id, i) => (
-        <div
-          key={id}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 12,
-            padding: '10px 14px',
-            background: '#fff',
-            border: '1px solid #e2e8f0',
-            borderRadius: 8,
-            fontSize: 15,
-          }}
-        >
-          <span style={{ color: '#94a3b8', width: 20 }}>{i + 1}.</span>
-          <span style={{ flex: 1 }}>{byId.get(id)?.text ?? ''}</span>
-          <button type="button" onClick={() => move(i, -1)} disabled={disabled || i === 0} style={{ padding: '4px 10px', border: '1px solid #cbd5e1', background: '#fff', borderRadius: 6, cursor: disabled || i === 0 ? 'not-allowed' : 'pointer' }}>↑</button>
-          <button type="button" onClick={() => move(i, 1)} disabled={disabled || i === order.length - 1} style={{ padding: '4px 10px', border: '1px solid #cbd5e1', background: '#fff', borderRadius: 6, cursor: disabled || i === order.length - 1 ? 'not-allowed' : 'pointer' }}>↓</button>
-        </div>
-      ))}
-    </div>
-  );
-}
 
 // ============================================================================
 // Results Slide Overlay
