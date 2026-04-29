@@ -113,11 +113,6 @@ body{background-color:${ps.backgroundColor};${ps.backgroundImage ? `background-i
 
 <body>
 <div id="topbar">
-  <h1>${titleSafe}</h1>
-  <span class="meta" id="meta"></span>
-</div>
-<div id="body">
-<div id="topbar">
   ${ps.sidebarPosition !== 'none' && (ps.tabMenu || ps.tabNotes) ? '<button id="sidebar-toggle" type="button" aria-label="Toggle menu" title="Toggle menu">&#9776;</button>' : ''}
   <h1>${titleSafe}</h1>
   <span class="meta" id="meta"></span>
