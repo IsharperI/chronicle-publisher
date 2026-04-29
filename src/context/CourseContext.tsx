@@ -69,6 +69,9 @@ const initialState: CourseState = {
   showGrid: false,
   snapToGrid: false,
   ccEnabled: true,
+  quizResults: {},
+  quizAnswers: {},
+  quizFeedbackOpen: null,
 };
 
 type Action =
