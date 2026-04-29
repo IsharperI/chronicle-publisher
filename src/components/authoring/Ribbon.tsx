@@ -15,7 +15,7 @@ import { PlayerSettingsModal } from './PlayerSettingsModal';
 import { sanitizeSlides, sanitizePlayerSettings, sanitizeCourseSettings } from '@/lib/sanitize';
 
 import { StorySizeControl, ThemeColorsControl } from './DesignControls';
-import { QuizTemplatesTab } from './QuizTemplatesTab';
+import { QuizTemplatesTab } from './QuizTemplatesTabContainer';
 
 const TABS = ['Home', 'Insert', 'Design', 'Transitions', 'Animations', 'View', 'Quiz Templates'] as const;
 type RibbonTab = typeof TABS[number];
