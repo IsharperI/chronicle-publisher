@@ -407,6 +407,11 @@ export function Ribbon() {
             <RibbonGroup label="Data">
               <TableInsertPopover onInsert={addTable} />
             </RibbonGroup>
+            <Separator orientation="vertical" className="h-12 mx-2" />
+            <RibbonGroup label="Quiz">
+              <RibbonButton icon={HelpCircle} label="Quiz Slide" onClick={() => dispatch({ type: 'ADD_QUIZ_SLIDE' })} />
+              <RibbonButton icon={Trophy} label="Results Slide" onClick={() => dispatch({ type: 'ADD_RESULTS_SLIDE' })} />
+            </RibbonGroup>
           </>
         )}
 
