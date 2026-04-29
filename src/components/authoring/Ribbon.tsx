@@ -656,7 +656,7 @@ function TransitionsTab() {
             onChange={(e) => setDurInput(e.target.value)}
             onBlur={commitDuration}
             onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
-            className="h-7 w-24 rounded border bg-background px-2 text-xs"
+            className="h-7 w-24 rounded border bg-white px-2 text-xs text-slate-800"
           />
         </div>
       </RibbonGroup>
@@ -671,14 +671,14 @@ function TransitionsTab() {
               type="color"
               value={tColor}
               onChange={(e) => setColor(e.target.value)}
-              className="h-7 w-10 rounded border bg-background cursor-pointer p-0.5"
+              className="h-7 w-10 rounded border bg-white cursor-pointer p-0.5"
               aria-label="Transition fade color"
             />
             <input
               type="text"
               value={tColor}
               onChange={(e) => setColor(e.target.value)}
-              className="h-7 w-20 rounded border bg-background px-2 text-xs font-mono"
+              className="h-7 w-20 rounded border bg-white px-2 text-xs font-mono text-slate-800"
             />
           </div>
         </div>
