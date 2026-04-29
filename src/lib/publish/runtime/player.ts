@@ -61,9 +61,14 @@ export function buildPlayerHtml(state: CourseState, opts: PublishOptions, lmsRun
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{height:100%}
 body{background-color:${ps.backgroundColor};${ps.backgroundImage ? `background-image:url("${ps.backgroundImage.replace(/"/g, '%22')}");${ps.backgroundMode === 'stretch' ? 'background-size:100% 100%;background-repeat:no-repeat;' : ps.backgroundMode === 'fit' ? 'background-size:contain;background-repeat:no-repeat;background-position:center;' : 'background-repeat:repeat;background-size:auto;'}` : ''}font-family:${ps.fontFamily};color:#fff;display:flex;flex-direction:column;min-height:100vh}
-#topbar{flex:0 0 auto;height:48px;display:flex;align-items:center;padding:0 20px;background:rgba(0,0,0,.35);backdrop-filter:blur(6px);border-bottom:1px solid rgba(255,255,255,.08)}
+#topbar{flex:0 0 auto;height:48px;display:flex;align-items:center;padding:0 20px;background:rgba(0,0,0,.35);backdrop-filter:blur(6px);border-bottom:1px solid rgba(255,255,255,.08);gap:12px}
 #topbar h1{font-size:14px;font-weight:600;letter-spacing:.02em;margin:0}
 #topbar .meta{margin-left:auto;font-size:12px;color:rgba(255,255,255,.6)}
+#sidebar-toggle{background:transparent;border:none;color:#fff;cursor:pointer;padding:6px;border-radius:4px;display:inline-flex;align-items:center;justify-content:center;font-size:18px;line-height:1}
+#sidebar-toggle:hover{background:rgba(255,255,255,.1)}
+#sidebar.collapsed{display:none}
+#sidebar .menu-list button .check{display:inline-block;width:12px;margin-right:6px;color:#22c55e;font-weight:700;visibility:hidden}
+#sidebar .menu-list button.visited .check{visibility:visible}
 #body{flex:1 1 auto;display:flex;min-height:0}
 #sidebar{width:256px;flex-shrink:0;display:flex;flex-direction:column;background:rgba(0,0,0,.3);backdrop-filter:blur(6px)}
 #sidebar.left{border-right:1px solid rgba(255,255,255,.08)}
