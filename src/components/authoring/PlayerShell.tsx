@@ -355,6 +355,9 @@ function QuizFeedbackOverlay({ onContinue }: { onContinue: () => void }) {
   const slide = state.slides.find((s) => s.id === fb.slideId);
   const target = slide?.quiz ? (fb.correct ? slide.quiz.correctFeedback : slide.quiz.incorrectFeedback) : null;
   if (!target || target.mode !== 'overlay') return null;
+  // If learner failed but quiz isn't yet locked (attempts remain), don't advance — let them retry.
+  const submitted = !!state.quizResults?.[fb.slideId]?.submitted;
+  const advance = fb.correct || submitted;
   return (
     <div
       style={{
@@ -371,10 +374,10 @@ function QuizFeedbackOverlay({ onContinue }: { onContinue: () => void }) {
         <p style={{ fontSize: 16, marginBottom: 24 }}>{target.message || ''}</p>
         <button
           type="button"
-          onClick={() => { dispatch({ type: 'CLOSE_QUIZ_FEEDBACK' }); onContinue(); }}
+          onClick={() => { dispatch({ type: 'CLOSE_QUIZ_FEEDBACK' }); if (advance) onContinue(); }}
           style={{ background: '#3b82f6', color: '#fff', fontWeight: 600, padding: '10px 28px', borderRadius: 8, border: 'none', cursor: 'pointer' }}
         >
-          Continue
+          {advance ? 'Continue' : 'Try Again'}
         </button>
       </div>
     </div>
