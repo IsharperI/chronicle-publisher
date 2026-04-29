@@ -1,11 +1,52 @@
 import React, { createContext, useContext, useReducer, type Dispatch } from 'react';
-import type { CourseState, Slide, SlideElement, ViewMode, PlayerSettings, CourseSettings, SlideAudio } from '@/types/course';
+import type { CourseState, Slide, SlideElement, ViewMode, PlayerSettings, CourseSettings, SlideAudio, QuizConfig, ResultsConfig, SlideKind } from '@/types/course';
 import { defaultPlayerSettings, defaultCourseSettings } from '@/types/course';
 
 const createSlide = (): Slide => ({
   id: crypto.randomUUID(),
   elements: [],
   duration: 5000,
+});
+
+const defaultQuizConfig = (): QuizConfig => ({
+  questionType: 'multiple-choice',
+  question: 'New question?',
+  choices: [
+    { id: crypto.randomUUID(), text: 'Option 1', correct: true },
+    { id: crypto.randomUUID(), text: 'Option 2', correct: false },
+  ],
+  singleSelect: true,
+  pairs: [
+    { id: crypto.randomUUID(), left: 'Term A', right: 'Definition A' },
+    { id: crypto.randomUUID(), left: 'Term B', right: 'Definition B' },
+  ],
+  sortItems: [
+    { id: crypto.randomUUID(), text: 'First' },
+    { id: crypto.randomUUID(), text: 'Second' },
+    { id: crypto.randomUUID(), text: 'Third' },
+  ],
+  correctFeedback: { mode: 'inline', message: 'Correct!' },
+  incorrectFeedback: { mode: 'inline', message: 'Not quite. Try again.' },
+});
+
+const defaultResultsConfig = (): ResultsConfig => ({
+  passThreshold: 80,
+  passMessage: 'Congratulations, you passed!',
+  failMessage: 'You did not pass. Please review and try again.',
+});
+
+const createQuizSlide = (): Slide => ({
+  ...createSlide(),
+  slideType: 'quiz',
+  title: 'Quiz',
+  quiz: defaultQuizConfig(),
+});
+
+const createResultsSlide = (): Slide => ({
+  ...createSlide(),
+  slideType: 'results',
+  title: 'Results',
+  results: defaultResultsConfig(),
 });
 
 const initialState: CourseState = {
