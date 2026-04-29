@@ -112,7 +112,7 @@ export function PlayerShell({ playerSettings, interactive = true }: PlayerShellP
     }
   }
 
-  const sidebar = sidebarVisible && (
+  const sidebar = sidebarVisible && sidebarOpen && (
     <aside
       className="w-64 shrink-0 flex flex-col border-white/10 bg-black/30 backdrop-blur-sm"
       style={{
