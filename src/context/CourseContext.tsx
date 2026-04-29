@@ -124,7 +124,8 @@ type Action =
   | { type: 'RESET_QUIZ_PROGRESS' }
   | { type: 'INIT_QUIZ_ATTEMPTS'; slideId: string; attempts: number }
   | { type: 'CONSUME_QUIZ_ATTEMPT'; slideId: string }
-  | { type: 'RESET_QUIZ_SLIDE_PROGRESS'; slideId: string };
+  | { type: 'RESET_QUIZ_SLIDE_PROGRESS'; slideId: string }
+  | { type: 'MOVE_SLIDE'; from: number; to: number };
 
 function getActiveSlides(state: CourseState): Slide[] {
   return state.viewMode === 'master' ? state.masterSlides : state.slides;
