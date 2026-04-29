@@ -346,6 +346,36 @@ export function PropertiesPanel() {
             />
             <p className="text-xs text-muted-foreground">Sets the total timeline length for this slide.</p>
 
+            <div className="space-y-1.5 pt-2 border-t">
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Slide Advance</Label>
+              <Select
+                value={activeSlide?.advanceMode ?? 'manual'}
+                onValueChange={(v) => dispatch({ type: 'UPDATE_SLIDE', index: state.activeSlideIndex, updates: { advanceMode: v as 'manual' | 'auto' } })}
+              >
+                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="manual">By user (manual)</SelectItem>
+                  <SelectItem value="auto">Automatically</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">Action when the slide timeline ends.</p>
+            </div>
+
+            <div className="space-y-1.5 pt-2 border-t">
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">When Revisiting</Label>
+              <Select
+                value={activeSlide?.revisitMode ?? 'reset'}
+                onValueChange={(v) => dispatch({ type: 'UPDATE_SLIDE', index: state.activeSlideIndex, updates: { revisitMode: v as 'reset' | 'resume' } })}
+              >
+                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="reset">Reset to initial state</SelectItem>
+                  <SelectItem value="resume">Resume saved state</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">Behavior when navigating back to this slide.</p>
+            </div>
+
             {!isMasterMode && (
               <div className="space-y-1.5 pt-2 border-t">
                 <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Slide Notes</Label>
