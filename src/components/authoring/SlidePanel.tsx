@@ -1,6 +1,6 @@
 import { useCourse } from '@/context/CourseContext';
 import { Button } from '@/components/ui/button';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, HelpCircle, Trophy } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import type { Slide, SlideElement } from '@/types/course';
