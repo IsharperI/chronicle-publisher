@@ -498,7 +498,7 @@ export function Ribbon() {
               />
               <RibbonButton
                 icon={MapIcon}
-                label="Story View"
+                label="Course Tree"
                 onClick={() => setStoryViewOpen(true)}
               />
             </RibbonGroup>

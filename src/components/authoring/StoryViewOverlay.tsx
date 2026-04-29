@@ -120,7 +120,7 @@ export function StoryViewOverlay({ open, onClose }: { open: boolean; onClose: ()
       className="fixed inset-0 z-[200] bg-background/95 backdrop-blur-sm flex flex-col"
       role="dialog"
       aria-modal="true"
-      aria-label="Story View"
+      aria-label="Course Tree"
     >
       <div className="h-14 border-b border-border flex items-center px-6 shrink-0">
         <h2 className="text-lg font-semibold text-foreground">Story View</h2>
