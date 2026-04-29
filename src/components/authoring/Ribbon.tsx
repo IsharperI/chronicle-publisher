@@ -505,6 +505,8 @@ export function Ribbon() {
         </div>
       )}
     </div>
+    <MediaLibraryOverlay open={mediaLibraryOpen} onClose={() => setMediaLibraryOpen(false)} />
+    </>
   );
 }
 
