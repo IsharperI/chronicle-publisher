@@ -42,8 +42,10 @@ function ThumbElement({ el, themeColors }: { el: SlideElement; themeColors: stri
   }
 
   if (el.type === 'shape') {
-    const fill = el.fillColor || 'transparent';
-    const strokeColor = el.borderColor || 'transparent';
+    const rawFill = el.fillColor;
+    const rawStroke = el.borderColor;
+    const fill = !rawFill || rawFill === 'transparent' ? 'transparent' : resolveColor(rawFill, themeColors, 'transparent');
+    const strokeColor = !rawStroke || rawStroke === 'transparent' ? 'transparent' : resolveColor(rawStroke, themeColors, 'transparent');
     const strokeWidth = typeof el.borderWidth === 'number' ? el.borderWidth : 0;
 
     if (el.shapeType === 'triangle') {
