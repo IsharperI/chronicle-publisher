@@ -135,6 +135,11 @@ export interface SlideAudio {
 
 export type SlideTransitionType = 'none' | 'fade' | 'push-up' | 'push-left' | 'zoom-in';
 
+/** How the slide advances when its internal timeline reaches the end. */
+export type SlideAdvanceMode = 'manual' | 'auto';
+/** What happens when the user navigates back to a previously visited slide. */
+export type SlideRevisitMode = 'reset' | 'resume';
+
 export interface Slide {
   id: string;
   elements: SlideElement[];
@@ -146,6 +151,10 @@ export interface Slide {
   transitionType?: SlideTransitionType;
   /** Transition duration in seconds. Default 0.5. */
   transitionDuration?: number;
+  /** When timeline ends: 'manual' waits for Next click, 'auto' advances. */
+  advanceMode?: SlideAdvanceMode;
+  /** When revisiting: 'reset' rewinds to 0, 'resume' keeps last playhead. */
+  revisitMode?: SlideRevisitMode;
 }
 
 export type NavigationMode = 'free' | 'restricted';
@@ -202,6 +211,8 @@ export interface GlobalTransition {
   type: SlideTransitionType;
   /** Duration in seconds. Bound to 1–5s in UI. */
   duration: number;
+  /** Background color the canvas fades through during a transition. */
+  color: string;
 }
 
 export interface CourseSettings {
@@ -215,7 +226,7 @@ export interface CourseSettings {
 export const defaultCourseSettings: CourseSettings = {
   canvasDimensions: { width: 1024, height: 768 },
   themeColors: ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#1f2937', '#f9fafb'],
-  transition: { type: 'none', duration: 1 },
+  transition: { type: 'fade', duration: 1, color: '#000000' },
 };
 
 export interface CourseState {

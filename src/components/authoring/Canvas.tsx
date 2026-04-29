@@ -337,14 +337,29 @@ export function Canvas() {
   const slideKey = activeSlide?.id ?? '';
 
   // In preview mode, drive the playhead forward (TimelinePanel ticker is hidden).
+  // Implements per-slide advanceMode (manual vs auto-next) and revisitMode
+  // (reset rewinds to 0; resume restores the playhead from when the user
+  // last left this slide).
+  const savedPlayheadsRef = useRef<Map<string, number>>(new Map());
   useEffect(() => {
-    if (!isPreview) return;
+    if (!isPreview || !activeSlide) return;
     let raf = 0;
     let last = performance.now();
-    const slideDur = activeSlide?.duration ?? 5000;
-    dispatch({ type: 'SET_PLAYHEAD', time: 0 });
+    const slideDur = activeSlide.duration ?? 5000;
+    const revisit = activeSlide.revisitMode ?? 'reset';
+    const advance = activeSlide.advanceMode ?? 'manual';
+    const isLastSlide = state.activeSlideIndex >= state.slides.length - 1;
+
+    // Determine starting playhead based on revisit mode.
+    const saved = savedPlayheadsRef.current.get(activeSlide.id);
+    const startTime = revisit === 'resume' && typeof saved === 'number'
+      // If we'd resume past the end, snap back to 0 instead.
+      ? (saved >= slideDur ? 0 : saved)
+      : 0;
+    previewAccumRef.current = startTime;
+    dispatch({ type: 'SET_PLAYHEAD', time: startTime });
     dispatch({ type: 'SET_PLAYING', playing: true });
-    previewAccumRef.current = 0;
+
     const tick = (now: number) => {
       const dt = now - last;
       last = now;
@@ -352,15 +367,25 @@ export function Canvas() {
       const next = Math.min(slideDur, previewAccumRef.current);
       dispatch({ type: 'SET_PLAYHEAD', time: next });
       if (next >= slideDur) {
-        dispatch({ type: 'SET_PLAYING', playing: false });
         cancelAnimationFrame(raf);
+        // Persist final position before any auto-advance.
+        savedPlayheadsRef.current.set(activeSlide.id, next);
+        if (advance === 'auto' && !isLastSlide) {
+          dispatch({ type: 'PREVIEW_NEXT' });
+        } else {
+          dispatch({ type: 'SET_PLAYING', playing: false });
+        }
         return;
       }
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [isPreview, slideKey, activeSlide?.duration, dispatch]);
+    return () => {
+      cancelAnimationFrame(raf);
+      // Save current playhead so 'resume' can pick up where we left off.
+      savedPlayheadsRef.current.set(activeSlide.id, previewAccumRef.current);
+    };
+  }, [isPreview, slideKey, activeSlide, state.activeSlideIndex, state.slides.length, dispatch]);
 
   // Reset & cleanup audio elements when slide changes or preview toggles.
   useEffect(() => {

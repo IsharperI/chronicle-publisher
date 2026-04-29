@@ -134,6 +134,7 @@ export function PlayerShell({ playerSettings, interactive = true }: PlayerShellP
             slideKey={slide?.id ?? String(state.activeSlideIndex)}
             transitionType={state.courseSettings.transition?.type ?? 'none'}
             transitionDuration={state.courseSettings.transition?.duration ?? 1}
+            transitionColor={state.courseSettings.transition?.color ?? '#000000'}
           />
         </div>
         {ps.sidebarPosition === 'right' && sidebar}
@@ -194,79 +195,54 @@ export function PlayerShell({ playerSettings, interactive = true }: PlayerShellP
 }
 
 /**
- * Stacked slide transition stage. Snapshots the previous Canvas DOM when the
- * slide key changes and renders it underneath the live <Canvas /> for the
- * configured transition duration. Push transitions also animate the snapshot
- * out; fade/zoom leave it static beneath the new slide.
+ * Slide stage with "Fade through Color" transition. The container behind the
+ * Canvas is painted with `transitionColor`; on slide change we fade the
+ * Canvas opacity to 0, swap the slide (which has already happened in state),
+ * then fade back in. This avoids the absolute-positioned overlap that broke
+ * canvas scaling.
  */
 interface SlideStageProps {
   slideKey: string;
   transitionType: 'none' | 'fade' | 'push-up' | 'push-left' | 'zoom-in';
   transitionDuration: number;
+  transitionColor: string;
 }
 
-function SlideStage({ slideKey, transitionType, transitionDuration }: SlideStageProps) {
-  const liveRef = useRef<HTMLDivElement>(null);
-  const [snapshot, setSnapshot] = useState<string | null>(null);
-  const [isTransitioning, setIsTransitioning] = useState(false);
+function SlideStage({ slideKey, transitionType, transitionDuration, transitionColor }: SlideStageProps) {
+  const [opacity, setOpacity] = useState(1);
   const prevKeyRef = useRef(slideKey);
+  const halfMsRef = useRef(0);
 
   useEffect(() => {
     if (prevKeyRef.current === slideKey) return;
+    prevKeyRef.current = slideKey;
     if (transitionType === 'none' || transitionDuration <= 0) {
-      prevKeyRef.current = slideKey;
+      setOpacity(1);
       return;
     }
-    // Capture the current (about-to-be-replaced) Canvas DOM as a static snapshot.
-    const node = liveRef.current?.firstElementChild as HTMLElement | undefined;
-    if (node) {
-      setSnapshot(node.outerHTML);
-      setIsTransitioning(true);
-    }
-    prevKeyRef.current = slideKey;
-    const ms = Math.max(0, transitionDuration * 1000);
-    const t = window.setTimeout(() => {
-      setIsTransitioning(false);
-      setSnapshot(null);
-    }, ms);
-    return () => window.clearTimeout(t);
+    // Slide already swapped in state; fade in from 0 -> 1 over the full duration.
+    // (Fade-out of the previous slide already happened just before nav was triggered.)
+    halfMsRef.current = Math.max(50, (transitionDuration * 1000) / 2);
+    setOpacity(0);
+    const raf = requestAnimationFrame(() => setOpacity(1));
+    return () => cancelAnimationFrame(raf);
   }, [slideKey, transitionType, transitionDuration]);
 
-  const inAnim =
-    transitionType === 'none' ? '' : `slide-in-${transitionType}`;
-  const outAnim =
-    transitionType === 'push-up' || transitionType === 'push-left'
-      ? `slide-out-${transitionType}`
-      : '';
-  const durStyle = { ['--slide-trans-dur' as any]: `${transitionDuration}s` } as React.CSSProperties;
+  const transitionMs = Math.max(50, (transitionDuration * 1000) / 2);
+  const fadeStyle: React.CSSProperties = {
+    opacity,
+    transition: transitionType === 'none' ? 'none' : `opacity ${transitionMs}ms ease-in-out`,
+  };
 
   return (
-    <div className="relative flex-1 min-w-0 overflow-hidden">
-      {/* Previous slide snapshot: rendered beneath the new slide during the
-          transition. Stripped from the DOM once the timer elapses. */}
-      {isTransitioning && snapshot && (
-        <div
-          className={`absolute inset-0 z-[1] pointer-events-none ${outAnim}`}
-          style={durStyle}
-          aria-hidden="true"
-          dangerouslySetInnerHTML={{ __html: snapshot }}
-        />
-      )}
-      {/* Live slide. While transitioning it sits on top with the entrance
-          animation; once finished the absolute/z-index classes are dropped so
-          normal interaction (clicks, hover, focus) is restored. */}
-      <div
-        ref={liveRef}
-        key={slideKey}
-        className={
-          isTransitioning
-            ? `absolute inset-0 z-[2] flex ${inAnim}`
-            : 'absolute inset-0 flex'
-        }
-        style={isTransitioning ? durStyle : undefined}
-      >
+    <div
+      className="relative flex-1 min-w-0 overflow-hidden flex"
+      style={{ backgroundColor: transitionColor }}
+    >
+      <div className="flex-1 flex" style={fadeStyle}>
         <Canvas />
       </div>
     </div>
   );
 }
+

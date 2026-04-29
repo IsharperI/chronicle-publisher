@@ -311,6 +311,8 @@ function sanitizeSlide(raw: any): Slide {
     notes: typeof raw?.notes === 'string' ? raw.notes.slice(0, 10_000) : undefined,
     transitionType,
     transitionDuration: safeNumber(raw?.transitionDuration, 0.5, 0, 10),
+    advanceMode: safeEnum(raw?.advanceMode, ['manual', 'auto'] as const, 'manual'),
+    revisitMode: safeEnum(raw?.revisitMode, ['reset', 'resume'] as const, 'reset'),
   };
 }
 
@@ -346,6 +348,7 @@ export function sanitizeCourseSettings(raw: unknown): Partial<CourseSettings> | 
     ? {
         type: safeEnum(tr.type, ['none', 'fade', 'push-up', 'push-left', 'zoom-in'] as const, 'none'),
         duration: safeNumber(tr.duration, 1, 1, 5),
+        color: safeColor(tr.color, '#000000'),
       }
     : undefined;
   return {

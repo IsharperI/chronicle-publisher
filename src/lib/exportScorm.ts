@@ -102,10 +102,11 @@ body{background-color:${ps.backgroundColor};${ps.backgroundImage ? `background-i
 #sidebar .menu-list button.active{color:#fff;background:${ps.buttonColor}33}
 #notes-pane{white-space:pre-wrap;line-height:1.5}
 #notes-pane.empty{color:rgba(255,255,255,.4);font-style:italic}
-#stage-area{flex:1;display:flex;align-items:center;justify-content:center;min-width:0;padding:16px;order:1}
- #stage-wrapper{position:relative;width:100%;max-width:${Math.min(dims.width, 1280)}px;aspect-ratio:${aspect};background:#fff;overflow:hidden;border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,.4)}
- #stage{position:absolute;top:0;left:0;width:${dims.width}px;height:${dims.height}px;transform-origin:top left;z-index:2}
- .stage-prev{position:absolute;top:0;left:0;width:${dims.width}px;height:${dims.height}px;transform-origin:top left;z-index:1;pointer-events:none}
+ #stage-area{flex:1;display:flex;align-items:center;justify-content:center;min-width:0;padding:16px;order:1}
+ #stage-wrapper{position:relative;width:100%;max-width:${Math.min(dims.width, 1280)}px;aspect-ratio:${aspect};overflow:hidden;border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,.4);background:#000}
+ #stage-fader{position:absolute;inset:0;display:block}
+ #stage{position:absolute;top:0;left:0;width:${dims.width}px;height:${dims.height}px;transform-origin:top left;background:#fff;opacity:1;transition:opacity .25s ease-in-out}
+ #stage.fading{opacity:0}
  #cc-overlay{position:absolute;left:5%;right:5%;bottom:6%;text-align:center;pointer-events:none;z-index:50;font-family:${ps.fontFamily}}
  #cc-overlay span{display:inline-block;background:rgba(0,0,0,0.75);color:#fff;padding:8px 16px;border-radius:6px;font-size:clamp(12px,2.4vw,28px);line-height:1.3;max-width:90%;white-space:pre-wrap}
  #cc-overlay.hidden{display:none}
@@ -115,18 +116,6 @@ body{background-color:${ps.backgroundColor};${ps.backgroundImage ? `background-i
  #controls button:hover{filter:brightness(1.15)}
  #controls button:disabled{opacity:.4;cursor:default;filter:none}
  #controls #cc.off{opacity:.55}
- @keyframes slide-in-fade{from{opacity:0}to{opacity:1}}
- @keyframes slide-in-push-up{from{transform:translateY(100%)}to{transform:translateY(0)}}
- @keyframes slide-in-push-left{from{transform:translateX(100%)}to{transform:translateX(0)}}
- @keyframes slide-in-zoom-in{from{opacity:0;transform:scale(.92)}to{opacity:1;transform:scale(1)}}
- @keyframes slide-out-push-up{from{transform:translateY(0)}to{transform:translateY(-100%)}}
- @keyframes slide-out-push-left{from{transform:translateX(0)}to{transform:translateX(-100%)}}
- .slide-in-fade{animation:slide-in-fade var(--slide-trans-dur,.5s) ease-out both}
- .slide-in-push-up{animation:slide-in-push-up var(--slide-trans-dur,.5s) ease-out both}
- .slide-in-push-left{animation:slide-in-push-left var(--slide-trans-dur,.5s) ease-out both}
- .slide-in-zoom-in{animation:slide-in-zoom-in var(--slide-trans-dur,.5s) ease-out both}
- .slide-out-push-up{animation:slide-out-push-up var(--slide-trans-dur,.5s) ease-out both}
- .slide-out-push-left{animation:slide-out-push-left var(--slide-trans-dur,.5s) ease-out both}
 </style>
 </head>
 
@@ -182,12 +171,18 @@ window.COURSE_DATA=${courseData.replace(/<\/script>/gi, '<\\/script>').replace(/
   var tabNotesBtn=document.getElementById("tab-notes");
   var ppBtn=document.getElementById("playpause");
 
+  // Apply transition fade-through-color to wrapper background.
+  (function(){
+    var wrapper=document.getElementById("stage-wrapper");
+    var cs=(data.courseSettings&&data.courseSettings.transition)||{type:"fade",duration:1,color:"#000000"};
+    if(wrapper)wrapper.style.background=cs.color||"#000000";
+  })();
+
   function scaleStage(){
     var wrapper=document.getElementById("stage-wrapper");
+    if(!wrapper)return;
     var s=wrapper.clientWidth/${dims.width};
     stage.style.transform="scale("+s+")";
-    var prevs=wrapper.getElementsByClassName("stage-prev");
-    for(var i=0;i<prevs.length;i++){prevs[i].style.transform="scale("+s+")"}
   }
   window.addEventListener("resize",scaleStage);
   scaleStage();
@@ -446,72 +441,50 @@ window.COURSE_DATA=${courseData.replace(/<\/script>/gi, '<\\/script>').replace(/
     }
   }
 
-  function startRestrictionTimer(){
+  // Per-slide saved playhead time (ms) for revisitMode==='resume'.
+  var savedPlayheads={};
+  // Slide internal timer (drives auto-advance & restricted-nav unlock).
+  var slideTimer=null;
+  var slideTimerStart=0;
+  var slideTimerOffset=0;
+  var slideTimerRunning=false;
+  function clearSlideTimer(){
+    if(slideTimer){clearTimeout(slideTimer);slideTimer=null}
+    slideTimerRunning=false;
+  }
+  function currentPlayhead(){
+    if(!slideTimerRunning)return slideTimerOffset;
+    return slideTimerOffset+(Date.now()-slideTimerStart);
+  }
+  function startSlideTimer(startMs){
+    clearSlideTimer();
+    var slide=slides[current];
+    if(!slide)return;
+    var dur=slide.duration||5000;
+    var advance=slide.advanceMode||"manual";
+    slideTimerOffset=Math.max(0,Math.min(startMs||0,dur));
+    slideTimerStart=Date.now();
+    slideTimerRunning=true;
     unlocked=false;
-    if(timer)clearTimeout(timer);
-    if(navMode!=="restricted"){unlocked=true;setNavLock(false);return}
-    setNavLock(true);
-    var dur=(slides[current]&&slides[current].duration)||5000;
-    timer=setTimeout(function(){unlocked=true;setNavLock(false)},dur);
+    if(navMode==="restricted"){setNavLock(true)}else{unlocked=true;setNavLock(false)}
+    var remaining=Math.max(0,dur-slideTimerOffset);
+    slideTimer=setTimeout(function(){
+      slideTimerRunning=false;
+      slideTimerOffset=dur;
+      savedPlayheads[slide.id]=dur;
+      if(navMode==="restricted"){unlocked=true;setNavLock(false)}
+      if(advance==="auto"&&current<slides.length-1){
+        goTo(current+1);
+      }else{
+        setPlaying(false);
+      }
+    },remaining);
   }
 
-  // Active transition cleanup handle so back-to-back slide changes don't
-  // leak orphaned snapshot layers.
+  // Fade-through-color transition: fade stage to opacity 0, swap render, fade
+  // back in. The wrapper background already shows the transition color.
   var transitionTimer=null;
-  var pendingPrev=null;
-  function cleanupTransition(){
-    if(transitionTimer){clearTimeout(transitionTimer);transitionTimer=null}
-    var wrapper=document.getElementById("stage-wrapper");
-    if(wrapper){
-      var olds=wrapper.getElementsByClassName("stage-prev");
-      // Remove from end (live HTMLCollection).
-      while(olds.length){olds[0].parentNode.removeChild(olds[0])}
-    }
-    // Strip transition classes from live stage so normal interaction returns.
-    stage.classList.remove("slide-in-fade","slide-in-push-up","slide-in-push-left","slide-in-zoom-in");
-    stage.style.removeProperty("--slide-trans-dur");
-    pendingPrev=null;
-  }
-
-  // Capture the about-to-be-replaced stage as a static snapshot. Called by
-  // goTo() BEFORE render() wipes the live stage.
-  function captureSnapshot(){
-    var wrapper=document.getElementById("stage-wrapper");
-    if(!wrapper)return;
-    var cs=(data.courseSettings&&data.courseSettings.transition)||{type:"none",duration:1};
-    if((cs.type||"none")==="none")return;
-    cleanupTransition();
-    var snap=stage.cloneNode(true);
-    snap.removeAttribute("id");
-    snap.className="stage-prev";
-    // Match current scaled transform.
-    snap.style.transform=stage.style.transform;
-    wrapper.insertBefore(snap,stage);
-    pendingPrev=snap;
-  }
-
-  // Apply entrance/exit animations after render() has populated the new stage.
-  function playSlideTransition(){
-    var cs=(data.courseSettings&&data.courseSettings.transition)||{type:"none",duration:1};
-    var t=cs.type||"none";
-    var dur=(typeof cs.duration==="number")?cs.duration:1;
-    if(t==="none"||!pendingPrev){
-      // Nothing to animate (first load or transitions disabled).
-      cleanupTransition();
-      return;
-    }
-    // Force reflow so freshly-added classes start their animation.
-    void stage.offsetWidth;
-    stage.style.setProperty("--slide-trans-dur",dur+"s");
-    stage.classList.add("slide-in-"+t);
-    // Push variants also animate the previous slide out.
-    if(t==="push-up"||t==="push-left"){
-      pendingPrev.style.setProperty("--slide-trans-dur",dur+"s");
-      pendingPrev.classList.add("slide-out-"+t);
-    }
-    var ms=Math.max(0,dur*1000);
-    transitionTimer=setTimeout(cleanupTransition,ms);
-  }
+  function clearTransitionTimer(){if(transitionTimer){clearTimeout(transitionTimer);transitionTimer=null}}
 
   function render(){
     stage.innerHTML="";
@@ -524,27 +497,57 @@ window.COURSE_DATA=${courseData.replace(/<\/script>/gi, '<\\/script>').replace(/
     prevBtn.disabled=current===0;
     buildMenu();
     updateNotes();
-    startRestrictionTimer();
+    var revisit=slide.revisitMode||"reset";
+    var saved=savedPlayheads[slide.id];
+    var startMs=(revisit==="resume"&&typeof saved==="number"&&saved<(slide.duration||5000))?saved:0;
     startAudio(slide);
     setPlaying(true);
-    playSlideTransition();
+    startSlideTimer(startMs);
     if(API){try{API.LMSSetValue("cmi.core.lesson_location",""+current)}catch(e){}}
   }
 
-  // Play/pause control: pauses all active audio. (Engine timeline is driven
-  // off audio in the exported player, so pausing audio is sufficient here.)
+  // Play/pause control: pauses all active audio + slide timer.
   var playing=true;
   function setPlaying(v){
     playing=v;
     for(var i=0;i<activeAudio.length;i++){
       try{if(playing){activeAudio[i].play().catch(function(){})}else{activeAudio[i].pause()}}catch(e){}
     }
+    if(playing){
+      if(!slideTimerRunning){startSlideTimer(slideTimerOffset)}
+    }else{
+      if(slideTimerRunning){
+        slideTimerOffset=currentPlayhead();
+        clearSlideTimer();
+      }
+    }
     if(ppBtn)ppBtn.innerHTML=playing?"&#10074;&#10074;":"&#9658;";
     if(ppBtn)ppBtn.setAttribute("aria-label",playing?"Pause":"Play");
   }
   if(ppBtn)ppBtn.onclick=function(){setPlaying(!playing)};
 
-  function goTo(idx){if(idx<0||idx>=slides.length||idx===current)return;stopAudio();applyExitAnimations(stage,function(){captureSnapshot();current=idx;render()})}
+  function goTo(idx){
+    if(idx<0||idx>=slides.length||idx===current)return;
+    var leaving=slides[current];
+    if(leaving)savedPlayheads[leaving.id]=currentPlayhead();
+    clearSlideTimer();
+    stopAudio();
+    var cs=(data.courseSettings&&data.courseSettings.transition)||{type:"fade",duration:1,color:"#000000"};
+    var dur=(typeof cs.duration==="number")?cs.duration:1;
+    if((cs.type||"none")==="none"){
+      current=idx;render();return;
+    }
+    var halfMs=Math.max(50,(dur*1000)/2);
+    stage.style.transition="opacity "+halfMs+"ms ease-in-out";
+    stage.classList.add("fading");
+    clearTransitionTimer();
+    transitionTimer=setTimeout(function(){
+      current=idx;
+      render();
+      void stage.offsetWidth;
+      stage.classList.remove("fading");
+    },halfMs);
+  }
   prevBtn.onclick=function(){if(current>0)goTo(current-1)};
   nextBtn.onclick=function(){if(current<slides.length-1)goTo(current+1)};
 
