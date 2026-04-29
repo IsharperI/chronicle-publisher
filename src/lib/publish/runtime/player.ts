@@ -600,6 +600,7 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
       else if(rs==="completed-incomplete"){status=passed?"completed":"incomplete"}
       else{status=passed?"passed":"incomplete"}
       LMS.setStatus(status);
+      if(LMS.commit)LMS.commit();
       courseCompletionReported=true;
     }catch(e){}
   }
