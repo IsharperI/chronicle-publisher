@@ -141,7 +141,6 @@ function TemplateCard({
       <Thumbnail ts={ts} />
       <div className="p-1.5 border-t">
         <div className="text-[11px] font-medium truncate text-foreground">{tpl.name}</div>
-        <div className="text-[9px] text-muted-foreground truncate">{questionTypeLabel(tpl.questionType)}</div>
       </div>
       <button
         type="button"
