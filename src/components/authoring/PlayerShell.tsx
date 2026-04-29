@@ -1,7 +1,7 @@
 import { useCourse } from '@/context/CourseContext';
 import { Canvas } from './Canvas';
 import { ChevronLeft, ChevronRight, Play, Pause, Captions, CaptionsOff, Menu, FileText } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { themeVarStyle } from '@/lib/themeVars';
 import type { PlayerSettings } from '@/types/course';
 
@@ -130,24 +130,11 @@ export function PlayerShell({ playerSettings, interactive = true }: PlayerShellP
       <div className="flex-1 flex min-h-0">
         {ps.sidebarPosition === 'left' && sidebar}
         <div className="flex-1 flex min-w-0 overflow-hidden">
-          {(() => {
-            // Global transition (applies to every slide change).
-            const gt = state.courseSettings.transition ?? { type: 'none' as const, duration: 1 };
-            const tType = gt.type;
-            const tDur = gt.duration;
-            const animClass = tType !== 'none' ? `slide-trans-${tType}` : '';
-            // Re-keying the wrapper on slide id forces React to remount, which
-            // restarts the CSS animation cleanly on every slide change.
-            return (
-              <div
-                key={slide?.id ?? state.activeSlideIndex}
-                className={`flex-1 flex min-w-0 ${animClass}`}
-                style={animClass ? ({ ['--slide-trans-dur' as any]: `${tDur}s` }) : undefined}
-              >
-                <Canvas />
-              </div>
-            );
-          })()}
+          <SlideStage
+            slideKey={slide?.id ?? String(state.activeSlideIndex)}
+            transitionType={state.courseSettings.transition?.type ?? 'none'}
+            transitionDuration={state.courseSettings.transition?.duration ?? 1}
+          />
         </div>
         {ps.sidebarPosition === 'right' && sidebar}
       </div>
@@ -202,6 +189,84 @@ export function PlayerShell({ playerSettings, interactive = true }: PlayerShellP
           </button>
         )}
       </footer>
+    </div>
+  );
+}
+
+/**
+ * Stacked slide transition stage. Snapshots the previous Canvas DOM when the
+ * slide key changes and renders it underneath the live <Canvas /> for the
+ * configured transition duration. Push transitions also animate the snapshot
+ * out; fade/zoom leave it static beneath the new slide.
+ */
+interface SlideStageProps {
+  slideKey: string;
+  transitionType: 'none' | 'fade' | 'push-up' | 'push-left' | 'zoom-in';
+  transitionDuration: number;
+}
+
+function SlideStage({ slideKey, transitionType, transitionDuration }: SlideStageProps) {
+  const liveRef = useRef<HTMLDivElement>(null);
+  const [snapshot, setSnapshot] = useState<string | null>(null);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const prevKeyRef = useRef(slideKey);
+
+  useEffect(() => {
+    if (prevKeyRef.current === slideKey) return;
+    if (transitionType === 'none' || transitionDuration <= 0) {
+      prevKeyRef.current = slideKey;
+      return;
+    }
+    // Capture the current (about-to-be-replaced) Canvas DOM as a static snapshot.
+    const node = liveRef.current?.firstElementChild as HTMLElement | undefined;
+    if (node) {
+      setSnapshot(node.outerHTML);
+      setIsTransitioning(true);
+    }
+    prevKeyRef.current = slideKey;
+    const ms = Math.max(0, transitionDuration * 1000);
+    const t = window.setTimeout(() => {
+      setIsTransitioning(false);
+      setSnapshot(null);
+    }, ms);
+    return () => window.clearTimeout(t);
+  }, [slideKey, transitionType, transitionDuration]);
+
+  const inAnim =
+    transitionType === 'none' ? '' : `slide-in-${transitionType}`;
+  const outAnim =
+    transitionType === 'push-up' || transitionType === 'push-left'
+      ? `slide-out-${transitionType}`
+      : '';
+  const durStyle = { ['--slide-trans-dur' as any]: `${transitionDuration}s` } as React.CSSProperties;
+
+  return (
+    <div className="relative flex-1 min-w-0 overflow-hidden">
+      {/* Previous slide snapshot: rendered beneath the new slide during the
+          transition. Stripped from the DOM once the timer elapses. */}
+      {isTransitioning && snapshot && (
+        <div
+          className={`absolute inset-0 z-[1] pointer-events-none ${outAnim}`}
+          style={durStyle}
+          aria-hidden="true"
+          dangerouslySetInnerHTML={{ __html: snapshot }}
+        />
+      )}
+      {/* Live slide. While transitioning it sits on top with the entrance
+          animation; once finished the absolute/z-index classes are dropped so
+          normal interaction (clicks, hover, focus) is restored. */}
+      <div
+        ref={liveRef}
+        key={slideKey}
+        className={
+          isTransitioning
+            ? `absolute inset-0 z-[2] flex ${inAnim}`
+            : 'absolute inset-0 flex'
+        }
+        style={isTransitioning ? durStyle : undefined}
+      >
+        <Canvas />
+      </div>
     </div>
   );
 }

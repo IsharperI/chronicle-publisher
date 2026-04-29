@@ -103,25 +103,30 @@ body{background-color:${ps.backgroundColor};${ps.backgroundImage ? `background-i
 #notes-pane{white-space:pre-wrap;line-height:1.5}
 #notes-pane.empty{color:rgba(255,255,255,.4);font-style:italic}
 #stage-area{flex:1;display:flex;align-items:center;justify-content:center;min-width:0;padding:16px;order:1}
-#stage-wrapper{position:relative;width:100%;max-width:${Math.min(dims.width, 1280)}px;aspect-ratio:${aspect};background:#fff;overflow:hidden;border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,.4)}
-#stage{position:absolute;inset:0;width:${dims.width}px;height:${dims.height}px;transform-origin:top left}
-#cc-overlay{position:absolute;left:5%;right:5%;bottom:6%;text-align:center;pointer-events:none;z-index:50;font-family:${ps.fontFamily}}
-#cc-overlay span{display:inline-block;background:rgba(0,0,0,0.75);color:#fff;padding:8px 16px;border-radius:6px;font-size:clamp(12px,2.4vw,28px);line-height:1.3;max-width:90%;white-space:pre-wrap}
-#cc-overlay.hidden{display:none}
-.el{position:absolute;transition:all .2s ease}
-#controls{flex:0 0 auto;height:56px;display:flex;gap:8px;align-items:center;justify-content:center;padding:0 20px;background:rgba(0,0,0,.4);backdrop-filter:blur(6px);border-top:1px solid rgba(255,255,255,.08)}
-#controls button{padding:8px 18px;border:none;border-radius:${ps.buttonBorderRadius}px;background:${ps.buttonColor};color:#fff;font-size:13px;cursor:pointer;font-weight:500;font-family:${ps.fontFamily};display:inline-flex;align-items:center;gap:4px}
-#controls button:hover{filter:brightness(1.15)}
-#controls button:disabled{opacity:.4;cursor:default;filter:none}
-#controls #cc.off{opacity:.55}
-@keyframes slide-trans-fade{from{opacity:0}to{opacity:1}}
-@keyframes slide-trans-push-up{from{opacity:0;transform:translateY(100%)}to{opacity:1;transform:translateY(0)}}
-@keyframes slide-trans-push-left{from{opacity:0;transform:translateX(100%)}to{opacity:1;transform:translateX(0)}}
-@keyframes slide-trans-zoom-in{from{opacity:0;transform:scale(.92)}to{opacity:1;transform:scale(1)}}
-.slide-trans-fade{animation:slide-trans-fade var(--slide-trans-dur,.5s) ease-out both}
-.slide-trans-push-up{animation:slide-trans-push-up var(--slide-trans-dur,.5s) ease-out both}
-.slide-trans-push-left{animation:slide-trans-push-left var(--slide-trans-dur,.5s) ease-out both}
-.slide-trans-zoom-in{animation:slide-trans-zoom-in var(--slide-trans-dur,.5s) ease-out both}
+ #stage-wrapper{position:relative;width:100%;max-width:${Math.min(dims.width, 1280)}px;aspect-ratio:${aspect};background:#fff;overflow:hidden;border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,.4)}
+ #stage{position:absolute;top:0;left:0;width:${dims.width}px;height:${dims.height}px;transform-origin:top left;z-index:2}
+ .stage-prev{position:absolute;top:0;left:0;width:${dims.width}px;height:${dims.height}px;transform-origin:top left;z-index:1;pointer-events:none}
+ #cc-overlay{position:absolute;left:5%;right:5%;bottom:6%;text-align:center;pointer-events:none;z-index:50;font-family:${ps.fontFamily}}
+ #cc-overlay span{display:inline-block;background:rgba(0,0,0,0.75);color:#fff;padding:8px 16px;border-radius:6px;font-size:clamp(12px,2.4vw,28px);line-height:1.3;max-width:90%;white-space:pre-wrap}
+ #cc-overlay.hidden{display:none}
+ .el{position:absolute;transition:all .2s ease}
+ #controls{flex:0 0 auto;height:56px;display:flex;gap:8px;align-items:center;justify-content:center;padding:0 20px;background:rgba(0,0,0,.4);backdrop-filter:blur(6px);border-top:1px solid rgba(255,255,255,.08)}
+ #controls button{padding:8px 18px;border:none;border-radius:${ps.buttonBorderRadius}px;background:${ps.buttonColor};color:#fff;font-size:13px;cursor:pointer;font-weight:500;font-family:${ps.fontFamily};display:inline-flex;align-items:center;gap:4px}
+ #controls button:hover{filter:brightness(1.15)}
+ #controls button:disabled{opacity:.4;cursor:default;filter:none}
+ #controls #cc.off{opacity:.55}
+ @keyframes slide-in-fade{from{opacity:0}to{opacity:1}}
+ @keyframes slide-in-push-up{from{transform:translateY(100%)}to{transform:translateY(0)}}
+ @keyframes slide-in-push-left{from{transform:translateX(100%)}to{transform:translateX(0)}}
+ @keyframes slide-in-zoom-in{from{opacity:0;transform:scale(.92)}to{opacity:1;transform:scale(1)}}
+ @keyframes slide-out-push-up{from{transform:translateY(0)}to{transform:translateY(-100%)}}
+ @keyframes slide-out-push-left{from{transform:translateX(0)}to{transform:translateX(-100%)}}
+ .slide-in-fade{animation:slide-in-fade var(--slide-trans-dur,.5s) ease-out both}
+ .slide-in-push-up{animation:slide-in-push-up var(--slide-trans-dur,.5s) ease-out both}
+ .slide-in-push-left{animation:slide-in-push-left var(--slide-trans-dur,.5s) ease-out both}
+ .slide-in-zoom-in{animation:slide-in-zoom-in var(--slide-trans-dur,.5s) ease-out both}
+ .slide-out-push-up{animation:slide-out-push-up var(--slide-trans-dur,.5s) ease-out both}
+ .slide-out-push-left{animation:slide-out-push-left var(--slide-trans-dur,.5s) ease-out both}
 </style>
 </head>
 
@@ -181,6 +186,8 @@ window.COURSE_DATA=${courseData.replace(/<\/script>/gi, '<\\/script>').replace(/
     var wrapper=document.getElementById("stage-wrapper");
     var s=wrapper.clientWidth/${dims.width};
     stage.style.transform="scale("+s+")";
+    var prevs=wrapper.getElementsByClassName("stage-prev");
+    for(var i=0;i<prevs.length;i++){prevs[i].style.transform="scale("+s+")"}
   }
   window.addEventListener("resize",scaleStage);
   scaleStage();
@@ -448,20 +455,62 @@ window.COURSE_DATA=${courseData.replace(/<\/script>/gi, '<\\/script>').replace(/
     timer=setTimeout(function(){unlocked=true;setNavLock(false)},dur);
   }
 
-  function playSlideTransition(){
+  // Active transition cleanup handle so back-to-back slide changes don't
+  // leak orphaned snapshot layers.
+  var transitionTimer=null;
+  var pendingPrev=null;
+  function cleanupTransition(){
+    if(transitionTimer){clearTimeout(transitionTimer);transitionTimer=null}
+    var wrapper=document.getElementById("stage-wrapper");
+    if(wrapper){
+      var olds=wrapper.getElementsByClassName("stage-prev");
+      // Remove from end (live HTMLCollection).
+      while(olds.length){olds[0].parentNode.removeChild(olds[0])}
+    }
+    // Strip transition classes from live stage so normal interaction returns.
+    stage.classList.remove("slide-in-fade","slide-in-push-up","slide-in-push-left","slide-in-zoom-in");
+    stage.style.removeProperty("--slide-trans-dur");
+    pendingPrev=null;
+  }
+
+  // Capture the about-to-be-replaced stage as a static snapshot. Called by
+  // goTo() BEFORE render() wipes the live stage.
+  function captureSnapshot(){
     var wrapper=document.getElementById("stage-wrapper");
     if(!wrapper)return;
     var cs=(data.courseSettings&&data.courseSettings.transition)||{type:"none",duration:1};
+    if((cs.type||"none")==="none")return;
+    cleanupTransition();
+    var snap=stage.cloneNode(true);
+    snap.removeAttribute("id");
+    snap.className="stage-prev";
+    // Match current scaled transform.
+    snap.style.transform=stage.style.transform;
+    wrapper.insertBefore(snap,stage);
+    pendingPrev=snap;
+  }
+
+  // Apply entrance/exit animations after render() has populated the new stage.
+  function playSlideTransition(){
+    var cs=(data.courseSettings&&data.courseSettings.transition)||{type:"none",duration:1};
     var t=cs.type||"none";
     var dur=(typeof cs.duration==="number")?cs.duration:1;
-    // Strip any prior transition class so the animation can replay.
-    wrapper.classList.remove("slide-trans-fade","slide-trans-push-up","slide-trans-push-left","slide-trans-zoom-in");
-    wrapper.style.removeProperty("--slide-trans-dur");
-    if(t==="none")return;
-    // Force reflow before re-adding the class to restart the CSS animation.
-    void wrapper.offsetWidth;
-    wrapper.style.setProperty("--slide-trans-dur",dur+"s");
-    wrapper.classList.add("slide-trans-"+t);
+    if(t==="none"||!pendingPrev){
+      // Nothing to animate (first load or transitions disabled).
+      cleanupTransition();
+      return;
+    }
+    // Force reflow so freshly-added classes start their animation.
+    void stage.offsetWidth;
+    stage.style.setProperty("--slide-trans-dur",dur+"s");
+    stage.classList.add("slide-in-"+t);
+    // Push variants also animate the previous slide out.
+    if(t==="push-up"||t==="push-left"){
+      pendingPrev.style.setProperty("--slide-trans-dur",dur+"s");
+      pendingPrev.classList.add("slide-out-"+t);
+    }
+    var ms=Math.max(0,dur*1000);
+    transitionTimer=setTimeout(cleanupTransition,ms);
   }
 
   function render(){
@@ -495,7 +544,7 @@ window.COURSE_DATA=${courseData.replace(/<\/script>/gi, '<\\/script>').replace(/
   }
   if(ppBtn)ppBtn.onclick=function(){setPlaying(!playing)};
 
-  function goTo(idx){if(idx<0||idx>=slides.length||idx===current)return;stopAudio();applyExitAnimations(stage,function(){current=idx;render()})}
+  function goTo(idx){if(idx<0||idx>=slides.length||idx===current)return;stopAudio();applyExitAnimations(stage,function(){captureSnapshot();current=idx;render()})}
   prevBtn.onclick=function(){if(current>0)goTo(current-1)};
   nextBtn.onclick=function(){if(current<slides.length-1)goTo(current+1)};
 
