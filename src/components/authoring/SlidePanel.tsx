@@ -201,30 +201,11 @@ export function SlidePanel() {
 
   return (
     <div className="w-[200px] glass border-r border-white/60 flex flex-col shrink-0 rounded-none">
-      {/* Tabs */}
-      <div className="flex border-b">
-        <button
-          onClick={() => dispatch({ type: 'SET_VIEW_MODE', mode: 'main' })}
-          className={cn(
-            'flex-1 px-2 py-2 text-xs font-medium transition-colors border-t-2',
-            isMain
-              ? 'bg-white border-blue-600 text-slate-800'
-              : 'bg-sky-100 border-transparent text-slate-600 hover:bg-sky-200'
-          )}
-        >
-          Main Timeline
-        </button>
-        <button
-          onClick={() => dispatch({ type: 'SET_VIEW_MODE', mode: 'master' })}
-          className={cn(
-            'flex-1 px-2 py-2 text-xs font-medium transition-colors border-t-2',
-            !isMain
-              ? 'bg-white border-blue-600 text-slate-800'
-              : 'bg-sky-100 border-transparent text-slate-600 hover:bg-sky-200'
-          )}
-        >
-          Masters
-        </button>
+      {/* Header label reflects current view */}
+      <div className="px-3 py-2 border-b border-white/40 bg-white/30">
+        <span className="text-xs font-semibold text-slate-700">
+          {isMain ? 'Main Timeline' : 'Master Slides'}
+        </span>
       </div>
 
       {/* Slide list */}
