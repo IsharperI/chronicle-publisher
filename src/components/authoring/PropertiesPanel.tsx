@@ -889,6 +889,85 @@ function QuizEditor({ slide, index, allSlides }: { slide: Slide; index: number; 
         <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">If Incorrect</p>
         <FeedbackEditor target={quiz.incorrectFeedback} otherSlides={otherSlides} onChange={(t) => update({ incorrectFeedback: t })} />
       </div>
+
+      <AttemptsEditor quiz={quiz} update={update} />
+      <QuizRevisitEditor quiz={quiz} update={update} />
+    </div>
+  );
+}
+
+function AttemptsEditor({ quiz, update }: { quiz: QuizConfig; update: (u: Partial<QuizConfig>) => void }) {
+  const attempts = quiz.attempts ?? 1;
+  const unlimited = attempts === 0;
+  const behavior = quiz.attemptsExhaustedBehavior ?? 'reveal';
+  return (
+    <div className="pt-2 border-t space-y-2">
+      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Attempts</p>
+      <div className="flex items-center justify-between">
+        <Label className="text-xs cursor-pointer" htmlFor="quiz-unlimited">Unlimited</Label>
+        <Switch
+          id="quiz-unlimited"
+          checked={unlimited}
+          onCheckedChange={(v) => update({ attempts: v ? 0 : 1 })}
+        />
+      </div>
+      {!unlimited && (
+        <div className="space-y-1">
+          <Label className="text-xs">Max attempts</Label>
+          <Input
+            type="number"
+            min={1}
+            max={10}
+            value={attempts}
+            onChange={(e) => {
+              const n = Number(e.target.value);
+              if (Number.isNaN(n)) return;
+              update({ attempts: Math.max(1, Math.min(10, Math.round(n))) });
+            }}
+            className="h-8 text-xs"
+          />
+        </div>
+      )}
+      <div className="space-y-1">
+        <Label className="text-xs">When attempts are exhausted</Label>
+        <Select
+          value={behavior}
+          onValueChange={(v) => update({ attemptsExhaustedBehavior: v as 'reveal' | 'lock' })}
+        >
+          <SelectTrigger className="h-8 text-xs bg-white text-slate-800"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="reveal">Show correct answer</SelectItem>
+            <SelectItem value="lock">Lock and continue</SelectItem>
+          </SelectContent>
+        </Select>
+        <p className="text-[10px] text-muted-foreground">
+          {behavior === 'reveal'
+            ? 'Highlight correct answer(s) and lock the question.'
+            : 'Lock the question without revealing the answer.'}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function QuizRevisitEditor({ quiz, update }: { quiz: QuizConfig; update: (u: Partial<QuizConfig>) => void }) {
+  const mode = quiz.quizRevisitMode ?? 'reset';
+  return (
+    <div className="pt-2 border-t space-y-1.5">
+      <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">When Revisiting (Quiz)</Label>
+      <Select
+        value={mode}
+        onValueChange={(v) => update({ quizRevisitMode: v as 'reset' | 'resume' })}
+      >
+        <SelectTrigger className="h-8 text-xs bg-white text-slate-800"><SelectValue /></SelectTrigger>
+        <SelectContent>
+          <SelectItem value="reset">Reset to initial state</SelectItem>
+          <SelectItem value="resume">Resume saved state</SelectItem>
+        </SelectContent>
+      </Select>
+      <p className="text-xs text-muted-foreground">
+        Controls answer, attempts, and lock state when the learner returns to this quiz.
+      </p>
     </div>
   );
 }
