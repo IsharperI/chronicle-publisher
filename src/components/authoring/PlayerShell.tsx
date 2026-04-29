@@ -209,29 +209,58 @@ interface SlideStageProps {
 }
 
 function SlideStage({ slideKey, transitionType, transitionDuration, transitionColor }: SlideStageProps) {
-  const [opacity, setOpacity] = useState(1);
+  // `phase` controls whether we're at the "from" state (fresh slide just mounted,
+  // pre-animation) or the "to" state (animated into place).
+  const [phase, setPhase] = useState<'to' | 'from'>('to');
   const prevKeyRef = useRef(slideKey);
-  const halfMsRef = useRef(0);
 
   useEffect(() => {
     if (prevKeyRef.current === slideKey) return;
     prevKeyRef.current = slideKey;
     if (transitionType === 'none' || transitionDuration <= 0) {
-      setOpacity(1);
+      setPhase('to');
       return;
     }
-    // Slide already swapped in state; fade in from 0 -> 1 over the full duration.
-    // (Fade-out of the previous slide already happened just before nav was triggered.)
-    halfMsRef.current = Math.max(50, (transitionDuration * 1000) / 2);
-    setOpacity(0);
-    const raf = requestAnimationFrame(() => setOpacity(1));
+    // Place new slide at "from" state, then on next frame animate to "to".
+    setPhase('from');
+    const raf = requestAnimationFrame(() => {
+      // Double rAF to guarantee the browser commits the "from" styles first.
+      requestAnimationFrame(() => setPhase('to'));
+    });
     return () => cancelAnimationFrame(raf);
   }, [slideKey, transitionType, transitionDuration]);
 
-  const transitionMs = Math.max(50, (transitionDuration * 1000) / 2);
-  const fadeStyle: React.CSSProperties = {
+  const durationMs = Math.max(50, transitionDuration * 1000);
+
+  // Compute transform/opacity for the current phase per transition type.
+  let transform = 'none';
+  let opacity = 1;
+  if (transitionType !== 'none' && phase === 'from') {
+    switch (transitionType) {
+      case 'fade':
+        opacity = 0;
+        break;
+      case 'push-up':
+        transform = 'translateY(100%)';
+        break;
+      case 'push-left':
+        transform = 'translateX(100%)';
+        break;
+      case 'zoom-in':
+        transform = 'scale(0.85)';
+        opacity = 0;
+        break;
+    }
+  }
+
+  const animatedStyle: React.CSSProperties = {
     opacity,
-    transition: transitionType === 'none' ? 'none' : `opacity ${transitionMs}ms ease-in-out`,
+    transform,
+    transition:
+      transitionType === 'none'
+        ? 'none'
+        : `opacity ${durationMs}ms ease-in-out, transform ${durationMs}ms ease-in-out`,
+    willChange: 'transform, opacity',
   };
 
   return (
@@ -239,10 +268,11 @@ function SlideStage({ slideKey, transitionType, transitionDuration, transitionCo
       className="relative flex-1 min-w-0 overflow-hidden flex"
       style={{ backgroundColor: transitionColor }}
     >
-      <div className="flex-1 flex" style={fadeStyle}>
+      <div className="flex-1 flex" style={animatedStyle}>
         <Canvas />
       </div>
     </div>
   );
 }
+
 
