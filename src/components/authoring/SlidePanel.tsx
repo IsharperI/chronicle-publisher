@@ -4,37 +4,176 @@ import { Plus, Trash2 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import type { Slide, SlideElement } from '@/types/course';
+import { memo, useEffect, useRef, useState } from 'react';
 
 const THUMB_WIDTH = 160; // px rendered width of the thumbnail box
 
 /**
- * Render a miniature, read-only preview of a slide's elements scaled to fit
- * inside a fixed-width thumbnail box. Uses proportional divs (no heavy
- * canvas rendering) so the panel stays cheap to render for many slides.
+ * Render a single static, non-interactive miniature element. No event
+ * listeners, no draggable logic, no state — purely visual.
  */
-function SlideThumbnail({ slide, canvasWidth, canvasHeight }: {
+function ThumbElement({ el }: { el: SlideElement }) {
+  const baseStyle: React.CSSProperties = {
+    position: 'absolute',
+    left: el.x,
+    top: el.y,
+    width: el.width,
+    height: el.height,
+    overflow: 'hidden',
+    pointerEvents: 'none',
+  };
+
+  if (el.type === 'text') {
+    return (
+      <div
+        style={{
+          ...baseStyle,
+          color: el.textColor,
+          backgroundColor: el.backgroundColor,
+          fontSize: el.fontSize,
+          fontWeight: el.fontWeight as React.CSSProperties['fontWeight'],
+          lineHeight: 1.1,
+        }}
+      >
+        {el.content}
+      </div>
+    );
+  }
+
+  if (el.type === 'shape') {
+    return (
+      <div
+        style={{
+          ...baseStyle,
+          backgroundColor: el.fillColor,
+          border: `${el.borderWidth}px solid ${el.borderColor}`,
+          borderRadius: el.shapeType === 'circle' ? '50%' : el.borderRadius ?? 0,
+        }}
+      />
+    );
+  }
+
+  if (el.type === 'image') {
+    return <img src={el.src} alt="" draggable={false} style={{ ...baseStyle, objectFit: 'cover' }} />;
+  }
+
+  if (el.type === 'video') {
+    return <div style={{ ...baseStyle, backgroundColor: '#1f2937' }} />;
+  }
+
+  if (el.type === 'hotspot') {
+    return (
+      <div
+        style={{
+          ...baseStyle,
+          border: '2px dashed #94a3b8',
+          backgroundColor: 'rgba(148,163,184,0.1)',
+        }}
+      />
+    );
+  }
+
+  if (el.type === 'checkbox') {
+    return (
+      <div
+        style={{
+          ...baseStyle,
+          backgroundColor: '#f1f5f9',
+          border: '1px solid #cbd5e1',
+        }}
+      />
+    );
+  }
+
+  if (el.type === 'table') {
+    return (
+      <div
+        style={{
+          ...baseStyle,
+          backgroundColor: '#fff',
+          border: `1px solid ${el.borderColor ?? '#94a3b8'}`,
+        }}
+      />
+    );
+  }
+
+  return null;
+}
+
+/**
+ * Lazy-loaded thumbnail. Always renders an empty box of the correct size to
+ * preserve scroll height, but only mounts inner elements when the container
+ * intersects the viewport. Unmounts inner elements when scrolled away.
+ */
+const SlideThumbnail = memo(function SlideThumbnail({ slide, canvasWidth, canvasHeight }: {
   slide: Slide;
   canvasWidth: number;
   canvasHeight: number;
 }) {
   const scale = THUMB_WIDTH / canvasWidth;
   const thumbHeight = canvasHeight * scale;
+  const ref = useRef<HTMLDivElement | null>(null);
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const node = ref.current;
+    if (!node) return;
+    if (typeof IntersectionObserver === 'undefined') {
+      setVisible(true);
+      return;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          setVisible(entry.isIntersecting);
+        }
+      },
+      { root: null, rootMargin: '200px', threshold: 0.01 }
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
 
   return (
     <div
+      ref={ref}
       className="relative w-full bg-white overflow-hidden"
       style={{ height: thumbHeight }}
     >
-      <div
-        className="absolute top-0 left-0"
-        style={{
-          width: canvasWidth,
-          height: canvasHeight,
-          transform: `scale(${scale})`,
-          transformOrigin: 'top left',
-        }}
-      >
-        {slide.elements.map((el: SlideElement) => {
+      {visible && (
+        <div
+          className="absolute top-0 left-0"
+          style={{
+            width: canvasWidth,
+            height: canvasHeight,
+            transform: `scale(${scale})`,
+            transformOrigin: 'top left',
+          }}
+        >
+          {slide.elements.map((el) => (
+            <ThumbElement key={el.id} el={el} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+});
+
+// Legacy inline switch removed — see ThumbElement above.
+function _UnusedLegacy(_el: SlideElement) {
+  return null;
+}
+const _legacyTypeGuard = (el: SlideElement) => {
+  const baseStyle: React.CSSProperties = {
+    position: 'absolute',
+    left: el.x,
+    top: el.y,
+    width: el.width,
+    height: el.height,
+    overflow: 'hidden',
+  };
+  void baseStyle;
+  {
           const baseStyle: React.CSSProperties = {
             position: 'absolute',
             left: el.x,
