@@ -2,6 +2,7 @@ import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import { Rnd } from 'react-rnd';
 import { useCourse } from '@/context/CourseContext';
 import type { SlideElement, TextElement, ShapeElement, AnimationIn, AnimationOut, TableElement, Slide, QuizConfig, QuizChoice, QuizMatchPair, QuizSortItem } from '@/types/course';
+import { resolveQuizStyle, type ResolvedQuizStyle } from '@/lib/quizTemplates';
 import { themeVarStyle } from '@/lib/themeVars';
 
 function getAnimInClass(anim: AnimationIn): string {
@@ -846,6 +847,8 @@ function QuizSlideOverlay({ slide, isPreview }: { slide: Slide; isPreview: boole
   const showRetryHint =
     isPreview && !isLocked && !retryDismissed && remainingRaw != null && remainingRaw < (isUnlimited ? Number.POSITIVE_INFINITY : maxAttempts);
 
+  const ts = resolveQuizStyle(slide.quizStyle);
+
   return (
     <div
       style={{
@@ -857,13 +860,15 @@ function QuizSlideOverlay({ slide, isPreview }: { slide: Slide; isPreview: boole
         justifyContent: 'center',
         padding: 48,
         pointerEvents: isPreview ? 'auto' : 'none',
+        background: ts.pageBackgroundColor,
       }}
     >
       <div
         style={{
-          background: '#ffffff',
-          color: '#0f172a',
-          borderRadius: 12,
+          background: ts.cardBackgroundColor,
+          color: ts.textColor,
+          fontFamily: ts.fontFamily,
+          borderRadius: ts.cardRadius,
           boxShadow: '0 10px 30px rgba(0,0,0,0.18)',
           padding: 32,
           width: '100%',
@@ -872,7 +877,7 @@ function QuizSlideOverlay({ slide, isPreview }: { slide: Slide; isPreview: boole
           overflow: 'auto',
         }}
       >
-        <h2 style={{ fontSize: 28, fontWeight: 700, marginBottom: 20, lineHeight: 1.2 }}>
+        <h2 style={{ fontSize: ts.questionFontSize, fontWeight: 700, marginBottom: 20, lineHeight: 1.2 }}>
           {quiz.question || 'Untitled question'}
         </h2>
 
@@ -883,13 +888,14 @@ function QuizSlideOverlay({ slide, isPreview }: { slide: Slide; isPreview: boole
             onChange={setAnswer}
             disabled={!interactive}
             revealCorrect={revealCorrect}
+            ts={ts}
           />
         )}
         {quiz.questionType === 'dnd-matching' && (
-          <MatchPlay quiz={quiz} answer={answer as Record<string, string> | undefined} onChange={setAnswer} disabled={!interactive} />
+          <MatchPlay quiz={quiz} answer={answer as Record<string, string> | undefined} onChange={setAnswer} disabled={!interactive} ts={ts} />
         )}
         {quiz.questionType === 'dnd-sorting' && (
-          <SortPlay quiz={quiz} answer={answer as string[] | undefined} onChange={setAnswer} disabled={!interactive} />
+          <SortPlay quiz={quiz} answer={answer as string[] | undefined} onChange={setAnswer} disabled={!interactive} ts={ts} />
         )}
 
         {/* Attempts remaining indicator — preview only, only when attempts are limited and quiz is not locked. */}
@@ -1005,8 +1011,8 @@ function QuizSlideOverlay({ slide, isPreview }: { slide: Slide; isPreview: boole
                   onClick={primary.onClick}
                   disabled={primary.disabled}
                   style={{
-                    background: '#3b82f6',
-                    color: '#fff',
+                    background: ts.buttonColor,
+                    color: ts.buttonTextColor,
                     fontWeight: 600,
                     padding: '10px 24px',
                     borderRadius: 8,
@@ -1031,7 +1037,7 @@ function QuizSlideOverlay({ slide, isPreview }: { slide: Slide; isPreview: boole
   );
 }
 
-function MCPlay({ quiz, answer, onChange, disabled, revealCorrect }: { quiz: QuizConfig; answer: string[] | undefined; onChange: (a: string[]) => void; disabled: boolean; revealCorrect?: boolean }) {
+function MCPlay({ quiz, answer, onChange, disabled, revealCorrect, ts }: { quiz: QuizConfig; answer: string[] | undefined; onChange: (a: string[]) => void; disabled: boolean; revealCorrect?: boolean; ts: ResolvedQuizStyle }) {
   const single = quiz.singleSelect !== false;
   const choices = quiz.choices ?? [];
   const selected = new Set(answer ?? []);
@@ -1049,8 +1055,8 @@ function MCPlay({ quiz, answer, onChange, disabled, revealCorrect }: { quiz: Qui
       {choices.map((c) => {
         const isOn = selected.has(c.id);
         const showAsCorrect = revealCorrect && c.correct;
-        const borderColor = showAsCorrect ? '#16a34a' : (isOn ? '#3b82f6' : '#e2e8f0');
-        const bgColor = showAsCorrect ? '#dcfce7' : (isOn ? '#eff6ff' : '#fff');
+        const borderColor = showAsCorrect ? '#16a34a' : (isOn ? ts.optionSelectedBorderColor : ts.optionBorderColor);
+        const bgColor = showAsCorrect ? '#dcfce7' : (isOn ? ts.optionSelectedBackgroundColor : ts.optionBackgroundColor);
         return (
           <label
             key={c.id}
@@ -1059,9 +1065,10 @@ function MCPlay({ quiz, answer, onChange, disabled, revealCorrect }: { quiz: Qui
               padding: '10px 14px',
               border: `2px solid ${borderColor}`,
               background: bgColor,
-              borderRadius: 8,
+              borderRadius: ts.optionRadius,
               cursor: disabled ? 'default' : 'pointer',
-              fontSize: 16,
+              fontSize: ts.optionFontSize,
+              color: ts.textColor,
             }}
           >
             <input
@@ -1083,10 +1090,9 @@ function MCPlay({ quiz, answer, onChange, disabled, revealCorrect }: { quiz: Qui
   );
 }
 
-function MatchPlay({ quiz, answer, onChange, disabled }: { quiz: QuizConfig; answer: Record<string, string> | undefined; onChange: (a: Record<string, string>) => void; disabled: boolean }) {
+function MatchPlay({ quiz, answer, onChange, disabled, ts }: { quiz: QuizConfig; answer: Record<string, string> | undefined; onChange: (a: Record<string, string>) => void; disabled: boolean; ts: ResolvedQuizStyle }) {
   const pairs = quiz.pairs ?? [];
   const map = answer ?? {};
-  // Right-side options shuffled deterministically by id.
   const rights = pairs.map((p) => p.right);
   const handleDrop = (pairId: string, value: string) => {
     if (disabled) return;
@@ -1094,7 +1100,7 @@ function MatchPlay({ quiz, answer, onChange, disabled }: { quiz: QuizConfig; ans
   };
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', padding: 10, background: '#f1f5f9', borderRadius: 8 }}>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', padding: 10, background: '#f1f5f9', borderRadius: ts.optionRadius }}>
         {rights.map((r, i) => (
           <span
             key={i}
@@ -1102,11 +1108,12 @@ function MatchPlay({ quiz, answer, onChange, disabled }: { quiz: QuizConfig; ans
             onDragStart={(e) => e.dataTransfer.setData('text/plain', r)}
             style={{
               padding: '6px 12px',
-              background: '#fff',
-              border: '1px solid #cbd5e1',
+              background: ts.optionBackgroundColor,
+              border: `1px solid ${ts.optionBorderColor}`,
               borderRadius: 6,
               cursor: disabled ? 'default' : 'grab',
-              fontSize: 14,
+              fontSize: ts.optionFontSize - 2,
+              color: ts.textColor,
             }}
           >
             {r}
@@ -1115,7 +1122,7 @@ function MatchPlay({ quiz, answer, onChange, disabled }: { quiz: QuizConfig; ans
       </div>
       {pairs.map((p) => (
         <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ flex: 1, padding: '10px 14px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: 15 }}>
+          <div style={{ flex: 1, padding: '10px 14px', background: ts.optionBackgroundColor, border: `1px solid ${ts.optionBorderColor}`, borderRadius: ts.optionRadius, fontSize: ts.optionFontSize, color: ts.textColor }}>
             {p.left}
           </div>
           <span style={{ color: '#64748b' }}>→</span>
@@ -1125,11 +1132,11 @@ function MatchPlay({ quiz, answer, onChange, disabled }: { quiz: QuizConfig; ans
             style={{
               flex: 1, minHeight: 42,
               padding: '10px 14px',
-              background: map[p.id] ? '#eff6ff' : '#f8fafc',
-              border: `2px dashed ${map[p.id] ? '#3b82f6' : '#cbd5e1'}`,
-              borderRadius: 8,
-              fontSize: 15,
-              color: map[p.id] ? '#0f172a' : '#94a3b8',
+              background: map[p.id] ? ts.optionSelectedBackgroundColor : '#f8fafc',
+              border: `2px dashed ${map[p.id] ? ts.optionSelectedBorderColor : ts.optionBorderColor}`,
+              borderRadius: ts.optionRadius,
+              fontSize: ts.optionFontSize,
+              color: map[p.id] ? ts.textColor : '#94a3b8',
             }}
           >
             {map[p.id] || 'Drop match here'}
@@ -1140,9 +1147,8 @@ function MatchPlay({ quiz, answer, onChange, disabled }: { quiz: QuizConfig; ans
   );
 }
 
-function SortPlay({ quiz, answer, onChange, disabled }: { quiz: QuizConfig; answer: string[] | undefined; onChange: (a: string[]) => void; disabled: boolean }) {
+function SortPlay({ quiz, answer, onChange, disabled, ts }: { quiz: QuizConfig; answer: string[] | undefined; onChange: (a: string[]) => void; disabled: boolean; ts: ResolvedQuizStyle }) {
   const items = quiz.sortItems ?? [];
-  // Initial display order: shuffled (deterministic by id hash) if no answer yet.
   const order = answer && answer.length === items.length
     ? answer
     : items.slice().sort((a, b) => a.id.localeCompare(b.id)).map((i) => i.id);
@@ -1165,21 +1171,23 @@ function SortPlay({ quiz, answer, onChange, disabled }: { quiz: QuizConfig; answ
           style={{
             display: 'flex', alignItems: 'center', gap: 12,
             padding: '10px 14px',
-            background: '#fff',
-            border: '1px solid #e2e8f0',
-            borderRadius: 8,
-            fontSize: 15,
+            background: ts.optionBackgroundColor,
+            border: `1px solid ${ts.optionBorderColor}`,
+            borderRadius: ts.optionRadius,
+            fontSize: ts.optionFontSize,
+            color: ts.textColor,
           }}
         >
           <span style={{ color: '#94a3b8', width: 20 }}>{i + 1}.</span>
           <span style={{ flex: 1 }}>{byId.get(id)?.text ?? ''}</span>
-          <button type="button" onClick={() => move(i, -1)} disabled={disabled || i === 0} style={{ padding: '4px 10px', border: '1px solid #cbd5e1', background: '#fff', borderRadius: 6, cursor: disabled || i === 0 ? 'not-allowed' : 'pointer' }}>↑</button>
-          <button type="button" onClick={() => move(i, 1)} disabled={disabled || i === order.length - 1} style={{ padding: '4px 10px', border: '1px solid #cbd5e1', background: '#fff', borderRadius: 6, cursor: disabled || i === order.length - 1 ? 'not-allowed' : 'pointer' }}>↓</button>
+          <button type="button" onClick={() => move(i, -1)} disabled={disabled || i === 0} style={{ padding: '4px 10px', border: `1px solid ${ts.optionBorderColor}`, background: ts.optionBackgroundColor, color: ts.textColor, borderRadius: 6, cursor: disabled || i === 0 ? 'not-allowed' : 'pointer' }}>↑</button>
+          <button type="button" onClick={() => move(i, 1)} disabled={disabled || i === order.length - 1} style={{ padding: '4px 10px', border: `1px solid ${ts.optionBorderColor}`, background: ts.optionBackgroundColor, color: ts.textColor, borderRadius: 6, cursor: disabled || i === order.length - 1 ? 'not-allowed' : 'pointer' }}>↓</button>
         </div>
       ))}
     </div>
   );
 }
+
 
 // ============================================================================
 // Results Slide Overlay

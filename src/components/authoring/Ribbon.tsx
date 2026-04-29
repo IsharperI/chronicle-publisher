@@ -15,8 +15,9 @@ import { PlayerSettingsModal } from './PlayerSettingsModal';
 import { sanitizeSlides, sanitizePlayerSettings, sanitizeCourseSettings } from '@/lib/sanitize';
 
 import { StorySizeControl, ThemeColorsControl } from './DesignControls';
+import { QuizTemplatesTab } from './QuizTemplatesTab';
 
-const TABS = ['Home', 'Insert', 'Design', 'Transitions', 'Animations', 'View'] as const;
+const TABS = ['Home', 'Insert', 'Design', 'Transitions', 'Animations', 'View', 'Quiz Templates'] as const;
 type RibbonTab = typeof TABS[number];
 
 export function Ribbon() {
@@ -476,6 +477,10 @@ export function Ribbon() {
               <RibbonButton icon={Eye} label="Preview Mode" onClick={() => dispatch({ type: 'SET_PREVIEW_MODE', enabled: true })} />
             </RibbonGroup>
           </>
+        )}
+
+        {activeTab === 'Quiz Templates' && (
+          <QuizTemplatesTab />
         )}
       </div>
     </div>

@@ -198,6 +198,42 @@ export interface QuizConfig {
   skipTargetSlideId?: string;
 }
 
+/**
+ * Visual styling overrides applied to a quiz slide via a Quiz Template.
+ * Affects appearance only (colors, fonts, spacing). All fields are optional
+ * — when omitted, the quiz renders with its default appearance.
+ */
+export interface QuizStyleOverrides {
+  /** Page background color behind the quiz card. */
+  pageBackgroundColor?: string;
+  /** Quiz card background color. */
+  cardBackgroundColor?: string;
+  /** Card text color (question + answer text). */
+  textColor?: string;
+  /** Font family applied to the entire quiz card. */
+  fontFamily?: string;
+  /** Question heading font size in px. */
+  questionFontSize?: number;
+  /** Answer option font size in px. */
+  optionFontSize?: number;
+  /** Answer option background color (default state). */
+  optionBackgroundColor?: string;
+  /** Answer option border color (default state). */
+  optionBorderColor?: string;
+  /** Answer option border color when selected. */
+  optionSelectedBorderColor?: string;
+  /** Answer option background color when selected. */
+  optionSelectedBackgroundColor?: string;
+  /** Submit/Continue/Try Again button background color. */
+  buttonColor?: string;
+  /** Submit/Continue/Try Again button text color. */
+  buttonTextColor?: string;
+  /** Card border-radius in px. */
+  cardRadius?: number;
+  /** Option border-radius in px. */
+  optionRadius?: number;
+}
+
 export interface ResultsConfig {
   /** 0-100 inclusive. */
   passThreshold: number;
@@ -233,6 +269,8 @@ export interface Slide {
   quiz?: QuizConfig;
   /** Results configuration; only used when slideType === 'results'. */
   results?: ResultsConfig;
+  /** Optional visual style overrides applied via a Quiz Template. */
+  quizStyle?: QuizStyleOverrides;
 }
 
 export type NavigationMode = 'free' | 'restricted';
