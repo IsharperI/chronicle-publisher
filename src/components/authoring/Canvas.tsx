@@ -459,7 +459,7 @@ export function Canvas() {
             backgroundSize: '20px 20px',
           } : {}),
         }}
-        className="relative bg-background shadow-lg border rounded"
+        className="relative bg-white canvas-glow rounded-xl"
         onClick={handleCanvasClick}
       >
         {/* Master slide background layer (locked, non-interactive) */}
