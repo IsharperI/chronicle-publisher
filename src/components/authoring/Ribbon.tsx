@@ -691,6 +691,116 @@ function TransitionsTab() {
   );
 }
 
+const ENTRANCE_OPTIONS: Array<{ value: AnimationIn; label: string }> = [
+  { value: 'none', label: 'None' },
+  { value: 'fade', label: 'Fade In' },
+  { value: 'fly-in-left', label: 'Fly In Left' },
+  { value: 'fly-in-right', label: 'Fly In Right' },
+];
+
+const EXIT_OPTIONS: Array<{ value: AnimationOut; label: string }> = [
+  { value: 'none', label: 'None' },
+  { value: 'fade', label: 'Fade Out' },
+  { value: 'fly-out-left', label: 'Fly Out Left' },
+  { value: 'fly-out-right', label: 'Fly Out Right' },
+];
+
+function AnimationsTab() {
+  const { state, dispatch } = useCourse();
+  const isMaster = state.viewMode === 'master';
+  const slide = isMaster ? state.masterSlides[state.activeSlideIndex] : state.slides[state.activeSlideIndex];
+  const element = slide?.elements.find((el) => el.id === state.activeElementId);
+  const disabled = !element;
+
+  const update = (updates: Partial<SlideElement>) => {
+    if (!element) return;
+    dispatch({ type: 'UPDATE_ELEMENT', id: element.id, updates });
+  };
+
+  const entranceSec = ((element?.entranceDuration ?? 500) / 1000).toFixed(1);
+  const exitSec = ((element?.exitDuration ?? 500) / 1000).toFixed(1);
+
+  return (
+    <>
+      <RibbonGroup label="Entrance Animation">
+        <div className="flex items-end gap-2 px-1">
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] text-muted-foreground font-medium">Type</label>
+            <Select
+              value={element?.animationIn ?? 'none'}
+              onValueChange={(v) => update({ animationIn: v as AnimationIn } as Partial<SlideElement>)}
+              disabled={disabled}
+            >
+              <SelectTrigger className="h-8 w-36 text-xs bg-white text-slate-800"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {ENTRANCE_OPTIONS.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] text-muted-foreground font-medium">Duration (s)</label>
+            <input
+              type="number"
+              min={0}
+              step={0.1}
+              value={entranceSec}
+              disabled={disabled}
+              onChange={(e) => {
+                const sec = Number(e.target.value);
+                if (!Number.isNaN(sec)) update({ entranceDuration: Math.max(0, Math.round(sec * 1000)) } as Partial<SlideElement>);
+              }}
+              className="h-8 w-20 rounded border bg-white px-2 text-xs text-slate-800 disabled:opacity-50"
+            />
+          </div>
+        </div>
+      </RibbonGroup>
+
+      <Separator orientation="vertical" className="h-12 mx-2" />
+
+      <RibbonGroup label="Exit Animation">
+        <div className="flex items-end gap-2 px-1">
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] text-muted-foreground font-medium">Type</label>
+            <Select
+              value={element?.animationOut ?? 'none'}
+              onValueChange={(v) => update({ animationOut: v as AnimationOut } as Partial<SlideElement>)}
+              disabled={disabled}
+            >
+              <SelectTrigger className="h-8 w-36 text-xs bg-white text-slate-800"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {EXIT_OPTIONS.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] text-muted-foreground font-medium">Duration (s)</label>
+            <input
+              type="number"
+              min={0}
+              step={0.1}
+              value={exitSec}
+              disabled={disabled}
+              onChange={(e) => {
+                const sec = Number(e.target.value);
+                if (!Number.isNaN(sec)) update({ exitDuration: Math.max(0, Math.round(sec * 1000)) } as Partial<SlideElement>);
+              }}
+              className="h-8 w-20 rounded border bg-white px-2 text-xs text-slate-800 disabled:opacity-50"
+            />
+          </div>
+        </div>
+      </RibbonGroup>
+
+      {disabled && (
+        <span className="ml-3 text-[11px] text-muted-foreground italic">Select an element on the canvas to edit animations.</span>
+      )}
+    </>
+  );
+}
+
 function TableInsertPopover({ onInsert }: { onInsert: (rows: number, cols: number) => void }) {
   const [open, setOpen] = useState(false);
   const [rows, setRows] = useState(3);

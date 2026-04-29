@@ -701,7 +701,7 @@ export function PropertiesPanel() {
               </>
             )}
 
-            <AnimationsSection element={activeElement} onUpdate={update} />
+            
 
             <div className="space-y-2 pt-2 border-t">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Timeline</p>
