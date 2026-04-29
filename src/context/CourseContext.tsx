@@ -526,6 +526,10 @@ function courseReducer(state: CourseState, action: Action): CourseState {
         quizFeedbackOpen: state.quizFeedbackOpen?.slideId === action.slideId ? null : state.quizFeedbackOpen,
       };
     }
+    case 'OPEN_MOTION_PATH_EDITOR':
+      return { ...state, motionPathEditor: { elementId: action.elementId } };
+    case 'CLOSE_MOTION_PATH_EDITOR':
+      return { ...state, motionPathEditor: null };
     default:
       return state;
   }
