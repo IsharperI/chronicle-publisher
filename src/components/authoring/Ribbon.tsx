@@ -299,7 +299,7 @@ export function Ribbon() {
 
   if (state.previewMode) {
     return (
-      <div className="h-12 border-b bg-card flex items-center px-4 shrink-0">
+      <div className="h-12 glass border-b border-white/60 flex items-center px-4 shrink-0 rounded-none">
         <span className="font-semibold text-foreground text-sm">eLearning Authoring Tool</span>
         <div className="flex-1" />
         <Button variant="destructive" size="sm" onClick={() => dispatch({ type: 'SET_PREVIEW_MODE', enabled: false })}>
