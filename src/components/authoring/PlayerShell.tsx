@@ -266,6 +266,8 @@ interface SlideStageProps {
 }
 
 function SlideStage({ transitionType, transitionDuration, transitionColor, phase, onPreviewNext }: SlideStageProps) {
+  const { state } = useCourse();
+  const { width: canvasW, height: canvasH } = state.courseSettings.canvasDimensions;
   const halfMs = Math.max(50, (transitionDuration * 1000) / 2);
   const animatedStyle: React.CSSProperties = {
     width: '100%',
