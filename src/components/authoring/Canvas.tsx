@@ -4,6 +4,8 @@ import { useCourse } from '@/context/CourseContext';
 import type { SlideElement, TextElement, ShapeElement, AnimationIn, AnimationOut, TableElement, Slide, QuizConfig, QuizChoice, QuizMatchPair, QuizSortItem } from '@/types/course';
 import { resolveQuizStyle, type ResolvedQuizStyle } from '@/lib/quizTemplates';
 import { themeVarStyle } from '@/lib/themeVars';
+import { MotionPathLayer } from './MotionPathLayer';
+import { motionPathOffset } from '@/lib/motionPath';
 
 function getAnimInClass(anim: AnimationIn): string {
   switch (anim) {
