@@ -351,7 +351,13 @@ export function PropertiesPanel() {
           </div>
           <div className="flex-1 overflow-y-auto p-3 space-y-4">
             <p className="text-sm font-medium text-foreground">
-              {isMasterMode ? 'Master Slide Properties' : 'Slide Properties'}
+              {isMasterMode
+                ? 'Master Slide Properties'
+                : activeSlide?.slideType === 'quiz'
+                ? 'Quiz Slide Properties'
+                : activeSlide?.slideType === 'results'
+                ? 'Results Slide Properties'
+                : 'Slide Properties'}
             </p>
 
             <div className="space-y-1.5">
@@ -370,81 +376,93 @@ export function PropertiesPanel() {
               <p className="text-xs text-muted-foreground">Up to 30 characters. Shown in the slide list and player menu.</p>
             </div>
 
-            <SlideDurationControl
-              valueMs={activeSlide?.duration ?? 5000}
-              onChangeMs={(v) => dispatch({ type: 'UPDATE_SLIDE', index: state.activeSlideIndex, updates: { duration: v } })}
-            />
-            <p className="text-xs text-muted-foreground">Sets the total timeline length for this slide.</p>
-
-            <div className="space-y-1.5 pt-2 border-t">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Slide Advance</Label>
-              <Select
-                value={activeSlide?.advanceMode ?? 'manual'}
-                onValueChange={(v) => dispatch({ type: 'UPDATE_SLIDE', index: state.activeSlideIndex, updates: { advanceMode: v as 'manual' | 'auto' } })}
-              >
-                <SelectTrigger className="h-8 text-xs bg-white text-slate-800"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="manual">By user (manual)</SelectItem>
-                  <SelectItem value="auto">Automatically</SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">Action when the slide timeline ends.</p>
-            </div>
-
-            <div className="space-y-1.5 pt-2 border-t">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">When Revisiting</Label>
-              <Select
-                value={activeSlide?.revisitMode ?? 'reset'}
-                onValueChange={(v) => dispatch({ type: 'UPDATE_SLIDE', index: state.activeSlideIndex, updates: { revisitMode: v as 'reset' | 'resume' } })}
-              >
-                <SelectTrigger className="h-8 text-xs bg-white text-slate-800"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="reset">Reset to initial state</SelectItem>
-                  <SelectItem value="resume">Resume saved state</SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">Behavior when navigating back to this slide.</p>
-            </div>
-
-            {!isMasterMode && (
-              <div className="space-y-1.5 pt-2 border-t">
-                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Slide Notes</Label>
-                <Textarea
-                  value={activeSlide?.notes ?? ''}
-                  onChange={(e) => dispatch({ type: 'UPDATE_SLIDE', index: state.activeSlideIndex, updates: { notes: e.target.value } })}
-                  className="text-xs min-h-[80px] bg-white text-slate-800"
-                  placeholder="Speaker notes shown in the player Notes tab…"
-                />
-              </div>
+            {!isMasterMode && activeSlide?.slideType === 'quiz' && activeSlide.quiz && (
+              <QuizEditor slide={activeSlide} index={state.activeSlideIndex} allSlides={state.slides} />
             )}
 
-            {!isMasterMode && state.masterSlides.length > 0 && (
-              <div className="space-y-2 pt-2 border-t">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Master Slide</p>
-                <Select
-                  value={activeSlide?.masterId ?? 'none'}
-                  onValueChange={(v) => {
-                    dispatch({
-                      type: 'UPDATE_SLIDE',
-                      index: state.activeSlideIndex,
-                      updates: { masterId: v === 'none' ? undefined : v },
-                    });
-                  }}
-                >
-                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="None" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">None</SelectItem>
-                    {state.masterSlides.map((ms, i) => (
-                      <SelectItem key={ms.id} value={ms.id}>
-                        Master {i + 1} ({ms.elements.length} elements)
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground">
-                  Assigns a master slide as a locked background layer.
-                </p>
-              </div>
+            {!isMasterMode && activeSlide?.slideType === 'results' && activeSlide.results && (
+              <ResultsEditor results={activeSlide.results} index={state.activeSlideIndex} />
+            )}
+
+            {activeSlide?.slideType !== 'results' && (
+              <>
+                <SlideDurationControl
+                  valueMs={activeSlide?.duration ?? 5000}
+                  onChangeMs={(v) => dispatch({ type: 'UPDATE_SLIDE', index: state.activeSlideIndex, updates: { duration: v } })}
+                />
+                <p className="text-xs text-muted-foreground">Sets the total timeline length for this slide.</p>
+
+                <div className="space-y-1.5 pt-2 border-t">
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Slide Advance</Label>
+                  <Select
+                    value={activeSlide?.advanceMode ?? 'manual'}
+                    onValueChange={(v) => dispatch({ type: 'UPDATE_SLIDE', index: state.activeSlideIndex, updates: { advanceMode: v as 'manual' | 'auto' } })}
+                  >
+                    <SelectTrigger className="h-8 text-xs bg-white text-slate-800"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="manual">By user (manual)</SelectItem>
+                      <SelectItem value="auto">Automatically</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">Action when the slide timeline ends.</p>
+                </div>
+
+                <div className="space-y-1.5 pt-2 border-t">
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">When Revisiting</Label>
+                  <Select
+                    value={activeSlide?.revisitMode ?? 'reset'}
+                    onValueChange={(v) => dispatch({ type: 'UPDATE_SLIDE', index: state.activeSlideIndex, updates: { revisitMode: v as 'reset' | 'resume' } })}
+                  >
+                    <SelectTrigger className="h-8 text-xs bg-white text-slate-800"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="reset">Reset to initial state</SelectItem>
+                      <SelectItem value="resume">Resume saved state</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">Behavior when navigating back to this slide.</p>
+                </div>
+
+                {!isMasterMode && (
+                  <div className="space-y-1.5 pt-2 border-t">
+                    <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Slide Notes</Label>
+                    <Textarea
+                      value={activeSlide?.notes ?? ''}
+                      onChange={(e) => dispatch({ type: 'UPDATE_SLIDE', index: state.activeSlideIndex, updates: { notes: e.target.value } })}
+                      className="text-xs min-h-[80px] bg-white text-slate-800"
+                      placeholder="Speaker notes shown in the player Notes tab…"
+                    />
+                  </div>
+                )}
+
+                {!isMasterMode && state.masterSlides.length > 0 && (
+                  <div className="space-y-2 pt-2 border-t">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Master Slide</p>
+                    <Select
+                      value={activeSlide?.masterId ?? 'none'}
+                      onValueChange={(v) => {
+                        dispatch({
+                          type: 'UPDATE_SLIDE',
+                          index: state.activeSlideIndex,
+                          updates: { masterId: v === 'none' ? undefined : v },
+                        });
+                      }}
+                    >
+                      <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="None" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">None</SelectItem>
+                        {state.masterSlides.map((ms, i) => (
+                          <SelectItem key={ms.id} value={ms.id}>
+                            Master {i + 1} ({ms.elements.length} elements)
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      Assigns a master slide as a locked background layer.
+                    </p>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </>
