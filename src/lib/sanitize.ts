@@ -311,6 +311,8 @@ function sanitizeSlide(raw: any): Slide {
     notes: typeof raw?.notes === 'string' ? raw.notes.slice(0, 10_000) : undefined,
     transitionType,
     transitionDuration: safeNumber(raw?.transitionDuration, 0.5, 0, 10),
+    advanceMode: safeEnum(raw?.advanceMode, ['manual', 'auto'] as const, 'manual'),
+    revisitMode: safeEnum(raw?.revisitMode, ['reset', 'resume'] as const, 'reset'),
   };
 }
 
