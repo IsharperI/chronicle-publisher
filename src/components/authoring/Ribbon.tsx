@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Save, Upload, Play, X, Type, ImageIcon, Square, Eye, Package, Settings, Music, Video as VideoIcon, AlignLeft, AlignCenter, AlignRight, AlignStartVertical, AlignCenterVertical, AlignEndVertical, AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter, Ban, Sparkles, ArrowUpFromLine, ArrowLeftFromLine, ZoomIn, CopyCheck, MousePointerClick, Target, CheckSquare, ChevronDown, Table as TableIcon, HelpCircle, Trophy, Layers, FolderOpen, Map as MapIcon } from 'lucide-react';
+import { Save, Upload, Play, X, Type, ImageIcon, Square, Eye, Settings, Music, Video as VideoIcon, AlignLeft, AlignCenter, AlignRight, AlignStartVertical, AlignCenterVertical, AlignEndVertical, AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter, Ban, Sparkles, ArrowUpFromLine, ArrowLeftFromLine, ZoomIn, CopyCheck, MousePointerClick, Target, CheckSquare, ChevronDown, Table as TableIcon, HelpCircle, Trophy, Layers, FolderOpen, Map as MapIcon } from 'lucide-react';
 import { MediaLibraryOverlay } from './MediaLibraryOverlay';
 import { StoryViewOverlay } from './StoryViewOverlay';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -8,7 +8,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { exportScorm } from '@/lib/exportScorm';
+import { PublishDialog } from './PublishDialog';
 import { useCourse } from '@/context/CourseContext';
 import { cn } from '@/lib/utils';
 import type { TextElement, ImageElement, ShapeElement, VideoElement, SlideAudio, SlideTransitionType, HotspotElement, CheckboxElement, SlideElement, TableElement, AnimationIn, AnimationOut } from '@/types/course';
@@ -29,6 +29,7 @@ export function Ribbon() {
   const [playerSettingsOpen, setPlayerSettingsOpen] = useState(false);
   const [mediaLibraryOpen, setMediaLibraryOpen] = useState(false);
   const [storyViewOpen, setStoryViewOpen] = useState(false);
+  const [publishOpen, setPublishOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const audioInputRef = useRef<HTMLInputElement>(null);
@@ -360,7 +361,7 @@ export function Ribbon() {
 
             <RibbonGroup label="Publish">
               <RibbonButton icon={Play} label="Preview" onClick={() => dispatch({ type: 'SET_PREVIEW_MODE', enabled: true })} />
-              <RibbonButton icon={Package} label="Export SCORM" onClick={() => exportScorm(state)} />
+              <RibbonButton icon={Upload} label="Publish" onClick={() => setPublishOpen(true)} />
             </RibbonGroup>
 
             <Separator orientation="vertical" className="h-12 mx-2" />
@@ -515,6 +516,7 @@ export function Ribbon() {
     </div>
     <MediaLibraryOverlay open={mediaLibraryOpen} onClose={() => setMediaLibraryOpen(false)} />
     <StoryViewOverlay open={storyViewOpen} onClose={() => setStoryViewOpen(false)} />
+    <PublishDialog open={publishOpen} onOpenChange={setPublishOpen} />
     </>
   );
 }
