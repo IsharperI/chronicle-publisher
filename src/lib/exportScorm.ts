@@ -186,6 +186,8 @@ window.COURSE_DATA=${courseData.replace(/<\/script>/gi, '<\\/script>').replace(/
     var wrapper=document.getElementById("stage-wrapper");
     var s=wrapper.clientWidth/${dims.width};
     stage.style.transform="scale("+s+")";
+    var prevs=wrapper.getElementsByClassName("stage-prev");
+    for(var i=0;i<prevs.length;i++){prevs[i].style.transform="scale("+s+")"}
   }
   window.addEventListener("resize",scaleStage);
   scaleStage();
