@@ -184,7 +184,7 @@ const SlideThumbnail = memo(function SlideThumbnail({ slide, canvasWidth, canvas
           }}
         >
           {slide.elements.map((el) => (
-            <ThumbElement key={el.id} el={el} />
+            <ThumbElement key={el.id} el={el} themeColors={themeColors} />
           ))}
         </div>
       )}
