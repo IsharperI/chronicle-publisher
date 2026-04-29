@@ -13,7 +13,7 @@ const THUMB_WIDTH = 160; // px rendered width of the thumbnail box
  * Render a single static, non-interactive miniature element. No event
  * listeners, no draggable logic, no state — purely visual.
  */
-function ThumbElement({ el }: { el: SlideElement }) {
+function ThumbElement({ el, themeColors }: { el: SlideElement; themeColors: string[] }) {
   const baseStyle: React.CSSProperties = {
     position: 'absolute',
     left: el.x,
