@@ -41,13 +41,37 @@ function ThumbElement({ el }: { el: SlideElement }) {
   }
 
   if (el.type === 'shape') {
+    if (el.shapeType === 'triangle') {
+      return (
+        <div style={baseStyle}>
+          <svg
+            viewBox="0 0 100 100"
+            preserveAspectRatio="none"
+            style={{ width: '100%', height: '100%', display: 'block' }}
+          >
+            <polygon
+              points="50,5 95,95 5,95"
+              fill={el.fillColor}
+              stroke={el.borderColor}
+              strokeWidth={(el.borderWidth ?? 0) * 2}
+            />
+          </svg>
+        </div>
+      );
+    }
     return (
       <div
         style={{
           ...baseStyle,
           backgroundColor: el.fillColor,
           border: `${el.borderWidth}px solid ${el.borderColor}`,
-          borderRadius: el.shapeType === 'circle' ? '50%' : el.borderRadius ?? 0,
+          borderRadius:
+            el.shapeType === 'circle'
+              ? '50%'
+              : el.borderRadius != null
+              ? el.borderRadius
+              : 4,
+          boxShadow: el.boxShadow,
         }}
       />
     );
