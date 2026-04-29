@@ -16,7 +16,7 @@ import { sanitizeSlides, sanitizePlayerSettings, sanitizeCourseSettings } from '
 
 import { StorySizeControl, ThemeColorsControl } from './DesignControls';
 
-const TABS = ['Home', 'Insert', 'Design', 'Transitions', 'Animations', 'View'] as const;
+const TABS = ['Home', 'Insert', 'Design', 'Transitions', 'Animations', 'View', 'Quiz Templates'] as const;
 type RibbonTab = typeof TABS[number];
 
 export function Ribbon() {
