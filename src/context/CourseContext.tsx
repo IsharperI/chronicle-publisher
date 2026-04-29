@@ -154,6 +154,16 @@ function courseReducer(state: CourseState, action: Action): CourseState {
     }
     case 'SET_ACTIVE_SLIDE':
       return { ...state, activeSlideIndex: action.index, activeElementId: null, selectedElementIds: [], activeAudioId: null, playheadTime: 0, isPlaying: false };
+    case 'MOVE_SLIDE': {
+      const slides = getActiveSlides(state);
+      const { from, to } = action;
+      if (from < 0 || from >= slides.length || to < 0 || to >= slides.length || from === to) return state;
+      const next = [...slides];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      const newActive = state.activeSlideIndex === from ? to : state.activeSlideIndex;
+      return { ...state, ...updateActiveSlides(state, next), activeSlideIndex: newActive };
+    }
     case 'ADD_ELEMENT': {
       const slides = getActiveSlides(state).map((slide, i) =>
         i === state.activeSlideIndex
