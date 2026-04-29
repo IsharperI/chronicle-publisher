@@ -257,6 +257,12 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
     d.className="el";
     d.style.left=el.x+"px";d.style.top=el.y+"px";
     d.style.width=el.width+"px";d.style.height=el.height+"px";
+    if(el.id){d.setAttribute("data-el-id",el.id);}
+    if(el.motionPath){
+      d.setAttribute("data-motion-path","1");
+      d.setAttribute("data-mp-start",el.startTime||0);
+      d.setAttribute("data-mp-dur",el.duration||1);
+    }
     if(el.animationOut&&el.animationOut!=="none"){
       d.setAttribute("data-anim-out",el.animationOut);
       d.setAttribute("data-exit-dur",String(el.exitDuration!=null?el.exitDuration:500));
