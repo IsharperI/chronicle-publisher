@@ -481,6 +481,14 @@ export function Ribbon() {
             <RibbonGroup label="Preview">
               <RibbonButton icon={Eye} label="Preview Mode" onClick={() => dispatch({ type: 'SET_PREVIEW_MODE', enabled: true })} />
             </RibbonGroup>
+            <Separator orientation="vertical" className="h-12 mx-2" />
+            <RibbonGroup label="Slides">
+              <RibbonButton
+                icon={Layers}
+                label="Master Slides"
+                onClick={() => dispatch({ type: 'SET_VIEW_MODE', mode: state.viewMode === 'master' ? 'main' : 'master' })}
+              />
+            </RibbonGroup>
           </>
         )}
       </div>
