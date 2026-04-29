@@ -117,6 +117,12 @@ body{background-color:${ps.backgroundColor};${ps.backgroundImage ? `background-i
   <span class="meta" id="meta"></span>
 </div>
 <div id="body">
+<div id="topbar">
+  ${ps.sidebarPosition !== 'none' && (ps.tabMenu || ps.tabNotes) ? '<button id="sidebar-toggle" type="button" aria-label="Toggle menu" title="Toggle menu">&#9776;</button>' : ''}
+  <h1>${titleSafe}</h1>
+  <span class="meta" id="meta"></span>
+</div>
+<div id="body">
   ${ps.sidebarPosition !== 'none' && (ps.tabMenu || ps.tabNotes) ? `<aside id="sidebar" class="${ps.sidebarPosition}">
     <div class="tabs">
       ${ps.tabMenu ? '<button id="tab-menu" class="active" data-tab="menu">Menu</button>' : ''}
