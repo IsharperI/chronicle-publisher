@@ -1,7 +1,8 @@
 import React, { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Save, Upload, Play, X, Type, ImageIcon, Square, Eye, Package, Settings, Music, Video as VideoIcon, AlignLeft, AlignCenter, AlignRight, AlignStartVertical, AlignCenterVertical, AlignEndVertical, AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter, Ban, Sparkles, ArrowUpFromLine, ArrowLeftFromLine, ZoomIn, CopyCheck, MousePointerClick, Target, CheckSquare, ChevronDown, Table as TableIcon, HelpCircle, Trophy, Layers, FolderOpen } from 'lucide-react';
+import { Save, Upload, Play, X, Type, ImageIcon, Square, Eye, Package, Settings, Music, Video as VideoIcon, AlignLeft, AlignCenter, AlignRight, AlignStartVertical, AlignCenterVertical, AlignEndVertical, AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter, Ban, Sparkles, ArrowUpFromLine, ArrowLeftFromLine, ZoomIn, CopyCheck, MousePointerClick, Target, CheckSquare, ChevronDown, Table as TableIcon, HelpCircle, Trophy, Layers, FolderOpen, Map as MapIcon } from 'lucide-react';
 import { MediaLibraryOverlay } from './MediaLibraryOverlay';
+import { StoryViewOverlay } from './StoryViewOverlay';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -27,6 +28,7 @@ export function Ribbon() {
   const [alignMode, setAlignMode] = useState<'canvas' | 'selection'>('canvas');
   const [playerSettingsOpen, setPlayerSettingsOpen] = useState(false);
   const [mediaLibraryOpen, setMediaLibraryOpen] = useState(false);
+  const [storyViewOpen, setStoryViewOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const audioInputRef = useRef<HTMLInputElement>(null);
@@ -495,6 +497,11 @@ export function Ribbon() {
                 label="Master Slides"
                 onClick={() => dispatch({ type: 'SET_VIEW_MODE', mode: state.viewMode === 'master' ? 'main' : 'master' })}
               />
+              <RibbonButton
+                icon={MapIcon}
+                label="Story View"
+                onClick={() => setStoryViewOpen(true)}
+              />
             </RibbonGroup>
           </>
         )}
@@ -507,6 +514,7 @@ export function Ribbon() {
       )}
     </div>
     <MediaLibraryOverlay open={mediaLibraryOpen} onClose={() => setMediaLibraryOpen(false)} />
+    <StoryViewOverlay open={storyViewOpen} onClose={() => setStoryViewOpen(false)} />
     </>
   );
 }
