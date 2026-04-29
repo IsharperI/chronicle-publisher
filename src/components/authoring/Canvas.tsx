@@ -674,8 +674,15 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
               }}
             >
               {activeCaption}
-            </span>
           </div>
+        )}
+
+        {/* Quiz / Results slide overlays — fixed centered layout */}
+        {activeSlide?.slideType === 'quiz' && activeSlide.quiz && (
+          <QuizSlideOverlay slide={activeSlide} isPreview={isPreview} />
+        )}
+        {activeSlide?.slideType === 'results' && activeSlide.results && (
+          <ResultsSlideOverlay slide={activeSlide} isPreview={isPreview} />
         )}
       </div>
 
