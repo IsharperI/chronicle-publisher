@@ -320,10 +320,10 @@ export function Ribbon() {
               key={tab}
               onClick={() => setActiveTab(tab)}
               className={cn(
-                'px-4 py-1.5 text-xs font-medium transition-colors rounded-t border-b-2',
+                'px-4 py-1.5 text-xs font-medium transition-colors border-t-2',
                 activeTab === tab
-                  ? 'border-primary text-foreground bg-card'
-                  : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-accent/50'
+                  ? 'bg-white border-blue-600 text-blue-600'
+                  : 'bg-sky-50/60 border-transparent text-slate-500 hover:text-slate-700'
               )}
             >
               {tab}
