@@ -684,6 +684,11 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
           </div>
         )}
 
+        {/* Motion-path overlay (editor + dotted previews) — only in editor view */}
+        {!isPreview && (
+          <MotionPathLayer canvasW={CANVAS_W} canvasH={CANVAS_H} scale={scale} elements={editElements} />
+        )}
+
         {/* Quiz / Results slide overlays — fixed centered layout */}
         {activeSlide?.slideType === 'quiz' && activeSlide.quiz && (
           <QuizSlideOverlay slide={activeSlide} isPreview={isPreview} />
