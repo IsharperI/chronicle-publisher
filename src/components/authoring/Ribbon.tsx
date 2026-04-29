@@ -322,8 +322,8 @@ export function Ribbon() {
               className={cn(
                 'px-4 py-1.5 text-xs font-medium transition-colors border-t-2',
                 activeTab === tab
-                  ? 'bg-white border-blue-600 text-blue-600'
-                  : 'bg-sky-50/60 border-transparent text-slate-500 hover:text-slate-700'
+                  ? 'bg-white border-blue-600 text-slate-800'
+                  : 'bg-blue-500 border-transparent text-slate-900 hover:bg-blue-400'
               )}
             >
               {tab}
