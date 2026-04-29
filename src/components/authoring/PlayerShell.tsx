@@ -13,9 +13,6 @@ interface PlayerShellProps {
   /** When true, disables interactive nav/play actions (used for static previews). */
   interactive?: boolean;
 }
-  /** When true, disables interactive nav/play actions (used for static previews). */
-  interactive?: boolean;
-}
 
 /**
  * Articulate Storyline–style player shell wrapping the Canvas during preview.
