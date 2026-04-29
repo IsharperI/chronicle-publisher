@@ -154,12 +154,25 @@ function ColorField({ label, value, onChange, themeColors }: { label: string; va
   const isTransparent = value === 'transparent';
   const resolvedHex = resolveColor(value, palette, '#ffffff');
   const pickerValue = (resolvedHex && resolvedHex !== 'transparent') ? resolvedHex : '#ffffff';
+  // Friendly display: show "theme-primary" instead of "var(--theme-primary)".
+  const displayValue = themeIdx >= 0
+    ? (value.match(/^var\(\s*--(theme-[a-z0-9-]+)\s*\)$/i)?.[1] ?? value)
+    : value;
+  const handleTextChange = (raw: string) => {
+    const trimmed = raw.trim();
+    const m = trimmed.match(/^--?(theme-[a-z0-9-]+)$/i) ?? trimmed.match(/^(theme-[a-z0-9-]+)$/i);
+    if (m) {
+      onChange(`var(--${m[1].toLowerCase()})`);
+    } else {
+      onChange(raw);
+    }
+  };
   return (
     <div className="space-y-1">
       <Label className="text-xs">{label}</Label>
       <div className="flex gap-2">
         <input type="color" value={pickerValue.startsWith('#') ? pickerValue : '#ffffff'} onChange={(e) => onChange(e.target.value)} className="h-8 w-8 rounded border cursor-pointer" />
-        <Input value={value} onChange={(e) => onChange(e.target.value)} className="h-8 text-xs flex-1" />
+        <Input value={displayValue} onChange={(e) => handleTextChange(e.target.value)} className="h-8 text-xs flex-1" />
       </div>
       <div className="flex items-center gap-1 flex-wrap">
         <TransparentSwatch active={isTransparent} onClick={() => onChange('transparent')} />
