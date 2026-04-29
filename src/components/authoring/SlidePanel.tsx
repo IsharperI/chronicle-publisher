@@ -263,6 +263,7 @@ export function SlidePanel() {
                     slide={slide}
                     canvasWidth={canvasWidth}
                     canvasHeight={canvasHeight}
+                    themeColors={state.courseSettings.themeColors}
                   />
                 </button>
               </div>
