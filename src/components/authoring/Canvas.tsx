@@ -1011,8 +1011,8 @@ function QuizSlideOverlay({ slide, isPreview }: { slide: Slide; isPreview: boole
                   onClick={primary.onClick}
                   disabled={primary.disabled}
                   style={{
-                    background: '#3b82f6',
-                    color: '#fff',
+                    background: ts.buttonColor,
+                    color: ts.buttonTextColor,
                     fontWeight: 600,
                     padding: '10px 24px',
                     borderRadius: 8,
