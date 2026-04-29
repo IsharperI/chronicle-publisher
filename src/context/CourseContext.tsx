@@ -27,6 +27,9 @@ const defaultQuizConfig = (): QuizConfig => ({
   ],
   correctFeedback: { mode: 'inline', message: 'Correct!' },
   incorrectFeedback: { mode: 'inline', message: 'Not quite. Try again.' },
+  attempts: 1,
+  attemptsExhaustedBehavior: 'reveal',
+  quizRevisitMode: 'reset',
 });
 
 const defaultResultsConfig = (): ResultsConfig => ({
@@ -72,6 +75,7 @@ const initialState: CourseState = {
   quizResults: {},
   quizAnswers: {},
   quizFeedbackOpen: null,
+  quizAttemptsRemaining: {},
 };
 
 type Action =
