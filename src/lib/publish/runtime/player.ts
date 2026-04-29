@@ -600,17 +600,37 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
       else if(rs==="completed-incomplete"){status=passed?"completed":"incomplete"}
       else{status=passed?"passed":"incomplete"}
       LMS.setStatus(status);
+      if(LMS.commit)LMS.commit();
       courseCompletionReported=true;
     }catch(e){}
+  }
+
+  function computeQuizScore(){
+    var totalQuiz=0,correct=0;
+    for(var i=0;i<slides.length;i++){
+      if(slides[i].slideType==="quiz"){
+        totalQuiz++;
+        var s=quizState[slides[i].id];
+        if(s&&s.correct)correct++;
+      }
+    }
+    var pct=totalQuiz>0?Math.round((correct/totalQuiz)*100):0;
+    return {total:totalQuiz,correct:correct,pct:pct};
   }
 
   function reportCompletion(){
     if(courseCompletionReported)return;
     courseCompletionReported=true;
     try{
+      var sc=computeQuizScore();
+      LMS.setScore(sc.total>0?(sc.correct/sc.total):0, sc.pct, 0, 100);
       var rs=PUB.reportStatus||"passed-incomplete";
-      var status=(rs==="completed-incomplete")?"completed":"passed";
+      var status;
+      if(rs==="passed-failed"){ status="passed"; }
+      else if(rs==="completed-incomplete"){ status="completed"; }
+      else { status="passed"; }
       LMS.setStatus(status);
+      if(LMS.commit)LMS.commit();
     }catch(e){}
   }
 
