@@ -135,6 +135,11 @@ export interface SlideAudio {
 
 export type SlideTransitionType = 'none' | 'fade' | 'push-up' | 'push-left' | 'zoom-in';
 
+/** How the slide advances when its internal timeline reaches the end. */
+export type SlideAdvanceMode = 'manual' | 'auto';
+/** What happens when the user navigates back to a previously visited slide. */
+export type SlideRevisitMode = 'reset' | 'resume';
+
 export interface Slide {
   id: string;
   elements: SlideElement[];
@@ -146,6 +151,10 @@ export interface Slide {
   transitionType?: SlideTransitionType;
   /** Transition duration in seconds. Default 0.5. */
   transitionDuration?: number;
+  /** When timeline ends: 'manual' waits for Next click, 'auto' advances. */
+  advanceMode?: SlideAdvanceMode;
+  /** When revisiting: 'reset' rewinds to 0, 'resume' keeps last playhead. */
+  revisitMode?: SlideRevisitMode;
 }
 
 export type NavigationMode = 'free' | 'restricted';
