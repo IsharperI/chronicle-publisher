@@ -268,7 +268,7 @@ function courseReducer(state: CourseState, action: Action): CourseState {
       };
     }
     case 'SET_PREVIEW_MODE':
-      return { ...state, previewMode: action.enabled, activeElementId: null, selectedElementIds: [], activeSlideIndex: action.enabled ? 0 : state.activeSlideIndex, playheadTime: 0, isPlaying: action.enabled, viewMode: action.enabled ? 'main' : state.viewMode };
+      return { ...state, previewMode: action.enabled, activeElementId: null, selectedElementIds: [], activeSlideIndex: action.enabled ? 0 : state.activeSlideIndex, playheadTime: 0, isPlaying: action.enabled ? true : false, viewMode: action.enabled ? 'main' : state.viewMode };
     case 'PREVIEW_NEXT':
       return { ...state, activeSlideIndex: Math.min(state.activeSlideIndex + 1, state.slides.length - 1) };
     case 'PREVIEW_PREV':
