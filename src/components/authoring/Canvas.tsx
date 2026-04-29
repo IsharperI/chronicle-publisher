@@ -674,6 +674,7 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
               }}
             >
               {activeCaption}
+            </span>
           </div>
         )}
 
