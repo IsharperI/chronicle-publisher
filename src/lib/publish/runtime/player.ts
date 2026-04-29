@@ -205,14 +205,20 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
         var b=document.createElement("button");
         b.type="button";
         var t=slides[idx]&&slides[idx].title;
-        b.textContent=(t&&(""+t).replace(/^\\s+|\\s+$/g,""))||("Slide "+(idx+1));
-        if(idx===current)b.className="active";
+        var label=(t&&(""+t).replace(/^\\s+|\\s+$/g,""))||("Slide "+(idx+1));
+        var sid=slides[idx]&&slides[idx].id;
+        var classes=[];
+        if(idx===current)classes.push("active");
+        if(sid&&visited[sid])classes.push("visited");
+        if(classes.length)b.className=classes.join(" ");
+        b.innerHTML='<span class="check" aria-hidden="true">\\u2713</span>'+escapeHtml(label);
         b.onclick=function(){goTo(idx)};
         li.appendChild(b);
         slideListEl.appendChild(li);
       })(i);
     }
   }
+  function escapeHtml(s){return String(s).replace(/[&<>"']/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}
 
   function updateNotes(){
     if(!notesPane)return;
