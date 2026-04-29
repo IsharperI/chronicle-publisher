@@ -9,14 +9,14 @@ import { Label } from '@/components/ui/label';
 import { exportScorm } from '@/lib/exportScorm';
 import { useCourse } from '@/context/CourseContext';
 import { cn } from '@/lib/utils';
-import type { TextElement, ImageElement, ShapeElement, VideoElement, SlideAudio, SlideTransitionType, HotspotElement, CheckboxElement, SlideElement, TableElement } from '@/types/course';
+import type { TextElement, ImageElement, ShapeElement, VideoElement, SlideAudio, SlideTransitionType, HotspotElement, CheckboxElement, SlideElement, TableElement, AnimationIn, AnimationOut } from '@/types/course';
 import { Separator } from '@/components/ui/separator';
 import { PlayerSettingsModal } from './PlayerSettingsModal';
 import { sanitizeSlides, sanitizePlayerSettings, sanitizeCourseSettings } from '@/lib/sanitize';
 
 import { StorySizeControl, ThemeColorsControl } from './DesignControls';
 
-const TABS = ['Home', 'Insert', 'Design', 'Transitions', 'View'] as const;
+const TABS = ['Home', 'Insert', 'Design', 'Transitions', 'Animations', 'View'] as const;
 type RibbonTab = typeof TABS[number];
 
 export function Ribbon() {
@@ -459,6 +459,10 @@ export function Ribbon() {
 
         {activeTab === 'Transitions' && (
           <TransitionsTab />
+        )}
+
+        {activeTab === 'Animations' && (
+          <AnimationsTab />
         )}
 
         {activeTab === 'View' && (
