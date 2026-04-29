@@ -323,7 +323,7 @@ export function Ribbon() {
                 'px-4 py-1.5 text-xs font-medium transition-colors border-t-2',
                 activeTab === tab
                   ? 'bg-white border-blue-600 text-slate-800'
-                  : 'bg-blue-500 border-transparent text-slate-900 hover:bg-blue-400'
+                  : 'bg-slate-100 border-transparent text-slate-600 hover:bg-slate-200'
               )}
             >
               {tab}
