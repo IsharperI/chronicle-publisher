@@ -20,7 +20,7 @@ import { sanitizeSlides, sanitizePlayerSettings, sanitizeCourseSettings } from '
 import { StorySizeControl, ThemeColorsControl } from './DesignControls';
 import { QuizTemplatesTab } from './QuizTemplatesTabContainer';
 
-const TABS = ['Home', 'Insert', 'Design', 'Transitions', 'Animations', 'View', 'Test Settings'] as const;
+const TABS = ['Home', 'Insert', 'Design', 'Transitions', 'Animations', 'View', 'Quiz'] as const;
 type RibbonTab = typeof TABS[number];
 
 export function Ribbon() {
@@ -42,7 +42,9 @@ export function Ribbon() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'course-project.json';
+    const rawName = (state.playerSettings?.courseTitle || '').trim();
+    const slug = rawName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60);
+    a.download = `${slug || 'course-project'}.json`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -349,7 +351,7 @@ export function Ribbon() {
       </div>
 
       {/* Ribbon content area */}
-      <div className={cn("flex items-center px-4 gap-1", activeTab === 'Test Settings' ? "hidden" : "h-[72px]")}>
+      <div className={cn("flex items-center px-4 gap-1", activeTab === 'Quiz' ? "hidden" : "h-[72px]")}>
         {activeTab === 'Home' && (
           <>
             <RibbonGroup label="File">
@@ -419,11 +421,6 @@ export function Ribbon() {
             <Separator orientation="vertical" className="h-12 mx-2" />
             <RibbonGroup label="Data">
               <TableInsertPopover onInsert={addTable} />
-            </RibbonGroup>
-            <Separator orientation="vertical" className="h-12 mx-2" />
-            <RibbonGroup label="Quiz">
-              <RibbonButton icon={HelpCircle} label="Quiz Slide" onClick={() => dispatch({ type: 'ADD_QUIZ_SLIDE' })} />
-              <RibbonButton icon={Trophy} label="Results Slide" onClick={() => dispatch({ type: 'ADD_RESULTS_SLIDE' })} />
             </RibbonGroup>
           </>
         )}
@@ -509,9 +506,18 @@ export function Ribbon() {
         )}
       </div>
 
-      {activeTab === 'Test Settings' && (
+      {activeTab === 'Quiz' && (
         <div className="bg-white/40 px-4 py-2 max-h-[260px] overflow-y-auto">
-          <QuizTemplatesTab />
+          <div className="flex items-start gap-3">
+            <RibbonGroup label="Slides">
+              <RibbonButton icon={HelpCircle} label="Quiz Slide" onClick={() => dispatch({ type: 'ADD_QUIZ_SLIDE' })} />
+              <RibbonButton icon={Trophy} label="Results Slide" onClick={() => dispatch({ type: 'ADD_RESULTS_SLIDE' })} />
+            </RibbonGroup>
+            <Separator orientation="vertical" className="h-20 mx-1" />
+            <div className="flex-1 min-w-0">
+              <QuizTemplatesTab />
+            </div>
+          </div>
         </div>
       )}
     </div>
