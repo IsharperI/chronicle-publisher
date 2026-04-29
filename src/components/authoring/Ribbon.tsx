@@ -313,6 +313,7 @@ export function Ribbon() {
   }
 
   return (
+    <>
     <div className="glass border-b border-white/60 shrink-0 rounded-none">
       {/* Title bar + Tab row */}
       <div className="h-9 flex items-center px-4 border-b border-white/40 bg-white/30">
