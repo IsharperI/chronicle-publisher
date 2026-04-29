@@ -455,6 +455,7 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
       <div
         style={{
           width: CANVAS_W, height: CANVAS_H,
+          flexShrink: 0,
           transform: `scale(${scale})`, transformOrigin: 'center center',
           ...(state.showGrid && !isPreview ? {
             backgroundImage:
