@@ -250,9 +250,6 @@ export function Ribbon() {
     reader.onload = (ev) => {
       const base64 = ev.target?.result as string;
       const w = 800, h = 450;
-      const { width: cw, height: ch } = state.courseSettings.canvasDimensions;
-      const x = Math.round((cw - w) / 2);
-      const y = Math.round((ch - h) / 2);
 
       const MAX_SLIDE_MS = 600 * 1000; // 10 minute hard cap
       const DEFAULT_MS = 5000;
