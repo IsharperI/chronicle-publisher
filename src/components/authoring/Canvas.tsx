@@ -526,12 +526,15 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
                   }
                 }
               } : undefined;
+              const mpOffset = motionPathOffset(el, state.playheadTime);
+              const baseTransform = mpOffset ? `translate(${mpOffset.dx}px, ${mpOffset.dy}px)` : undefined;
               return (
                 <div
                   key={el.id}
                   className={`${animClass}${hasClickTrigger ? ' cursor-pointer' : ''}`}
                   style={{
                     position: 'absolute', left: el.x, top: el.y, width: el.width, height: el.height, zIndex: 2,
+                    ...(baseTransform ? { transform: baseTransform } : {}),
                     ...(animClass ? { animationDuration: `${animDurMs}ms` } : {}),
                   }}
                   onClick={handleTriggerClick}
