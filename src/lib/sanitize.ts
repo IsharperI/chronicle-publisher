@@ -298,6 +298,7 @@ function sanitizeSlide(raw: any): Slide {
   );
   return {
     id: safeId(raw?.id),
+    title: typeof raw?.title === 'string' ? raw.title.slice(0, 30) : undefined,
     duration: safeNumber(raw?.duration, 5000, 0, 3_600_000),
     masterId: typeof raw?.masterId === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(raw.masterId)
       ? raw.masterId
