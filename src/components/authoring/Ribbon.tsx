@@ -581,8 +581,9 @@ const TRANSITION_OPTIONS: Array<{ type: SlideTransitionType; label: string; icon
 
 function TransitionsTab() {
   const { state, dispatch } = useCourse();
-  const transition = state.courseSettings.transition ?? { type: 'none' as SlideTransitionType, duration: 1 };
+  const transition = state.courseSettings.transition ?? { type: 'fade' as SlideTransitionType, duration: 1, color: '#000000' };
   const tType: SlideTransitionType = transition.type;
+  const tColor = transition.color ?? '#000000';
   // Local buffered input so the user can freely type "1.5" etc. without
   // every keystroke triggering a clamp/global update.
   const [durInput, setDurInput] = useState<string>(String(transition.duration));
@@ -592,7 +593,14 @@ function TransitionsTab() {
   const setType = (type: SlideTransitionType) => {
     dispatch({
       type: 'UPDATE_COURSE_SETTINGS',
-      updates: { transition: { type, duration: transition.duration } },
+      updates: { transition: { type, duration: transition.duration, color: tColor } },
+    });
+  };
+
+  const setColor = (color: string) => {
+    dispatch({
+      type: 'UPDATE_COURSE_SETTINGS',
+      updates: { transition: { type: tType, duration: transition.duration, color } },
     });
   };
 
@@ -602,7 +610,7 @@ function TransitionsTab() {
     setDurInput(String(next));
     dispatch({
       type: 'UPDATE_COURSE_SETTINGS',
-      updates: { transition: { type: tType, duration: next } },
+      updates: { transition: { type: tType, duration: next, color: tColor } },
     });
   };
 
@@ -650,6 +658,29 @@ function TransitionsTab() {
             onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
             className="h-7 w-24 rounded border bg-background px-2 text-xs"
           />
+        </div>
+      </RibbonGroup>
+
+      <Separator orientation="vertical" className="h-12 mx-2" />
+
+      <RibbonGroup label="Fade Color">
+        <div className="flex flex-col gap-1 px-1">
+          <label className="text-[10px] text-muted-foreground font-medium">Fades through</label>
+          <div className="flex items-center gap-1.5">
+            <input
+              type="color"
+              value={tColor}
+              onChange={(e) => setColor(e.target.value)}
+              className="h-7 w-10 rounded border bg-background cursor-pointer p-0.5"
+              aria-label="Transition fade color"
+            />
+            <input
+              type="text"
+              value={tColor}
+              onChange={(e) => setColor(e.target.value)}
+              className="h-7 w-20 rounded border bg-background px-2 text-xs font-mono"
+            />
+          </div>
         </div>
       </RibbonGroup>
     </>
