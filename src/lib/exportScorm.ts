@@ -455,20 +455,62 @@ window.COURSE_DATA=${courseData.replace(/<\/script>/gi, '<\\/script>').replace(/
     timer=setTimeout(function(){unlocked=true;setNavLock(false)},dur);
   }
 
-  function playSlideTransition(){
+  // Active transition cleanup handle so back-to-back slide changes don't
+  // leak orphaned snapshot layers.
+  var transitionTimer=null;
+  var pendingPrev=null;
+  function cleanupTransition(){
+    if(transitionTimer){clearTimeout(transitionTimer);transitionTimer=null}
+    var wrapper=document.getElementById("stage-wrapper");
+    if(wrapper){
+      var olds=wrapper.getElementsByClassName("stage-prev");
+      // Remove from end (live HTMLCollection).
+      while(olds.length){olds[0].parentNode.removeChild(olds[0])}
+    }
+    // Strip transition classes from live stage so normal interaction returns.
+    stage.classList.remove("slide-in-fade","slide-in-push-up","slide-in-push-left","slide-in-zoom-in");
+    stage.style.removeProperty("--slide-trans-dur");
+    pendingPrev=null;
+  }
+
+  // Capture the about-to-be-replaced stage as a static snapshot. Called by
+  // goTo() BEFORE render() wipes the live stage.
+  function captureSnapshot(){
     var wrapper=document.getElementById("stage-wrapper");
     if(!wrapper)return;
     var cs=(data.courseSettings&&data.courseSettings.transition)||{type:"none",duration:1};
+    if((cs.type||"none")==="none")return;
+    cleanupTransition();
+    var snap=stage.cloneNode(true);
+    snap.removeAttribute("id");
+    snap.className="stage-prev";
+    // Match current scaled transform.
+    snap.style.transform=stage.style.transform;
+    wrapper.insertBefore(snap,stage);
+    pendingPrev=snap;
+  }
+
+  // Apply entrance/exit animations after render() has populated the new stage.
+  function playSlideTransition(){
+    var cs=(data.courseSettings&&data.courseSettings.transition)||{type:"none",duration:1};
     var t=cs.type||"none";
     var dur=(typeof cs.duration==="number")?cs.duration:1;
-    // Strip any prior transition class so the animation can replay.
-    wrapper.classList.remove("slide-trans-fade","slide-trans-push-up","slide-trans-push-left","slide-trans-zoom-in");
-    wrapper.style.removeProperty("--slide-trans-dur");
-    if(t==="none")return;
-    // Force reflow before re-adding the class to restart the CSS animation.
-    void wrapper.offsetWidth;
-    wrapper.style.setProperty("--slide-trans-dur",dur+"s");
-    wrapper.classList.add("slide-trans-"+t);
+    if(t==="none"||!pendingPrev){
+      // Nothing to animate (first load or transitions disabled).
+      cleanupTransition();
+      return;
+    }
+    // Force reflow so freshly-added classes start their animation.
+    void stage.offsetWidth;
+    stage.style.setProperty("--slide-trans-dur",dur+"s");
+    stage.classList.add("slide-in-"+t);
+    // Push variants also animate the previous slide out.
+    if(t==="push-up"||t==="push-left"){
+      pendingPrev.style.setProperty("--slide-trans-dur",dur+"s");
+      pendingPrev.classList.add("slide-out-"+t);
+    }
+    var ms=Math.max(0,dur*1000);
+    transitionTimer=setTimeout(cleanupTransition,ms);
   }
 
   function render(){
