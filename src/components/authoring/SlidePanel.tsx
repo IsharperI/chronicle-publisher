@@ -265,6 +265,22 @@ export function SlidePanel() {
                     canvasHeight={canvasHeight}
                     themeColors={state.courseSettings.themeColors}
                   />
+                  {isMain && slide.slideType === 'quiz' && (
+                    <span
+                      className="absolute top-1 right-1 inline-flex items-center justify-center h-5 w-5 rounded-full bg-blue-600 text-white shadow"
+                      title="Quiz slide"
+                    >
+                      <HelpCircle className="h-3 w-3" />
+                    </span>
+                  )}
+                  {isMain && slide.slideType === 'results' && (
+                    <span
+                      className="absolute top-1 right-1 inline-flex items-center justify-center h-5 w-5 rounded-full bg-amber-500 text-white shadow"
+                      title="Results slide"
+                    >
+                      <Trophy className="h-3 w-3" />
+                    </span>
+                  )}
                 </button>
               </div>
             );
