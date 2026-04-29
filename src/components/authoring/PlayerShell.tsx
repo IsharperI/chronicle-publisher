@@ -1,9 +1,9 @@
 import { useCourse } from '@/context/CourseContext';
 import { Canvas } from './Canvas';
 import { ChevronLeft, ChevronRight, Play, Pause, Captions, CaptionsOff, Menu, FileText } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { themeVarStyle } from '@/lib/themeVars';
-import type { PlayerSettings } from '@/types/course';
+import type { PlayerSettings, Slide } from '@/types/course';
 
 type SidebarTab = 'menu' | 'notes';
 
@@ -131,10 +131,13 @@ export function PlayerShell({ playerSettings, interactive = true }: PlayerShellP
         {ps.sidebarPosition === 'left' && sidebar}
         <div className="flex-1 flex min-w-0 overflow-hidden">
           <SlideStage
-            slideKey={slide?.id ?? String(state.activeSlideIndex)}
+            slide={slide}
+            activeSlideIndex={state.activeSlideIndex}
+            slides={state.slides}
             transitionType={state.courseSettings.transition?.type ?? 'none'}
             transitionDuration={state.courseSettings.transition?.duration ?? 1}
             transitionColor={state.courseSettings.transition?.color ?? '#000000'}
+            interactive={interactive}
           />
         </div>
         {ps.sidebarPosition === 'right' && sidebar}
@@ -202,75 +205,165 @@ export function PlayerShell({ playerSettings, interactive = true }: PlayerShellP
  * canvas scaling.
  */
 interface SlideStageProps {
-  slideKey: string;
+  slide: Slide | undefined;
+  activeSlideIndex: number;
+  slides: Slide[];
   transitionType: 'none' | 'fade' | 'push-up' | 'push-left' | 'zoom-in';
   transitionDuration: number;
   transitionColor: string;
+  interactive: boolean;
 }
 
-function SlideStage({ slideKey, transitionType, transitionDuration, transitionColor }: SlideStageProps) {
-  // `phase` controls whether we're at the "from" state (fresh slide just mounted,
-  // pre-animation) or the "to" state (animated into place).
-  const [phase, setPhase] = useState<'to' | 'from'>('to');
-  const prevKeyRef = useRef(slideKey);
+function SlideStage({
+  slide,
+  activeSlideIndex,
+  slides,
+  transitionType,
+  transitionDuration,
+  transitionColor,
+  interactive,
+}: SlideStageProps) {
+  const { dispatch } = useCourse();
+  const currentKey = slide?.id ?? String(activeSlideIndex);
+  const [renderIndex, setRenderIndex] = useState(activeSlideIndex);
+  const [outgoingIndex, setOutgoingIndex] = useState<number | null>(null);
+  const [phase, setPhase] = useState<'idle' | 'animating'>('idle');
+  const [navLocked, setNavLocked] = useState(false);
+  const prevIndexRef = useRef(activeSlideIndex);
+  const timerRef = useRef<number | null>(null);
+
+  const clearTimer = useCallback(() => {
+    if (timerRef.current !== null) {
+      window.clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => () => clearTimer(), [clearTimer]);
 
   useEffect(() => {
-    if (prevKeyRef.current === slideKey) return;
-    prevKeyRef.current = slideKey;
+    if (prevIndexRef.current === activeSlideIndex) return;
+
+    const previousIndex = prevIndexRef.current;
+    prevIndexRef.current = activeSlideIndex;
+    clearTimer();
+
     if (transitionType === 'none' || transitionDuration <= 0) {
-      setPhase('to');
+      setOutgoingIndex(null);
+      setRenderIndex(activeSlideIndex);
+      setPhase('idle');
+      setNavLocked(false);
       return;
     }
-    // Place new slide at "from" state, then on next frame animate to "to".
-    setPhase('from');
-    const raf = requestAnimationFrame(() => {
-      // Double rAF to guarantee the browser commits the "from" styles first.
-      requestAnimationFrame(() => setPhase('to'));
+
+    setOutgoingIndex(previousIndex);
+    setRenderIndex(activeSlideIndex);
+    setNavLocked(true);
+
+    const raf1 = requestAnimationFrame(() => {
+      const raf2 = requestAnimationFrame(() => setPhase('animating'));
+      timerRef.current = window.setTimeout(() => {
+        setOutgoingIndex(null);
+        setPhase('idle');
+        setNavLocked(false);
+        timerRef.current = null;
+      }, Math.max(50, transitionDuration * 1000));
+      return () => cancelAnimationFrame(raf2);
     });
-    return () => cancelAnimationFrame(raf);
-  }, [slideKey, transitionType, transitionDuration]);
+
+    setPhase('idle');
+    return () => cancelAnimationFrame(raf1);
+  }, [activeSlideIndex, transitionDuration, transitionType, clearTimer]);
 
   const durationMs = Math.max(50, transitionDuration * 1000);
+  const outgoingSlide = outgoingIndex != null ? slides[outgoingIndex] : null;
+  const incomingSlide = slides[renderIndex] ?? slide;
 
-  // Compute transform/opacity for the current phase per transition type.
-  let transform = 'none';
-  let opacity = 1;
-  if (transitionType !== 'none' && phase === 'from') {
+  const navigateTo = useCallback((nextIndex: number) => {
+    if (!interactive || navLocked) return;
+    dispatch({ type: 'SET_ACTIVE_SLIDE', index: nextIndex });
+  }, [dispatch, interactive, navLocked]);
+
+  const handlePreviewNext = useCallback(() => {
+    if (!interactive || navLocked) return;
+    dispatch({ type: 'PREVIEW_NEXT' });
+  }, [dispatch, interactive, navLocked]);
+
+  const stageLayerStyle = useMemo(() => {
+    const base: React.CSSProperties = {
+      position: 'absolute',
+      inset: 0,
+      display: 'flex',
+      willChange: 'transform, opacity',
+      transition: `opacity ${durationMs}ms ease, transform ${durationMs}ms ease`,
+      transformOrigin: 'center center',
+      backfaceVisibility: 'hidden',
+    };
+
+    if (transitionType === 'none') return { incoming: { ...base }, outgoing: { ...base } };
+
     switch (transitionType) {
       case 'fade':
-        opacity = 0;
-        break;
+        return {
+          incoming: { ...base, opacity: phase === 'animating' ? 1 : 0 },
+          outgoing: { ...base, opacity: phase === 'animating' ? 0 : 1 },
+        };
       case 'push-up':
-        transform = 'translateY(100%)';
-        break;
+        return {
+          incoming: {
+            ...base,
+            transform: phase === 'animating' ? 'translateY(0%)' : 'translateY(100%)',
+          },
+          outgoing: {
+            ...base,
+            transform: phase === 'animating' ? 'translateY(-100%)' : 'translateY(0%)',
+          },
+        };
       case 'push-left':
-        transform = 'translateX(100%)';
-        break;
+        return {
+          incoming: {
+            ...base,
+            transform: phase === 'animating' ? 'translateX(0%)' : 'translateX(100%)',
+          },
+          outgoing: {
+            ...base,
+            transform: phase === 'animating' ? 'translateX(-100%)' : 'translateX(0%)',
+          },
+        };
       case 'zoom-in':
-        transform = 'scale(0.85)';
-        opacity = 0;
-        break;
+        return {
+          incoming: {
+            ...base,
+            opacity: phase === 'animating' ? 1 : 0,
+            transform: phase === 'animating' ? 'scale(1)' : 'scale(0.86)',
+          },
+          outgoing: {
+            ...base,
+            opacity: phase === 'animating' ? 0 : 1,
+            transform: phase === 'animating' ? 'scale(1.08)' : 'scale(1)',
+          },
+        };
+      default:
+        return { incoming: { ...base }, outgoing: { ...base } };
     }
-  }
-
-  const animatedStyle: React.CSSProperties = {
-    opacity,
-    transform,
-    transition:
-      transitionType === 'none'
-        ? 'none'
-        : `opacity ${durationMs}ms ease-in-out, transform ${durationMs}ms ease-in-out`,
-    willChange: 'transform, opacity',
-  };
+  }, [durationMs, phase, transitionType]);
 
   return (
-    <div
-      className="relative flex-1 min-w-0 overflow-hidden flex"
-      style={{ backgroundColor: transitionColor }}
-    >
-      <div className="flex-1 flex" style={animatedStyle}>
-        <Canvas />
-      </div>
+    <div className="relative flex-1 min-w-0 overflow-hidden flex" style={{ backgroundColor: transitionColor }}>
+      {outgoingSlide && (
+        <div className="pointer-events-none z-10" style={stageLayerStyle.outgoing}>
+          <Canvas key={`outgoing-${outgoingSlide.id}`} />
+        </div>
+      )}
+      {incomingSlide && (
+        <div className="z-20 flex-1" style={outgoingSlide ? stageLayerStyle.incoming : { position: 'absolute', inset: 0, display: 'flex' }}>
+          <Canvas
+            key={`incoming-${incomingSlide.id}`}
+            onPreviewNext={handlePreviewNext}
+          />
+        </div>
+      )}
+      <div className="sr-only" aria-hidden="true">{currentKey}</div>
     </div>
   );
 }
