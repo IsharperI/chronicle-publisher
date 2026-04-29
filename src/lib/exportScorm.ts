@@ -721,6 +721,7 @@ window.COURSE_DATA=${courseData.replace(/<\/script>/gi, '<\\/script>').replace(/
     startAudio(slide);
     setPlaying(true);
     startSlideTimer(startMs);
+    scaleStage();
     if(API){try{API.LMSSetValue("cmi.core.lesson_location",""+current)}catch(e){}}
   }
 
