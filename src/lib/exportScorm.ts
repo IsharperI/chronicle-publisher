@@ -181,11 +181,21 @@ window.COURSE_DATA=${courseData.replace(/<\/script>/gi, '<\\/script>').replace(/
   function scaleStage(){
     var wrapper=document.getElementById("stage-wrapper");
     if(!wrapper)return;
-    var s=wrapper.clientWidth/${dims.width};
+    var w=wrapper.clientWidth;
+    var h=wrapper.clientHeight;
+    if(!w||!h){return}
+    var sx=w/${dims.width};
+    var sy=h/${dims.height};
+    var s=Math.min(sx,sy);
+    if(!isFinite(s)||s<=0)s=1;
     stage.style.transform="scale("+s+")";
   }
   window.addEventListener("resize",scaleStage);
+  window.addEventListener("load",scaleStage);
   scaleStage();
+  // Retry shortly in case layout wasn't ready on first call.
+  setTimeout(scaleStage,0);
+  setTimeout(scaleStage,100);
 
   function buildMenu(){
     if(!slideListEl)return;
@@ -711,6 +721,7 @@ window.COURSE_DATA=${courseData.replace(/<\/script>/gi, '<\\/script>').replace(/
     startAudio(slide);
     setPlaying(true);
     startSlideTimer(startMs);
+    scaleStage();
     if(API){try{API.LMSSetValue("cmi.core.lesson_location",""+current)}catch(e){}}
   }
 
