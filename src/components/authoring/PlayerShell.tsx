@@ -188,7 +188,18 @@ export function PlayerShell({ playerSettings, interactive = true }: PlayerShellP
       style={{ ...themeVarStyle(state.courseSettings.themeColors), ...bgStyle, fontFamily: ps.fontFamily }}
     >
       {/* Top bar */}
-      <header className="h-12 shrink-0 flex items-center px-5 border-b border-white/10 bg-black/30 backdrop-blur-sm">
+      <header className="h-12 shrink-0 flex items-center gap-3 px-5 border-b border-white/10 bg-black/30 backdrop-blur-sm">
+        {sidebarVisible && (
+          <button
+            type="button"
+            onClick={() => setSidebarOpen((v) => !v)}
+            className="text-white/80 hover:text-white p-1 rounded hover:bg-white/10 transition-colors"
+            aria-label={sidebarOpen ? 'Collapse menu' : 'Expand menu'}
+            title={sidebarOpen ? 'Collapse menu' : 'Expand menu'}
+          >
+            {sidebarOpen ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeftOpen className="h-4 w-4" />}
+          </button>
+        )}
         <h1 className="text-sm font-semibold tracking-wide truncate">
           {ps.courseTitle || 'Untitled Course'}
         </h1>
