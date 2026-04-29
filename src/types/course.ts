@@ -212,6 +212,12 @@ export interface Slide {
   advanceMode?: SlideAdvanceMode;
   /** When revisiting: 'reset' rewinds to 0, 'resume' keeps last playhead. */
   revisitMode?: SlideRevisitMode;
+  /** Slide kind. Defaults to 'content' when omitted. */
+  slideType?: SlideKind;
+  /** Quiz configuration; only used when slideType === 'quiz'. */
+  quiz?: QuizConfig;
+  /** Results configuration; only used when slideType === 'results'. */
+  results?: ResultsConfig;
 }
 
 export type NavigationMode = 'free' | 'restricted';
