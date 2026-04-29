@@ -343,7 +343,7 @@ export function PublishDialog({ open, onOpenChange }: Props) {
                       >
                         <SelectTrigger className="w-72"><SelectValue placeholder={quizSlides.length === 0 ? 'No quiz slides' : 'Any quiz'} /></SelectTrigger>
                         <SelectContent>
-                          {quizSlides.map((s, i) => (
+                          {quizSlides.map((s) => (
                             <SelectItem key={s.id} value={s.id}>
                               {s.title || `Quiz slide ${state.slides.indexOf(s) + 1}`}
                             </SelectItem>
