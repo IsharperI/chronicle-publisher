@@ -171,12 +171,18 @@ window.COURSE_DATA=${courseData.replace(/<\/script>/gi, '<\\/script>').replace(/
   var tabNotesBtn=document.getElementById("tab-notes");
   var ppBtn=document.getElementById("playpause");
 
+  // Apply transition fade-through-color to wrapper background.
+  (function(){
+    var wrapper=document.getElementById("stage-wrapper");
+    var cs=(data.courseSettings&&data.courseSettings.transition)||{type:"fade",duration:1,color:"#000000"};
+    if(wrapper)wrapper.style.background=cs.color||"#000000";
+  })();
+
   function scaleStage(){
     var wrapper=document.getElementById("stage-wrapper");
+    if(!wrapper)return;
     var s=wrapper.clientWidth/${dims.width};
     stage.style.transform="scale("+s+")";
-    var prevs=wrapper.getElementsByClassName("stage-prev");
-    for(var i=0;i<prevs.length;i++){prevs[i].style.transform="scale("+s+")"}
   }
   window.addEventListener("resize",scaleStage);
   scaleStage();
