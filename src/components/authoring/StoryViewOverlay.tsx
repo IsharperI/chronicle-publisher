@@ -123,12 +123,12 @@ export function StoryViewOverlay({ open, onClose }: { open: boolean; onClose: ()
       aria-label="Course Tree"
     >
       <div className="h-14 border-b border-border flex items-center px-6 shrink-0">
-        <h2 className="text-lg font-semibold text-foreground">Story View</h2>
+        <h2 className="text-lg font-semibold text-foreground">Course Tree</h2>
         <span className="ml-3 text-xs text-muted-foreground">
           {state.slides.length} slides · read-only
         </span>
         <div className="flex-1" />
-        <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close story view">
+        <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close course tree">
           <X className="h-5 w-5" />
         </Button>
       </div>
