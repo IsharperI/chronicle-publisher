@@ -27,6 +27,9 @@ const defaultQuizConfig = (): QuizConfig => ({
   ],
   correctFeedback: { mode: 'inline', message: 'Correct!' },
   incorrectFeedback: { mode: 'inline', message: 'Not quite. Try again.' },
+  attempts: 1,
+  attemptsExhaustedBehavior: 'reveal',
+  quizRevisitMode: 'reset',
 });
 
 const defaultResultsConfig = (): ResultsConfig => ({
@@ -72,6 +75,7 @@ const initialState: CourseState = {
   quizResults: {},
   quizAnswers: {},
   quizFeedbackOpen: null,
+  quizAttemptsRemaining: {},
 };
 
 type Action =
@@ -117,7 +121,10 @@ type Action =
   | { type: 'SUBMIT_QUIZ'; slideId: string; correct: boolean }
   | { type: 'OPEN_QUIZ_FEEDBACK'; slideId: string; correct: boolean }
   | { type: 'CLOSE_QUIZ_FEEDBACK' }
-  | { type: 'RESET_QUIZ_PROGRESS' };
+  | { type: 'RESET_QUIZ_PROGRESS' }
+  | { type: 'INIT_QUIZ_ATTEMPTS'; slideId: string; attempts: number }
+  | { type: 'CONSUME_QUIZ_ATTEMPT'; slideId: string }
+  | { type: 'RESET_QUIZ_SLIDE_PROGRESS'; slideId: string };
 
 function getActiveSlides(state: CourseState): Slide[] {
   return state.viewMode === 'master' ? state.masterSlides : state.slides;
@@ -333,6 +340,7 @@ function courseReducer(state: CourseState, action: Action): CourseState {
         quizResults: {},
         quizAnswers: {},
         quizFeedbackOpen: null,
+        quizAttemptsRemaining: {},
       };
     case 'PREVIEW_NEXT':
       return { ...state, activeSlideIndex: Math.min(state.activeSlideIndex + 1, state.slides.length - 1) };
@@ -474,7 +482,36 @@ function courseReducer(state: CourseState, action: Action): CourseState {
     case 'CLOSE_QUIZ_FEEDBACK':
       return { ...state, quizFeedbackOpen: null };
     case 'RESET_QUIZ_PROGRESS':
-      return { ...state, quizAnswers: {}, quizResults: {}, quizFeedbackOpen: null };
+      return { ...state, quizAnswers: {}, quizResults: {}, quizFeedbackOpen: null, quizAttemptsRemaining: {} };
+    case 'INIT_QUIZ_ATTEMPTS':
+      // Only set if not already initialized for this slide.
+      if (state.quizAttemptsRemaining[action.slideId] != null) return state;
+      return {
+        ...state,
+        quizAttemptsRemaining: { ...state.quizAttemptsRemaining, [action.slideId]: action.attempts },
+      };
+    case 'CONSUME_QUIZ_ATTEMPT': {
+      const cur = state.quizAttemptsRemaining[action.slideId];
+      if (cur == null) return state;
+      // Unlimited (Infinity) stays unlimited.
+      if (!Number.isFinite(cur)) return state;
+      return {
+        ...state,
+        quizAttemptsRemaining: { ...state.quizAttemptsRemaining, [action.slideId]: Math.max(0, cur - 1) },
+      };
+    }
+    case 'RESET_QUIZ_SLIDE_PROGRESS': {
+      const { [action.slideId]: _a, ...restAns } = state.quizAnswers;
+      const { [action.slideId]: _r, ...restRes } = state.quizResults;
+      const { [action.slideId]: _at, ...restAtt } = state.quizAttemptsRemaining;
+      return {
+        ...state,
+        quizAnswers: restAns,
+        quizResults: restRes,
+        quizAttemptsRemaining: restAtt,
+        quizFeedbackOpen: state.quizFeedbackOpen?.slideId === action.slideId ? null : state.quizFeedbackOpen,
+      };
+    }
     default:
       return state;
   }

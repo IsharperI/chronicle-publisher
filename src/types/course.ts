@@ -167,6 +167,11 @@ export interface QuizFeedbackTarget {
   targetSlideId?: string;
 }
 
+/** What happens after a learner exhausts all quiz attempts without succeeding. */
+export type QuizExhaustedBehavior = 'reveal' | 'lock';
+/** Quiz-specific revisit behavior: reset answer/attempts, or resume saved state. */
+export type QuizRevisitMode = 'reset' | 'resume';
+
 export interface QuizConfig {
   questionType: QuizQuestionType;
   question: string;
@@ -181,6 +186,12 @@ export interface QuizConfig {
   /** Per-outcome feedback configuration. */
   correctFeedback: QuizFeedbackTarget;
   incorrectFeedback: QuizFeedbackTarget;
+  /** Max attempts (1–10). 0 = unlimited. Defaults to 1. */
+  attempts?: number;
+  /** Behavior after attempts are exhausted without a correct answer. */
+  attemptsExhaustedBehavior?: QuizExhaustedBehavior;
+  /** Quiz-specific revisit mode (separate from regular slide revisitMode). */
+  quizRevisitMode?: QuizRevisitMode;
 }
 
 export interface ResultsConfig {
@@ -319,4 +330,6 @@ export interface CourseState {
   quizAnswers: Record<string, unknown>;
   /** Runtime: which quiz slide currently has its feedback overlay open. */
   quizFeedbackOpen: { slideId: string; correct: boolean } | null;
+  /** Runtime (preview/player): attempts remaining per quiz slide. */
+  quizAttemptsRemaining: Record<string, number>;
 }
