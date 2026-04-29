@@ -837,7 +837,9 @@ function QuizEditor({ slide, index, allSlides }: { slide: Slide; index: number; 
     dispatch({ type: 'UPDATE_QUIZ', index, updates });
   };
 
-  const otherSlides = allSlides.filter((s) => s.id !== slide.id);
+  const otherSlides = allSlides
+    .map((s, i) => ({ slide: s, label: s.title?.trim() || `Slide ${i + 1}` }))
+    .filter(({ slide: s }) => s.id !== slide.id);
 
   return (
     <div className="space-y-3 pt-2 border-t">
@@ -1134,7 +1136,7 @@ function SortEditor({ quiz, update }: { quiz: QuizConfig; update: (u: Partial<Qu
   );
 }
 
-function FeedbackEditor({ target, otherSlides, onChange }: { target: QuizFeedbackTarget; otherSlides: Slide[]; onChange: (t: QuizFeedbackTarget) => void }) {
+function FeedbackEditor({ target, otherSlides, onChange }: { target: QuizFeedbackTarget; otherSlides: { slide: Slide; label: string }[]; onChange: (t: QuizFeedbackTarget) => void }) {
   return (
     <div className="space-y-1.5">
       <Select value={target.mode} onValueChange={(v) => onChange({ ...target, mode: v as QuizFeedbackMode })}>
@@ -1157,8 +1159,8 @@ function FeedbackEditor({ target, otherSlides, onChange }: { target: QuizFeedbac
         <Select value={target.targetSlideId ?? ''} onValueChange={(v) => onChange({ ...target, targetSlideId: v })}>
           <SelectTrigger className="h-8 text-xs bg-white text-slate-800"><SelectValue placeholder="Select slide…" /></SelectTrigger>
           <SelectContent>
-            {otherSlides.map((s, i) => (
-              <SelectItem key={s.id} value={s.id}>{s.title || `Slide ${i + 1}`}</SelectItem>
+            {otherSlides.map(({ slide: s, label }) => (
+              <SelectItem key={s.id} value={s.id}>{label}</SelectItem>
             ))}
           </SelectContent>
         </Select>
