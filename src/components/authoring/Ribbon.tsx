@@ -28,6 +28,7 @@ export function Ribbon() {
   const [alignMode, setAlignMode] = useState<'canvas' | 'selection'>('canvas');
   const [playerSettingsOpen, setPlayerSettingsOpen] = useState(false);
   const [mediaLibraryOpen, setMediaLibraryOpen] = useState(false);
+  const [storyViewOpen, setStoryViewOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const audioInputRef = useRef<HTMLInputElement>(null);
