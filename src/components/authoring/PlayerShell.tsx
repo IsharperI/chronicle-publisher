@@ -266,6 +266,8 @@ interface SlideStageProps {
 }
 
 function SlideStage({ transitionType, transitionDuration, transitionColor, phase, onPreviewNext }: SlideStageProps) {
+  const { state } = useCourse();
+  const { width: canvasW, height: canvasH } = state.courseSettings.canvasDimensions;
   const halfMs = Math.max(50, (transitionDuration * 1000) / 2);
   const animatedStyle: React.CSSProperties = {
     width: '100%',
@@ -316,28 +318,25 @@ function SlideStage({ transitionType, transitionDuration, transitionColor, phase
       className="relative flex-1 min-w-0 overflow-hidden flex items-center justify-center p-4"
       style={{ backgroundColor: transitionColor }}
     >
-      {/* Lock the slide canvas to a 4:3 aspect ratio so it never collapses
-          into a square regardless of the available stage size. The inner
-          Canvas uses transform:scale based on this container's measured
-          width/height, so enforcing the ratio here is sufficient. */}
+      {/* Lock the slide stage to the configured canvas aspect ratio so it
+          matches the editor canvas (e.g. 4:3 → 1024×768, 16:9 → 1920×1080,
+          or any custom size). The inner Canvas uses transform:scale based
+          on this container's measured size, so enforcing the ratio here
+          guarantees the preview never collapses or stretches. */}
       <div
         className="relative"
         style={{
           ...animatedStyle,
-          aspectRatio: '4 / 3',
+          aspectRatio: `${canvasW} / ${canvasH}`,
           width: 'auto',
           height: 'auto',
           maxWidth: '100%',
           maxHeight: '100%',
-          // Fill whichever dimension is the limiting one.
           flex: '0 1 auto',
-          // Prefer width-driven sizing; height derives from aspect-ratio.
-          // Using both maxes plus aspect-ratio yields a contained 4:3 box.
           minWidth: 0,
           minHeight: 0,
         }}
       >
-        {/* Spacer trick: a 4:3 box that fills available space */}
         <div style={{ width: '100%', height: '100%', display: 'flex' }}>
           <Canvas onPreviewNext={onPreviewNext} />
         </div>
