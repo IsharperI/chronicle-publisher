@@ -99,7 +99,7 @@ function SlideDurationControl({ valueMs, onChangeMs }: { valueMs: number; onChan
                 (e.target as HTMLInputElement).blur();
               }
             }}
-            className="h-8 text-xs pr-5"
+            className="h-8 text-xs pr-5 bg-white text-slate-800"
             aria-label="Slide duration (seconds)"
           />
           <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground pointer-events-none">s</span>
@@ -352,7 +352,7 @@ export function PropertiesPanel() {
                 value={activeSlide?.advanceMode ?? 'manual'}
                 onValueChange={(v) => dispatch({ type: 'UPDATE_SLIDE', index: state.activeSlideIndex, updates: { advanceMode: v as 'manual' | 'auto' } })}
               >
-                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-8 text-xs bg-white text-slate-800"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="manual">By user (manual)</SelectItem>
                   <SelectItem value="auto">Automatically</SelectItem>
@@ -367,7 +367,7 @@ export function PropertiesPanel() {
                 value={activeSlide?.revisitMode ?? 'reset'}
                 onValueChange={(v) => dispatch({ type: 'UPDATE_SLIDE', index: state.activeSlideIndex, updates: { revisitMode: v as 'reset' | 'resume' } })}
               >
-                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-8 text-xs bg-white text-slate-800"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="reset">Reset to initial state</SelectItem>
                   <SelectItem value="resume">Resume saved state</SelectItem>
@@ -382,7 +382,7 @@ export function PropertiesPanel() {
                 <Textarea
                   value={activeSlide?.notes ?? ''}
                   onChange={(e) => dispatch({ type: 'UPDATE_SLIDE', index: state.activeSlideIndex, updates: { notes: e.target.value } })}
-                  className="text-xs min-h-[80px]"
+                  className="text-xs min-h-[80px] bg-white text-slate-800"
                   placeholder="Speaker notes shown in the player Notes tab…"
                 />
               </div>
