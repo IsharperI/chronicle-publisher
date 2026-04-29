@@ -340,6 +340,23 @@ export function PropertiesPanel() {
             <p className="text-sm font-medium text-foreground">
               {isMasterMode ? 'Master Slide Properties' : 'Slide Properties'}
             </p>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Slide Title</Label>
+              <Input
+                value={activeSlide?.title ?? ''}
+                onChange={(e) => dispatch({
+                  type: 'UPDATE_SLIDE',
+                  index: state.activeSlideIndex,
+                  updates: { title: e.target.value.slice(0, 30) },
+                })}
+                maxLength={30}
+                placeholder={isMasterMode ? `Master ${state.activeSlideIndex + 1}` : `Slide ${state.activeSlideIndex + 1}`}
+                className="h-8 text-xs bg-white text-slate-800"
+              />
+              <p className="text-xs text-muted-foreground">Up to 30 characters. Shown in the slide list and player menu.</p>
+            </div>
+
             <SlideDurationControl
               valueMs={activeSlide?.duration ?? 5000}
               onChangeMs={(v) => dispatch({ type: 'UPDATE_SLIDE', index: state.activeSlideIndex, updates: { duration: v } })}
