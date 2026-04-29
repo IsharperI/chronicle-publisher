@@ -704,3 +704,383 @@ const cornerStyle: React.CSSProperties = {
   border: '1px solid hsl(var(--primary-foreground))',
   borderRadius: 2,
 };
+
+// ============================================================================
+// Quiz Slide Overlay
+// ============================================================================
+
+function gradeQuiz(quiz: QuizConfig, answer: unknown): boolean {
+  if (quiz.questionType === 'multiple-choice') {
+    const selected = new Set(Array.isArray(answer) ? (answer as string[]) : []);
+    const correctIds = new Set((quiz.choices ?? []).filter((c) => c.correct).map((c) => c.id));
+    if (selected.size !== correctIds.size) return false;
+    for (const id of correctIds) if (!selected.has(id)) return false;
+    return true;
+  }
+  if (quiz.questionType === 'dnd-matching') {
+    const map = (answer && typeof answer === 'object') ? (answer as Record<string, string>) : {};
+    for (const p of quiz.pairs ?? []) {
+      if ((map[p.id] ?? '').trim() !== p.right.trim()) return false;
+    }
+    return true;
+  }
+  if (quiz.questionType === 'dnd-sorting') {
+    const order = Array.isArray(answer) ? (answer as string[]) : [];
+    const correct = (quiz.sortItems ?? []).map((i) => i.id);
+    if (order.length !== correct.length) return false;
+    return order.every((id, i) => id === correct[i]);
+  }
+  return false;
+}
+
+function QuizSlideOverlay({ slide, isPreview }: { slide: Slide; isPreview: boolean }) {
+  const { state, dispatch } = useCourse();
+  const quiz = slide.quiz!;
+  const answer = state.quizAnswers[slide.id];
+  const result = state.quizResults[slide.id];
+  const interactive = isPreview && !result?.submitted;
+
+  const setAnswer = (a: unknown) => {
+    if (!isPreview) return;
+    dispatch({ type: 'SET_QUIZ_ANSWER', slideId: slide.id, answer: a });
+  };
+
+  const submit = () => {
+    if (!isPreview) return;
+    const correct = gradeQuiz(quiz, answer);
+    dispatch({ type: 'SUBMIT_QUIZ', slideId: slide.id, correct });
+    const target = correct ? quiz.correctFeedback : quiz.incorrectFeedback;
+    if (target.mode === 'jumpToSlide' && target.targetSlideId) {
+      const idx = state.slides.findIndex((s) => s.id === target.targetSlideId);
+      if (idx >= 0) dispatch({ type: 'SET_ACTIVE_SLIDE', index: idx });
+    } else if (target.mode === 'overlay') {
+      dispatch({ type: 'OPEN_QUIZ_FEEDBACK', slideId: slide.id, correct });
+    }
+    // 'inline' is handled by re-render below.
+  };
+
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        inset: 0,
+        zIndex: 30,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 48,
+        pointerEvents: isPreview ? 'auto' : 'none',
+      }}
+    >
+      <div
+        style={{
+          background: '#ffffff',
+          color: '#0f172a',
+          borderRadius: 12,
+          boxShadow: '0 10px 30px rgba(0,0,0,0.18)',
+          padding: 32,
+          width: '100%',
+          maxWidth: 760,
+          maxHeight: '100%',
+          overflow: 'auto',
+        }}
+      >
+        <h2 style={{ fontSize: 28, fontWeight: 700, marginBottom: 20, lineHeight: 1.2 }}>
+          {quiz.question || 'Untitled question'}
+        </h2>
+
+        {quiz.questionType === 'multiple-choice' && (
+          <MCPlay quiz={quiz} answer={answer as string[] | undefined} onChange={setAnswer} disabled={!interactive} />
+        )}
+        {quiz.questionType === 'dnd-matching' && (
+          <MatchPlay quiz={quiz} answer={answer as Record<string, string> | undefined} onChange={setAnswer} disabled={!interactive} />
+        )}
+        {quiz.questionType === 'dnd-sorting' && (
+          <SortPlay quiz={quiz} answer={answer as string[] | undefined} onChange={setAnswer} disabled={!interactive} />
+        )}
+
+        {/* Inline feedback (after submit) */}
+        {result?.submitted && (
+          (() => {
+            const target = result.correct ? quiz.correctFeedback : quiz.incorrectFeedback;
+            if (target.mode !== 'inline') return null;
+            return (
+              <div
+                style={{
+                  marginTop: 20,
+                  padding: 14,
+                  borderRadius: 8,
+                  background: result.correct ? '#dcfce7' : '#fee2e2',
+                  color: result.correct ? '#166534' : '#991b1b',
+                  fontWeight: 600,
+                }}
+              >
+                {target.message || (result.correct ? 'Correct!' : 'Incorrect.')}
+              </div>
+            );
+          })()
+        )}
+
+        {isPreview && !result?.submitted && (
+          <div style={{ marginTop: 24, display: 'flex', justifyContent: 'flex-end' }}>
+            <button
+              type="button"
+              onClick={submit}
+              disabled={answer == null}
+              style={{
+                background: '#3b82f6',
+                color: '#fff',
+                fontWeight: 600,
+                padding: '10px 24px',
+                borderRadius: 8,
+                opacity: answer == null ? 0.4 : 1,
+                cursor: answer == null ? 'not-allowed' : 'pointer',
+                border: 'none',
+              }}
+            >
+              Submit
+            </button>
+          </div>
+        )}
+        {!isPreview && (
+          <p style={{ marginTop: 18, fontSize: 12, color: '#64748b', fontStyle: 'italic' }}>
+            Editor preview — quiz becomes interactive in Preview / SCORM.
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function MCPlay({ quiz, answer, onChange, disabled }: { quiz: QuizConfig; answer: string[] | undefined; onChange: (a: string[]) => void; disabled: boolean }) {
+  const single = quiz.singleSelect !== false;
+  const choices = quiz.choices ?? [];
+  const selected = new Set(answer ?? []);
+  const toggle = (id: string) => {
+    if (disabled) return;
+    if (single) onChange([id]);
+    else {
+      const next = new Set(selected);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      onChange(Array.from(next));
+    }
+  };
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      {choices.map((c) => {
+        const isOn = selected.has(c.id);
+        return (
+          <label
+            key={c.id}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 12,
+              padding: '10px 14px',
+              border: `2px solid ${isOn ? '#3b82f6' : '#e2e8f0'}`,
+              background: isOn ? '#eff6ff' : '#fff',
+              borderRadius: 8,
+              cursor: disabled ? 'default' : 'pointer',
+              fontSize: 16,
+            }}
+          >
+            <input
+              type={single ? 'radio' : 'checkbox'}
+              name={`mc-${quiz.question}`}
+              checked={isOn}
+              onChange={() => toggle(c.id)}
+              disabled={disabled}
+              style={{ width: 18, height: 18 }}
+            />
+            <span>{c.text}</span>
+          </label>
+        );
+      })}
+    </div>
+  );
+}
+
+function MatchPlay({ quiz, answer, onChange, disabled }: { quiz: QuizConfig; answer: Record<string, string> | undefined; onChange: (a: Record<string, string>) => void; disabled: boolean }) {
+  const pairs = quiz.pairs ?? [];
+  const map = answer ?? {};
+  // Right-side options shuffled deterministically by id.
+  const rights = pairs.map((p) => p.right);
+  const handleDrop = (pairId: string, value: string) => {
+    if (disabled) return;
+    onChange({ ...map, [pairId]: value });
+  };
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', padding: 10, background: '#f1f5f9', borderRadius: 8 }}>
+        {rights.map((r, i) => (
+          <span
+            key={i}
+            draggable={!disabled}
+            onDragStart={(e) => e.dataTransfer.setData('text/plain', r)}
+            style={{
+              padding: '6px 12px',
+              background: '#fff',
+              border: '1px solid #cbd5e1',
+              borderRadius: 6,
+              cursor: disabled ? 'default' : 'grab',
+              fontSize: 14,
+            }}
+          >
+            {r}
+          </span>
+        ))}
+      </div>
+      {pairs.map((p) => (
+        <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ flex: 1, padding: '10px 14px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: 15 }}>
+            {p.left}
+          </div>
+          <span style={{ color: '#64748b' }}>→</span>
+          <div
+            onDragOver={(e) => { if (!disabled) e.preventDefault(); }}
+            onDrop={(e) => { e.preventDefault(); handleDrop(p.id, e.dataTransfer.getData('text/plain')); }}
+            style={{
+              flex: 1, minHeight: 42,
+              padding: '10px 14px',
+              background: map[p.id] ? '#eff6ff' : '#f8fafc',
+              border: `2px dashed ${map[p.id] ? '#3b82f6' : '#cbd5e1'}`,
+              borderRadius: 8,
+              fontSize: 15,
+              color: map[p.id] ? '#0f172a' : '#94a3b8',
+            }}
+          >
+            {map[p.id] || 'Drop match here'}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function SortPlay({ quiz, answer, onChange, disabled }: { quiz: QuizConfig; answer: string[] | undefined; onChange: (a: string[]) => void; disabled: boolean }) {
+  const items = quiz.sortItems ?? [];
+  // Initial display order: shuffled (deterministic by id hash) if no answer yet.
+  const order = answer && answer.length === items.length
+    ? answer
+    : items.slice().sort((a, b) => a.id.localeCompare(b.id)).map((i) => i.id);
+  const byId = new Map(items.map((i) => [i.id, i]));
+
+  const move = (idx: number, dir: -1 | 1) => {
+    if (disabled) return;
+    const swap = idx + dir;
+    if (swap < 0 || swap >= order.length) return;
+    const next = order.slice();
+    [next[idx], next[swap]] = [next[swap], next[idx]];
+    onChange(next);
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {order.map((id, i) => (
+        <div
+          key={id}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 12,
+            padding: '10px 14px',
+            background: '#fff',
+            border: '1px solid #e2e8f0',
+            borderRadius: 8,
+            fontSize: 15,
+          }}
+        >
+          <span style={{ color: '#94a3b8', width: 20 }}>{i + 1}.</span>
+          <span style={{ flex: 1 }}>{byId.get(id)?.text ?? ''}</span>
+          <button type="button" onClick={() => move(i, -1)} disabled={disabled || i === 0} style={{ padding: '4px 10px', border: '1px solid #cbd5e1', background: '#fff', borderRadius: 6, cursor: disabled || i === 0 ? 'not-allowed' : 'pointer' }}>↑</button>
+          <button type="button" onClick={() => move(i, 1)} disabled={disabled || i === order.length - 1} style={{ padding: '4px 10px', border: '1px solid #cbd5e1', background: '#fff', borderRadius: 6, cursor: disabled || i === order.length - 1 ? 'not-allowed' : 'pointer' }}>↓</button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ============================================================================
+// Results Slide Overlay
+// ============================================================================
+
+function ResultsSlideOverlay({ slide, isPreview }: { slide: Slide; isPreview: boolean }) {
+  const { state, dispatch } = useCourse();
+  const cfg = slide.results!;
+  // Compute score across all quiz slides in the course.
+  const quizSlides = state.slides.filter((s) => s.slideType === 'quiz');
+  const total = quizSlides.length;
+  const correct = quizSlides.reduce((acc, s) => acc + (state.quizResults[s.id]?.correct ? 1 : 0), 0);
+  const pct = total > 0 ? (correct / total) * 100 : 0;
+  const passed = pct >= cfg.passThreshold;
+
+  const retake = () => {
+    dispatch({ type: 'RESET_QUIZ_PROGRESS' });
+    const firstQuiz = state.slides.findIndex((s) => s.slideType === 'quiz');
+    if (firstQuiz >= 0) dispatch({ type: 'SET_ACTIVE_SLIDE', index: firstQuiz });
+  };
+
+  return (
+    <div
+      style={{
+        position: 'absolute', inset: 0, zIndex: 30,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: 48,
+        pointerEvents: isPreview ? 'auto' : 'none',
+      }}
+    >
+      <div
+        style={{
+          background: '#fff',
+          color: '#0f172a',
+          borderRadius: 12,
+          boxShadow: '0 10px 30px rgba(0,0,0,0.18)',
+          padding: 40,
+          width: '100%',
+          maxWidth: 600,
+          textAlign: 'center',
+        }}
+      >
+        <h2 style={{ fontSize: 32, fontWeight: 700, marginBottom: 8 }}>Your Results</h2>
+        <p style={{ fontSize: 18, color: '#475569', marginBottom: 24 }}>
+          {isPreview
+            ? `${correct} out of ${total} (${pct.toFixed(0)}%)`
+            : 'Score will be calculated after the learner completes the course.'}
+        </p>
+        {isPreview && (
+          <>
+            <div
+              style={{
+                fontSize: 28,
+                fontWeight: 700,
+                padding: '14px 20px',
+                borderRadius: 10,
+                background: passed ? '#dcfce7' : '#fee2e2',
+                color: passed ? '#166534' : '#991b1b',
+                marginBottom: 20,
+              }}
+            >
+              {passed ? 'PASS' : 'FAIL'}
+            </div>
+            <p style={{ fontSize: 16, marginBottom: 24 }}>
+              {passed ? cfg.passMessage : cfg.failMessage}
+            </p>
+            <button
+              type="button"
+              onClick={retake}
+              style={{
+                background: '#3b82f6', color: '#fff',
+                fontWeight: 600,
+                padding: '10px 28px',
+                borderRadius: 8,
+                border: 'none',
+                cursor: 'pointer',
+              }}
+            >
+              Retake Quiz
+            </button>
+          </>
+        )}
+        <p style={{ marginTop: 18, fontSize: 12, color: '#64748b' }}>
+          Pass threshold: {cfg.passThreshold}%
+        </p>
+      </div>
+    </div>
+  );
+}
