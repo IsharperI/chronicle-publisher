@@ -41,7 +41,12 @@ export function TopNav() {
       <span className="font-semibold text-foreground text-sm">Chronicle Publisher</span>
       <div className="flex-1" />
       {state.previewMode ? (
-        <Button variant="destructive" size="sm" onClick={() => dispatch({ type: 'SET_PREVIEW_MODE', enabled: false })}>
+        <Button variant="destructive" size="sm" onClick={() => {
+          dispatch({ type: 'SET_PREVIEW_MODE', enabled: false });
+          // Defensive: ensure timeline does not auto-play after exiting preview.
+          dispatch({ type: 'SET_PLAYING', playing: false });
+          dispatch({ type: 'SET_PLAYHEAD', time: 0 });
+        }}>
           <X className="h-4 w-4 mr-1" />Exit Preview
         </Button>
       ) : (
