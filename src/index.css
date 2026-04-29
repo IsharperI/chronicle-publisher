@@ -2,95 +2,93 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+/* ============================================================
+   Frutiger Aero / Glossy Glassmorphism design system
+   All colors HSL.
+   ============================================================ */
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* Sky / grass aero gradient backdrop */
+    --background: 200 90% 92%;        /* light sky blue */
+    --foreground: 220 45% 18%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 220 45% 18%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 220 45% 18%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    /* Royal blue primary */
+    --primary: 222 85% 52%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    /* Lime green accent */
+    --secondary: 95 70% 88%;
+    --secondary-foreground: 130 60% 22%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 200 50% 94%;
+    --muted-foreground: 220 25% 40%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 95 75% 55%;             /* lime */
+    --accent-foreground: 130 60% 14%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --border: 210 60% 88%;
+    --input: 210 60% 92%;
+    --ring: 222 85% 52%;
 
-    --radius: 0.5rem;
+    --radius: 0.75rem;
 
-    --sidebar-background: 0 0% 98%;
+    /* Aero highlights */
+    --aero-blue: 222 85% 52%;
+    --aero-lime: 95 75% 55%;
+    --aero-glass: 0 0% 100%;
+    --aero-glass-border: 0 0% 100%;
 
-    --sidebar-foreground: 240 5.3% 26.1%;
+    /* Reusable composites */
+    --gradient-aero: linear-gradient(135deg, hsl(200 95% 85%) 0%, hsl(160 70% 82%) 50%, hsl(95 75% 80%) 100%);
+    --gradient-gel-blue: linear-gradient(180deg, hsl(215 100% 70%) 0%, hsl(222 90% 50%) 50%, hsl(225 95% 42%) 100%);
+    --gradient-gel-lime: linear-gradient(180deg, hsl(85 95% 70%) 0%, hsl(95 80% 50%) 50%, hsl(105 85% 40%) 100%);
+    --gradient-glass: linear-gradient(180deg, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0.55) 50%, rgba(255,255,255,0.45) 100%);
+    --gradient-glass-sheen: linear-gradient(180deg, rgba(255,255,255,0.6) 0%, rgba(255,255,255,0) 50%);
+    --shadow-glass: 0 8px 32px -4px hsl(222 80% 40% / 0.18), 0 2px 8px -2px hsl(222 60% 30% / 0.12);
+    --shadow-gel: 0 4px 10px -2px hsl(222 70% 35% / 0.35), inset 0 1px 1px rgba(255,255,255,0.85), inset 0 -2px 4px rgba(0,0,0,0.12);
+    --shadow-canvas-glow: 0 30px 80px -20px hsl(222 80% 40% / 0.45), 0 12px 30px -10px hsl(160 70% 40% / 0.3);
+    --groove-bg: linear-gradient(180deg, hsl(215 40% 88%) 0%, hsl(215 50% 95%) 100%);
 
-    --sidebar-primary: 240 5.9% 10%;
-
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 220 30% 25%;
+    --sidebar-primary: 222 85% 52%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 200 60% 94%;
+    --sidebar-accent-foreground: 220 45% 18%;
+    --sidebar-border: 210 60% 88%;
+    --sidebar-ring: 222 85% 52%;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --background: 220 50% 10%;
+    --foreground: 200 50% 95%;
+    --card: 220 40% 14%;
+    --card-foreground: 200 50% 95%;
+    --popover: 220 40% 14%;
+    --popover-foreground: 200 50% 95%;
+    --primary: 215 90% 65%;
+    --primary-foreground: 220 50% 10%;
+    --secondary: 220 30% 20%;
+    --secondary-foreground: 200 50% 95%;
+    --muted: 220 30% 18%;
+    --muted-foreground: 215 20% 70%;
+    --accent: 95 70% 50%;
+    --accent-foreground: 220 50% 10%;
+    --destructive: 0 70% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 30% 22%;
+    --input: 220 30% 22%;
+    --ring: 215 90% 65%;
   }
 }
 
@@ -99,12 +97,132 @@ All colors MUST be HSL.
     @apply border-border;
   }
 
+  html, body, #root {
+    height: 100%;
+  }
+
   body {
-    @apply bg-background text-foreground;
+    @apply text-foreground;
+    font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+    font-feature-settings: 'cv11', 'ss01';
+    background:
+      radial-gradient(circle at 15% 10%, hsl(200 100% 88% / 0.9), transparent 55%),
+      radial-gradient(circle at 85% 20%, hsl(180 90% 85% / 0.8), transparent 55%),
+      radial-gradient(circle at 80% 90%, hsl(95 85% 78% / 0.85), transparent 55%),
+      radial-gradient(circle at 20% 90%, hsl(160 85% 82% / 0.85), transparent 55%),
+      linear-gradient(135deg, hsl(200 95% 90%) 0%, hsl(160 70% 88%) 55%, hsl(95 80% 85%) 100%);
+    background-attachment: fixed;
+    min-height: 100vh;
+  }
+
+  h1, h2, h3, h4 {
+    text-shadow: 0 1px 0 rgba(255,255,255,0.7);
+    letter-spacing: -0.01em;
   }
 }
 
-/* Element entrance/exit animations */
+/* ============= Aero utility classes ============= */
+@layer components {
+
+  /* Frosted glass surface used for ribbon, side panels, timeline */
+  .glass {
+    background: var(--gradient-glass);
+    backdrop-filter: blur(14px) saturate(150%);
+    -webkit-backdrop-filter: blur(14px) saturate(150%);
+    border: 1px solid rgba(255, 255, 255, 0.85);
+    box-shadow: var(--shadow-glass);
+    position: relative;
+  }
+  /* Glossy highlight across the top half */
+  .glass::before {
+    content: '';
+    position: absolute;
+    inset: 0 0 50% 0;
+    background: var(--gradient-glass-sheen);
+    pointer-events: none;
+    border-radius: inherit;
+  }
+  .glass > * { position: relative; }
+
+  .glass-strong {
+    background: rgba(255,255,255,0.82);
+    backdrop-filter: blur(18px) saturate(160%);
+    -webkit-backdrop-filter: blur(18px) saturate(160%);
+    border: 1px solid rgba(255,255,255,0.9);
+    box-shadow: var(--shadow-glass);
+  }
+
+  /* Glossy gel pill button (applied via shadcn default variant) */
+  .gel-button {
+    background: var(--gradient-gel-blue);
+    color: white;
+    border: 1px solid hsl(222 90% 35%);
+    border-radius: 9999px !important;
+    box-shadow: var(--shadow-gel);
+    text-shadow: 0 -1px 0 rgba(0,0,0,0.25);
+    transition: transform 0.15s ease, box-shadow 0.2s ease, filter 0.2s ease;
+  }
+  .gel-button:hover:not(:disabled) {
+    transform: translateY(-1px);
+    filter: brightness(1.07) saturate(1.1);
+    box-shadow:
+      0 8px 18px -4px hsl(222 80% 40% / 0.55),
+      0 0 24px hsl(215 100% 70% / 0.55),
+      inset 0 1px 1px rgba(255,255,255,0.85),
+      inset 0 -2px 4px rgba(0,0,0,0.18);
+  }
+  .gel-button:active:not(:disabled) {
+    transform: translateY(0);
+    filter: brightness(0.95);
+  }
+
+  .gel-button-lime {
+    background: var(--gradient-gel-lime);
+    border-color: hsl(105 80% 30%);
+    color: white;
+    text-shadow: 0 -1px 0 rgba(0,0,0,0.25);
+  }
+
+  .gel-button-ghost {
+    background: linear-gradient(180deg, rgba(255,255,255,0.85), rgba(255,255,255,0.55));
+    color: hsl(var(--foreground));
+    border: 1px solid rgba(255,255,255,0.9);
+    border-radius: 9999px;
+    box-shadow:
+      inset 0 1px 1px rgba(255,255,255,0.9),
+      0 2px 6px -1px hsl(222 60% 40% / 0.18);
+    transition: transform 0.15s ease, box-shadow 0.2s ease, background 0.2s ease;
+  }
+  .gel-button-ghost:hover:not(:disabled) {
+    background: linear-gradient(180deg, rgba(255,255,255,1), rgba(255,255,255,0.7));
+    transform: translateY(-1px);
+    box-shadow:
+      inset 0 1px 1px rgba(255,255,255,1),
+      0 6px 16px -2px hsl(215 80% 50% / 0.35);
+  }
+
+  /* Canvas: floating, ambient glow */
+  .canvas-glow {
+    box-shadow: var(--shadow-canvas-glow);
+    border: 1px solid rgba(255,255,255,0.9);
+  }
+
+  /* Timeline groove tracks */
+  .timeline-groove {
+    background: var(--groove-bg);
+    border-radius: 9999px;
+    box-shadow:
+      inset 0 2px 4px hsl(220 30% 50% / 0.3),
+      inset 0 -1px 1px rgba(255,255,255,0.9);
+  }
+
+  /* Subtle text pop on glass */
+  .aero-heading {
+    text-shadow: 0 1px 0 rgba(255,255,255,0.85), 0 0 12px rgba(255,255,255,0.4);
+  }
+}
+
+/* ============= Element entrance/exit animations ============= */
 @keyframes el-fade-in {
   from { opacity: 0; }
   to { opacity: 1; }
@@ -137,10 +255,7 @@ All colors MUST be HSL.
 .anim-fly-out-left { animation: el-fly-out-left 0.5s ease-in forwards; }
 .anim-fly-out-right { animation: el-fly-out-right 0.5s ease-in forwards; }
 
-/* ===== Slide transitions =====
-   Slides are stacked while transitioning. The incoming slide animates IN
-   on top; the outgoing slide stays beneath (fade/zoom) or animates OUT
-   (push variants). */
+/* ============= Slide transitions ============= */
 @keyframes slide-in-fade {
   from { opacity: 0; }
   to   { opacity: 1; }
@@ -172,7 +287,6 @@ All colors MUST be HSL.
 .slide-out-push-up   { animation: slide-out-push-up   var(--slide-trans-dur, 0.5s) ease-out both; }
 .slide-out-push-left { animation: slide-out-push-left var(--slide-trans-dur, 0.5s) ease-out both; }
 
-/* Back-compat aliases (some code still references these). Treat as entrance fade. */
 .slide-trans-fade,
 .slide-trans-push-up,
 .slide-trans-push-left,
