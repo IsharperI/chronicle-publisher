@@ -770,10 +770,19 @@ function AnimationsSection({ element, onUpdate }: { element: SlideElement; onUpd
 }
 
 function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdate: (u: Partial<SlideElement>) => void }) {
+  const { state } = useCourse();
+  const slides = state.slides;
   const triggers = element.triggers ?? [];
   const [newEvent, setNewEvent] = useState('onClick');
   const [newAction, setNewAction] = useState('jumpToSlide');
   const [newTarget, setNewTarget] = useState('');
+  const isSlideAction = newAction === 'jumpToSlide';
+
+  const slideLabel = (id: string) => {
+    const idx = slides.findIndex((s) => s.id === id);
+    if (idx === -1) return id.slice(0, 8);
+    return slides[idx].title || `Slide ${idx + 1}`;
+  };
 
   const addTrigger = () => {
     if (!newTarget) return;
