@@ -195,7 +195,7 @@ window.COURSE_DATA=${courseData.replace(/<\/script>/gi, '<\\/script>').replace(/
         var li=document.createElement("li");
         var b=document.createElement("button");
         b.type="button";
-        b.textContent="Slide "+(idx+1);
+        var t=slides[idx]&&slides[idx].title;b.textContent=(t&&(""+t).replace(/^\s+|\s+$/g,""))||("Slide "+(idx+1));
         if(idx===current)b.className="active";
         b.onclick=function(){goTo(idx)};
         li.appendChild(b);
