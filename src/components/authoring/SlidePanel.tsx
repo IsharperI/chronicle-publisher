@@ -184,7 +184,8 @@ export function SlidePanel() {
         <div className="flex flex-col gap-3 p-3">
           {slides.map((slide, i) => {
             const isActive = i === state.activeSlideIndex;
-            const label = isMain ? `Slide ${i + 1}` : `Master ${i + 1}`;
+            const fallback = isMain ? `Slide ${i + 1}` : `Master ${i + 1}`;
+            const label = slide.title?.trim() || fallback;
             const num = String(i + 1).padStart(2, '0');
             return (
               <div key={slide.id} className="flex flex-col gap-1">
