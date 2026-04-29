@@ -516,6 +516,7 @@ export function Ribbon() {
     </div>
     <MediaLibraryOverlay open={mediaLibraryOpen} onClose={() => setMediaLibraryOpen(false)} />
     <StoryViewOverlay open={storyViewOpen} onClose={() => setStoryViewOpen(false)} />
+    <PublishDialog open={publishOpen} onOpenChange={setPublishOpen} />
     </>
   );
 }
