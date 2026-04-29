@@ -846,6 +846,8 @@ function QuizSlideOverlay({ slide, isPreview }: { slide: Slide; isPreview: boole
   const showRetryHint =
     isPreview && !isLocked && !retryDismissed && remainingRaw != null && remainingRaw < (isUnlimited ? Number.POSITIVE_INFINITY : maxAttempts);
 
+  const ts = resolveQuizStyle(slide.quizStyle);
+
   return (
     <div
       style={{
@@ -857,13 +859,15 @@ function QuizSlideOverlay({ slide, isPreview }: { slide: Slide; isPreview: boole
         justifyContent: 'center',
         padding: 48,
         pointerEvents: isPreview ? 'auto' : 'none',
+        background: ts.pageBackgroundColor,
       }}
     >
       <div
         style={{
-          background: '#ffffff',
-          color: '#0f172a',
-          borderRadius: 12,
+          background: ts.cardBackgroundColor,
+          color: ts.textColor,
+          fontFamily: ts.fontFamily,
+          borderRadius: ts.cardRadius,
           boxShadow: '0 10px 30px rgba(0,0,0,0.18)',
           padding: 32,
           width: '100%',
@@ -872,7 +876,7 @@ function QuizSlideOverlay({ slide, isPreview }: { slide: Slide; isPreview: boole
           overflow: 'auto',
         }}
       >
-        <h2 style={{ fontSize: 28, fontWeight: 700, marginBottom: 20, lineHeight: 1.2 }}>
+        <h2 style={{ fontSize: ts.questionFontSize, fontWeight: 700, marginBottom: 20, lineHeight: 1.2 }}>
           {quiz.question || 'Untitled question'}
         </h2>
 
@@ -883,13 +887,14 @@ function QuizSlideOverlay({ slide, isPreview }: { slide: Slide; isPreview: boole
             onChange={setAnswer}
             disabled={!interactive}
             revealCorrect={revealCorrect}
+            ts={ts}
           />
         )}
         {quiz.questionType === 'dnd-matching' && (
-          <MatchPlay quiz={quiz} answer={answer as Record<string, string> | undefined} onChange={setAnswer} disabled={!interactive} />
+          <MatchPlay quiz={quiz} answer={answer as Record<string, string> | undefined} onChange={setAnswer} disabled={!interactive} ts={ts} />
         )}
         {quiz.questionType === 'dnd-sorting' && (
-          <SortPlay quiz={quiz} answer={answer as string[] | undefined} onChange={setAnswer} disabled={!interactive} />
+          <SortPlay quiz={quiz} answer={answer as string[] | undefined} onChange={setAnswer} disabled={!interactive} ts={ts} />
         )}
 
         {/* Attempts remaining indicator — preview only, only when attempts are limited and quiz is not locked. */}
