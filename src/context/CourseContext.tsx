@@ -1,11 +1,52 @@
 import React, { createContext, useContext, useReducer, type Dispatch } from 'react';
-import type { CourseState, Slide, SlideElement, ViewMode, PlayerSettings, CourseSettings, SlideAudio } from '@/types/course';
+import type { CourseState, Slide, SlideElement, ViewMode, PlayerSettings, CourseSettings, SlideAudio, QuizConfig, ResultsConfig, SlideKind } from '@/types/course';
 import { defaultPlayerSettings, defaultCourseSettings } from '@/types/course';
 
 const createSlide = (): Slide => ({
   id: crypto.randomUUID(),
   elements: [],
   duration: 5000,
+});
+
+const defaultQuizConfig = (): QuizConfig => ({
+  questionType: 'multiple-choice',
+  question: 'New question?',
+  choices: [
+    { id: crypto.randomUUID(), text: 'Option 1', correct: true },
+    { id: crypto.randomUUID(), text: 'Option 2', correct: false },
+  ],
+  singleSelect: true,
+  pairs: [
+    { id: crypto.randomUUID(), left: 'Term A', right: 'Definition A' },
+    { id: crypto.randomUUID(), left: 'Term B', right: 'Definition B' },
+  ],
+  sortItems: [
+    { id: crypto.randomUUID(), text: 'First' },
+    { id: crypto.randomUUID(), text: 'Second' },
+    { id: crypto.randomUUID(), text: 'Third' },
+  ],
+  correctFeedback: { mode: 'inline', message: 'Correct!' },
+  incorrectFeedback: { mode: 'inline', message: 'Not quite. Try again.' },
+});
+
+const defaultResultsConfig = (): ResultsConfig => ({
+  passThreshold: 80,
+  passMessage: 'Congratulations, you passed!',
+  failMessage: 'You did not pass. Please review and try again.',
+});
+
+const createQuizSlide = (): Slide => ({
+  ...createSlide(),
+  slideType: 'quiz',
+  title: 'Quiz',
+  quiz: defaultQuizConfig(),
+});
+
+const createResultsSlide = (): Slide => ({
+  ...createSlide(),
+  slideType: 'results',
+  title: 'Results',
+  results: defaultResultsConfig(),
 });
 
 const initialState: CourseState = {
@@ -28,6 +69,9 @@ const initialState: CourseState = {
   showGrid: false,
   snapToGrid: false,
   ccEnabled: true,
+  quizResults: {},
+  quizAnswers: {},
+  quizFeedbackOpen: null,
 };
 
 type Action =
@@ -64,7 +108,16 @@ type Action =
   | { type: 'SET_SNAP_TO_GRID'; value: boolean }
   | { type: 'SET_CC_ENABLED'; value: boolean }
   | { type: 'TOGGLE_PLAY' }
-  | { type: 'APPLY_TRANSITION_TO_ALL'; transitionType: NonNullable<Slide['transitionType']>; transitionDuration: number };
+  | { type: 'APPLY_TRANSITION_TO_ALL'; transitionType: NonNullable<Slide['transitionType']>; transitionDuration: number }
+  | { type: 'ADD_QUIZ_SLIDE' }
+  | { type: 'ADD_RESULTS_SLIDE' }
+  | { type: 'UPDATE_QUIZ'; index: number; updates: Partial<QuizConfig> }
+  | { type: 'UPDATE_RESULTS'; index: number; updates: Partial<ResultsConfig> }
+  | { type: 'SET_QUIZ_ANSWER'; slideId: string; answer: unknown }
+  | { type: 'SUBMIT_QUIZ'; slideId: string; correct: boolean }
+  | { type: 'OPEN_QUIZ_FEEDBACK'; slideId: string; correct: boolean }
+  | { type: 'CLOSE_QUIZ_FEEDBACK' }
+  | { type: 'RESET_QUIZ_PROGRESS' };
 
 function getActiveSlides(state: CourseState): Slide[] {
   return state.viewMode === 'master' ? state.masterSlides : state.slides;
@@ -268,7 +321,19 @@ function courseReducer(state: CourseState, action: Action): CourseState {
       };
     }
     case 'SET_PREVIEW_MODE':
-      return { ...state, previewMode: action.enabled, activeElementId: null, selectedElementIds: [], activeSlideIndex: action.enabled ? 0 : state.activeSlideIndex, playheadTime: 0, isPlaying: action.enabled ? true : false, viewMode: action.enabled ? 'main' : state.viewMode };
+      return {
+        ...state,
+        previewMode: action.enabled,
+        activeElementId: null,
+        selectedElementIds: [],
+        activeSlideIndex: action.enabled ? 0 : state.activeSlideIndex,
+        playheadTime: 0,
+        isPlaying: action.enabled ? true : false,
+        viewMode: action.enabled ? 'main' : state.viewMode,
+        quizResults: {},
+        quizAnswers: {},
+        quizFeedbackOpen: null,
+      };
     case 'PREVIEW_NEXT':
       return { ...state, activeSlideIndex: Math.min(state.activeSlideIndex + 1, state.slides.length - 1) };
     case 'PREVIEW_PREV':
@@ -370,6 +435,46 @@ function courseReducer(state: CourseState, action: Action): CourseState {
       }));
       return { ...state, ...updateActiveSlides(state, slides) };
     }
+    case 'ADD_QUIZ_SLIDE': {
+      // Quiz slides only exist in main timeline.
+      if (state.viewMode === 'master') return state;
+      const newSlides = [...state.slides, createQuizSlide()];
+      return { ...state, slides: newSlides, activeSlideIndex: newSlides.length - 1, activeElementId: null, selectedElementIds: [] };
+    }
+    case 'ADD_RESULTS_SLIDE': {
+      if (state.viewMode === 'master') return state;
+      const newSlides = [...state.slides, createResultsSlide()];
+      return { ...state, slides: newSlides, activeSlideIndex: newSlides.length - 1, activeElementId: null, selectedElementIds: [] };
+    }
+    case 'UPDATE_QUIZ': {
+      const slides = state.slides.map((s, i) =>
+        i === action.index && s.slideType === 'quiz'
+          ? { ...s, quiz: { ...(s.quiz ?? defaultQuizConfig()), ...action.updates } }
+          : s
+      );
+      return { ...state, slides };
+    }
+    case 'UPDATE_RESULTS': {
+      const slides = state.slides.map((s, i) =>
+        i === action.index && s.slideType === 'results'
+          ? { ...s, results: { ...(s.results ?? defaultResultsConfig()), ...action.updates } }
+          : s
+      );
+      return { ...state, slides };
+    }
+    case 'SET_QUIZ_ANSWER':
+      return { ...state, quizAnswers: { ...state.quizAnswers, [action.slideId]: action.answer } };
+    case 'SUBMIT_QUIZ':
+      return {
+        ...state,
+        quizResults: { ...state.quizResults, [action.slideId]: { correct: action.correct, submitted: true } },
+      };
+    case 'OPEN_QUIZ_FEEDBACK':
+      return { ...state, quizFeedbackOpen: { slideId: action.slideId, correct: action.correct } };
+    case 'CLOSE_QUIZ_FEEDBACK':
+      return { ...state, quizFeedbackOpen: null };
+    case 'RESET_QUIZ_PROGRESS':
+      return { ...state, quizAnswers: {}, quizResults: {}, quizFeedbackOpen: null };
     default:
       return state;
   }

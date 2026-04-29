@@ -135,6 +135,61 @@ export interface SlideAudio {
 
 export type SlideTransitionType = 'none' | 'fade' | 'push-up' | 'push-left' | 'zoom-in';
 
+/** Distinguishes regular content slides from quiz / results slides. */
+export type SlideKind = 'content' | 'quiz' | 'results';
+
+export type QuizQuestionType = 'multiple-choice' | 'dnd-matching' | 'dnd-sorting';
+export type QuizFeedbackMode = 'inline' | 'jumpToSlide' | 'overlay';
+
+export interface QuizChoice {
+  id: string;
+  text: string;
+  correct: boolean;
+}
+
+export interface QuizMatchPair {
+  id: string;
+  left: string;
+  right: string;
+}
+
+export interface QuizSortItem {
+  id: string;
+  text: string;
+}
+
+export interface QuizFeedbackTarget {
+  /** What happens after submit for this outcome. */
+  mode: QuizFeedbackMode;
+  /** For 'inline' or 'overlay': the message shown to the learner. */
+  message?: string;
+  /** For 'jumpToSlide': the target slide id. */
+  targetSlideId?: string;
+}
+
+export interface QuizConfig {
+  questionType: QuizQuestionType;
+  question: string;
+  /** Multiple-choice fields */
+  choices?: QuizChoice[];
+  /** True = single-select radio, false = multi-select checkboxes. */
+  singleSelect?: boolean;
+  /** DnD Matching pairs. */
+  pairs?: QuizMatchPair[];
+  /** DnD Sorting items, listed in the correct order. */
+  sortItems?: QuizSortItem[];
+  /** Per-outcome feedback configuration. */
+  correctFeedback: QuizFeedbackTarget;
+  incorrectFeedback: QuizFeedbackTarget;
+}
+
+export interface ResultsConfig {
+  /** 0-100 inclusive. */
+  passThreshold: number;
+  passMessage: string;
+  failMessage: string;
+}
+
 /** How the slide advances when its internal timeline reaches the end. */
 export type SlideAdvanceMode = 'manual' | 'auto';
 /** What happens when the user navigates back to a previously visited slide. */
@@ -157,6 +212,12 @@ export interface Slide {
   advanceMode?: SlideAdvanceMode;
   /** When revisiting: 'reset' rewinds to 0, 'resume' keeps last playhead. */
   revisitMode?: SlideRevisitMode;
+  /** Slide kind. Defaults to 'content' when omitted. */
+  slideType?: SlideKind;
+  /** Quiz configuration; only used when slideType === 'quiz'. */
+  quiz?: QuizConfig;
+  /** Results configuration; only used when slideType === 'results'. */
+  results?: ResultsConfig;
 }
 
 export type NavigationMode = 'free' | 'restricted';
@@ -252,4 +313,10 @@ export interface CourseState {
   snapToGrid: boolean;
   /** Runtime: closed-captions enabled in preview/player. */
   ccEnabled: boolean;
+  /** Runtime (preview/player): per-quiz-slide submission result. */
+  quizResults: Record<string, { correct: boolean; submitted: boolean }>;
+  /** Runtime (preview/player): in-progress learner answer for a quiz slide. */
+  quizAnswers: Record<string, unknown>;
+  /** Runtime: which quiz slide currently has its feedback overlay open. */
+  quizFeedbackOpen: { slideId: string; correct: boolean } | null;
 }

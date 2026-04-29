@@ -182,7 +182,7 @@ export function PlayerShell({ playerSettings, interactive = true }: PlayerShellP
       </header>
 
       {/* Body: sidebar + stage */}
-      <div className="flex-1 flex min-h-0">
+      <div className="flex-1 flex min-h-0 relative">
         {ps.sidebarPosition === 'left' && sidebar}
         <div className="flex-1 flex min-w-0 overflow-hidden">
           <SlideStage
@@ -194,6 +194,7 @@ export function PlayerShell({ playerSettings, interactive = true }: PlayerShellP
           />
         </div>
         {ps.sidebarPosition === 'right' && sidebar}
+        <QuizFeedbackOverlay onContinue={() => navigateToIndex(state.activeSlideIndex + 1)} />
       </div>
 
       {/* Bottom controls */}
@@ -346,3 +347,36 @@ function SlideStage({ transitionType, transitionDuration, transitionColor, phase
 }
 
 
+
+function QuizFeedbackOverlay({ onContinue }: { onContinue: () => void }) {
+  const { state, dispatch } = useCourse();
+  const fb = state.quizFeedbackOpen;
+  if (!fb) return null;
+  const slide = state.slides.find((s) => s.id === fb.slideId);
+  const target = slide?.quiz ? (fb.correct ? slide.quiz.correctFeedback : slide.quiz.incorrectFeedback) : null;
+  if (!target || target.mode !== 'overlay') return null;
+  return (
+    <div
+      style={{
+        position: 'absolute', inset: 0, zIndex: 100,
+        background: 'rgba(0,0,0,0.55)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: 24,
+      }}
+    >
+      <div style={{ background: '#fff', borderRadius: 12, padding: 32, maxWidth: 480, width: '100%', textAlign: 'center', color: '#0f172a' }}>
+        <h3 style={{ fontSize: 22, fontWeight: 700, marginBottom: 12, color: fb.correct ? '#166534' : '#991b1b' }}>
+          {fb.correct ? 'Correct!' : 'Incorrect'}
+        </h3>
+        <p style={{ fontSize: 16, marginBottom: 24 }}>{target.message || ''}</p>
+        <button
+          type="button"
+          onClick={() => { dispatch({ type: 'CLOSE_QUIZ_FEEDBACK' }); onContinue(); }}
+          style={{ background: '#3b82f6', color: '#fff', fontWeight: 600, padding: '10px 28px', borderRadius: 8, border: 'none', cursor: 'pointer' }}
+        >
+          Continue
+        </button>
+      </div>
+    </div>
+  );
+}
