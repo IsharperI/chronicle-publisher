@@ -300,7 +300,7 @@ export function Ribbon() {
   if (state.previewMode) {
     return (
       <div className="h-12 glass border-b border-white/60 flex items-center px-4 shrink-0 rounded-none">
-        <span className="font-semibold text-foreground text-sm">eLearning Authoring Tool</span>
+        <span className="font-semibold text-foreground text-sm">Chronicle Publisher</span>
         <div className="flex-1" />
         <Button variant="destructive" size="sm" onClick={() => dispatch({ type: 'SET_PREVIEW_MODE', enabled: false })}>
           <X className="h-4 w-4 mr-1" />Exit Preview
@@ -313,7 +313,7 @@ export function Ribbon() {
     <div className="glass border-b border-white/60 shrink-0 rounded-none">
       {/* Title bar + Tab row */}
       <div className="h-9 flex items-center px-4 border-b border-white/40 bg-white/30">
-        <span className="font-semibold text-foreground text-sm mr-6">eLearning Authoring Tool</span>
+        <span className="font-semibold text-foreground text-sm mr-6">Chronicle Publisher</span>
         <div className="flex">
           {TABS.map((tab) => (
             <button
