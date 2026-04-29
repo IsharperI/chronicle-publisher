@@ -445,7 +445,7 @@ export function Canvas() {
   return (
     <div
       ref={containerRef}
-      className="flex-1 bg-muted/50 flex flex-col items-center justify-center overflow-hidden min-w-0"
+      className="flex-1 flex flex-col items-center justify-center overflow-hidden min-w-0"
       style={themeVarStyle(state.courseSettings.themeColors)}
     >
       <div
