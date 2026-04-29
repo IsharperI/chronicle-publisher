@@ -803,27 +803,34 @@ function QuizSlideOverlay({ slide, isPreview }: { slide: Slide; isPreview: boole
     if (!isUnlimited) dispatch({ type: 'CONSUME_QUIZ_ATTEMPT', slideId: slide.id });
 
     const exhausted = !isUnlimited && attemptsLeftAfter <= 0;
+    const target = quiz.incorrectFeedback;
+
+    // Jump-to-slide always navigates immediately on incorrect, regardless of
+    // attempts remaining. Lock the question first so revisit logic is sound.
+    if (target.mode === 'jumpToSlide') {
+      dispatch({ type: 'SUBMIT_QUIZ', slideId: slide.id, correct: false });
+      if (target.targetSlideId) {
+        const idx = state.slides.findIndex((s) => s.id === target.targetSlideId);
+        if (idx >= 0) dispatch({ type: 'SET_ACTIVE_SLIDE', index: idx });
+      }
+      return;
+    }
 
     if (exhausted) {
       // Final incorrect submission — lock the question.
       dispatch({ type: 'SUBMIT_QUIZ', slideId: slide.id, correct: false });
-      const target = quiz.incorrectFeedback;
-      if (target.mode === 'jumpToSlide' && target.targetSlideId) {
-        const idx = state.slides.findIndex((s) => s.id === target.targetSlideId);
-        if (idx >= 0) dispatch({ type: 'SET_ACTIVE_SLIDE', index: idx });
-      } else if (target.mode === 'overlay') {
+      if (target.mode === 'overlay') {
         dispatch({ type: 'OPEN_QUIZ_FEEDBACK', slideId: slide.id, correct: false });
       }
       return;
     }
 
     // Attempts remain — show feedback for this incorrect try and let learner retry.
-    const target = quiz.incorrectFeedback;
     if (target.mode === 'overlay') {
       dispatch({ type: 'OPEN_QUIZ_FEEDBACK', slideId: slide.id, correct: false });
     }
-    // For 'inline' / 'jumpToSlide' between attempts: keep submission unsubmitted
-    // so Submit re-enables. We don't jump slides on intermediate failures.
+    // For 'inline' between attempts: the inline retry banner below renders the
+    // author's incorrect-feedback message in red until the learner retries.
   };
 
   // Inline incorrect message between attempts (when attempts remain).
@@ -888,20 +895,21 @@ function QuizSlideOverlay({ slide, isPreview }: { slide: Slide; isPreview: boole
           </p>
         )}
 
-        {/* Inline retry hint shown after a failed attempt when attempts remain. */}
+        {/* Inline incorrect feedback shown after a failed attempt when attempts
+            remain. Uses the same red banner style as the final inline feedback
+            below, mirroring how correct feedback renders in green. */}
         {showRetryHint && quiz.incorrectFeedback.mode === 'inline' && (
           <div
             style={{
-              marginTop: 12,
-              padding: 12,
+              marginTop: 20,
+              padding: 14,
               borderRadius: 8,
-              background: '#fef3c7',
-              color: '#92400e',
-              fontWeight: 500,
-              fontSize: 14,
+              background: '#fee2e2',
+              color: '#991b1b',
+              fontWeight: 600,
             }}
           >
-            {quiz.incorrectFeedback.message || 'Not quite. Try again.'}
+            {quiz.incorrectFeedback.message || 'Incorrect.'}
           </div>
         )}
 
