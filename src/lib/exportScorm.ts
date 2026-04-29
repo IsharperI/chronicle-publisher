@@ -486,6 +486,212 @@ window.COURSE_DATA=${courseData.replace(/<\/script>/gi, '<\\/script>').replace(/
   var transitionTimer=null;
   function clearTransitionTimer(){if(transitionTimer){clearTimeout(transitionTimer);transitionTimer=null}}
 
+  // Track per-quiz state in the published player.
+  var quizState={}; // slideId -> {submitted:bool, correct:bool, answer:any, attemptsLeft:number}
+
+  function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}
+
+  function renderQuizSlide(slide){
+    var q=slide.quiz||{};
+    var style=slide.quizStyle||{};
+    var pageBg=style.pageBackgroundColor||"#f8fafc";
+    var cardBg=style.cardBackgroundColor||"#ffffff";
+    var textColor=style.textColor||"#0f172a";
+    var fontFam=style.fontFamily||ps.fontFamily||"system-ui,sans-serif";
+    var qFs=style.questionFontSize||28;
+    var optFs=style.optionFontSize||18;
+    var optBg=style.optionBackgroundColor||"#ffffff";
+    var optBorder=style.optionBorderColor||"#cbd5e1";
+    var optSelBorder=style.optionSelectedBorderColor||"#3b82f6";
+    var optSelBg=style.optionSelectedBackgroundColor||"#dbeafe";
+    var btnBg=style.buttonColor||ps.buttonColor||"#3b82f6";
+    var btnText=style.buttonTextColor||"#ffffff";
+    var cardR=(style.cardRadius!=null?style.cardRadius:12);
+    var optR=(style.optionRadius!=null?style.optionRadius:8);
+
+    var page=document.createElement("div");
+    page.style.cssText="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:32px;font-family:"+fontFam+";color:"+textColor+";background:"+pageBg+";overflow:auto";
+    var card=document.createElement("div");
+    card.style.cssText="background:"+cardBg+";border-radius:"+cardR+"px;padding:32px;max-width:80%;width:720px;box-shadow:0 10px 30px rgba(0,0,0,0.1)";
+    var heading=document.createElement("div");
+    heading.style.cssText="font-size:"+qFs+"px;font-weight:600;margin-bottom:24px;line-height:1.3";
+    heading.textContent=q.question||"Question";
+    card.appendChild(heading);
+
+    var st=quizState[slide.id]||(quizState[slide.id]={submitted:false,correct:false,answer:null,attemptsLeft:(q.attempts||1)});
+    var qType=q.questionType||"multiple-choice";
+
+    var optionsWrap=document.createElement("div");
+    optionsWrap.style.cssText="display:flex;flex-direction:column;gap:12px;margin-bottom:24px";
+
+    function makeOption(text,selected,onClick){
+      var o=document.createElement("div");
+      o.style.cssText="padding:14px 18px;border:2px solid "+(selected?optSelBorder:optBorder)+";background:"+(selected?optSelBg:optBg)+";border-radius:"+optR+"px;font-size:"+optFs+"px;cursor:pointer;transition:all .15s";
+      o.textContent=text;
+      o.onclick=function(){if(!st.submitted)onClick()};
+      return o;
+    }
+
+    if(qType==="multiple-choice"){
+      var choices=q.choices||[];
+      var single=q.singleSelect!==false;
+      if(st.answer==null)st.answer=single?null:[];
+      choices.forEach(function(c){
+        var sel=single?(st.answer===c.id):(st.answer.indexOf(c.id)>=0);
+        var opt=makeOption(c.text||"",sel,function(){
+          if(single){st.answer=c.id}
+          else{var arr=st.answer.slice();var i=arr.indexOf(c.id);if(i>=0)arr.splice(i,1);else arr.push(c.id);st.answer=arr}
+          render();
+        });
+        optionsWrap.appendChild(opt);
+      });
+    } else if(qType==="dnd-sorting"){
+      var items=(q.sortItems||[]).slice();
+      if(!st.answer)st.answer=items.map(function(it){return it.id});
+      st.answer.forEach(function(id,idx){
+        var item=items.find?items.find(function(x){return x.id===id}):null;
+        if(!item){for(var k=0;k<items.length;k++)if(items[k].id===id){item=items[k];break}}
+        var row=document.createElement("div");
+        row.style.cssText="display:flex;align-items:center;gap:8px";
+        var up=document.createElement("button");up.textContent="↑";up.style.cssText="padding:4px 8px;cursor:pointer";
+        var dn=document.createElement("button");dn.textContent="↓";dn.style.cssText="padding:4px 8px;cursor:pointer";
+        up.disabled=idx===0||st.submitted;dn.disabled=idx===st.answer.length-1||st.submitted;
+        up.onclick=function(){var a=st.answer.slice();var t=a[idx-1];a[idx-1]=a[idx];a[idx]=t;st.answer=a;render()};
+        dn.onclick=function(){var a=st.answer.slice();var t=a[idx+1];a[idx+1]=a[idx];a[idx]=t;st.answer=a;render()};
+        var label=document.createElement("div");
+        label.style.cssText="flex:1;padding:14px 18px;border:2px solid "+optBorder+";background:"+optBg+";border-radius:"+optR+"px;font-size:"+optFs+"px";
+        label.textContent=item?(item.text||""):"";
+        row.appendChild(up);row.appendChild(dn);row.appendChild(label);
+        optionsWrap.appendChild(row);
+      });
+    } else if(qType==="dnd-matching"){
+      var pairs=q.pairs||[];
+      if(!st.answer)st.answer={};
+      pairs.forEach(function(p){
+        var row=document.createElement("div");
+        row.style.cssText="display:flex;gap:12px;align-items:center";
+        var left=document.createElement("div");
+        left.style.cssText="flex:1;padding:14px 18px;border:2px solid "+optBorder+";background:"+optBg+";border-radius:"+optR+"px;font-size:"+optFs+"px";
+        left.textContent=p.left||"";
+        var sel=document.createElement("select");
+        sel.style.cssText="flex:1;padding:12px;font-size:"+optFs+"px;border:2px solid "+optBorder+";border-radius:"+optR+"px;background:"+optBg;
+        var blank=document.createElement("option");blank.value="";blank.textContent="— select —";sel.appendChild(blank);
+        pairs.forEach(function(p2){var o=document.createElement("option");o.value=p2.id;o.textContent=p2.right||"";if(st.answer[p.id]===p2.id)o.selected=true;sel.appendChild(o)});
+        sel.disabled=st.submitted;
+        sel.onchange=function(){st.answer[p.id]=sel.value;};
+        row.appendChild(left);row.appendChild(sel);
+        optionsWrap.appendChild(row);
+      });
+    }
+    card.appendChild(optionsWrap);
+
+    function checkCorrect(){
+      if(qType==="multiple-choice"){
+        var choices=q.choices||[];
+        var correctIds=choices.filter(function(c){return c.correct}).map(function(c){return c.id});
+        if(q.singleSelect!==false){return correctIds.length===1&&st.answer===correctIds[0]}
+        var ans=st.answer||[];
+        if(ans.length!==correctIds.length)return false;
+        for(var i=0;i<correctIds.length;i++)if(ans.indexOf(correctIds[i])<0)return false;
+        return true;
+      }
+      if(qType==="dnd-sorting"){
+        var items=q.sortItems||[];
+        for(var i=0;i<items.length;i++)if(st.answer[i]!==items[i].id)return false;
+        return true;
+      }
+      if(qType==="dnd-matching"){
+        var pairs=q.pairs||[];
+        for(var i=0;i<pairs.length;i++)if(st.answer[pairs[i].id]!==pairs[i].id)return false;
+        return true;
+      }
+      return false;
+    }
+
+    var btnRow=document.createElement("div");
+    btnRow.style.cssText="display:flex;gap:12px;align-items:center";
+    if(!st.submitted){
+      var submitBtn=document.createElement("button");
+      submitBtn.textContent="Submit";
+      submitBtn.style.cssText="padding:12px 24px;background:"+btnBg+";color:"+btnText+";border:none;border-radius:"+optR+"px;font-size:16px;cursor:pointer;font-weight:500";
+      submitBtn.onclick=function(){
+        st.correct=checkCorrect();
+        st.submitted=true;
+        st.attemptsLeft=Math.max(0,(st.attemptsLeft|0)-1);
+        var fb=st.correct?(q.correctFeedback||{}):(q.incorrectFeedback||{});
+        if(fb.mode==="jumpToSlide"&&fb.targetSlideId){
+          for(var i=0;i<slides.length;i++)if(slides[i].id===fb.targetSlideId){goTo(i);return}
+        }
+        render();
+      };
+      btnRow.appendChild(submitBtn);
+      if(q.allowSkip){
+        var skipBtn=document.createElement("button");
+        skipBtn.textContent="Skip";
+        skipBtn.style.cssText="padding:12px 24px;background:transparent;color:"+textColor+";border:1px solid "+optBorder+";border-radius:"+optR+"px;font-size:16px;cursor:pointer";
+        skipBtn.onclick=function(){
+          if(q.skipTargetSlideId){for(var i=0;i<slides.length;i++)if(slides[i].id===q.skipTargetSlideId){goTo(i);return}}
+          if(current<slides.length-1)goTo(current+1);
+        };
+        btnRow.appendChild(skipBtn);
+      }
+    } else {
+      var fb=st.correct?(q.correctFeedback||{}):(q.incorrectFeedback||{});
+      var msg=document.createElement("div");
+      msg.style.cssText="padding:12px 16px;border-radius:"+optR+"px;background:"+(st.correct?"#dcfce7":"#fee2e2")+";color:"+(st.correct?"#14532d":"#7f1d1d")+";font-size:15px;flex:1";
+      msg.textContent=fb.message||(st.correct?"Correct!":"Incorrect");
+      btnRow.appendChild(msg);
+      var canRetry=!st.correct&&st.attemptsLeft>0;
+      if(canRetry){
+        var retry=document.createElement("button");
+        retry.textContent="Try Again";
+        retry.style.cssText="padding:12px 24px;background:"+btnBg+";color:"+btnText+";border:none;border-radius:"+optR+"px;font-size:16px;cursor:pointer";
+        retry.onclick=function(){st.submitted=false;st.answer=(q.questionType==="multiple-choice"&&q.singleSelect===false)?[]:(q.questionType==="dnd-matching"?{}:null);render()};
+        btnRow.appendChild(retry);
+      } else {
+        var cont=document.createElement("button");
+        cont.textContent="Continue";
+        cont.style.cssText="padding:12px 24px;background:"+btnBg+";color:"+btnText+";border:none;border-radius:"+optR+"px;font-size:16px;cursor:pointer";
+        cont.onclick=function(){if(current<slides.length-1)goTo(current+1)};
+        btnRow.appendChild(cont);
+      }
+    }
+    card.appendChild(btnRow);
+    page.appendChild(card);
+    stage.appendChild(page);
+  }
+
+  function renderResultsSlide(slide){
+    var r=slide.results||{passThreshold:80,passMessage:"Congratulations, you passed!",failMessage:"Sorry, you did not pass."};
+    var totalQuiz=0,correct=0;
+    for(var i=0;i<slides.length;i++){
+      if(slides[i].slideType==="quiz"){
+        totalQuiz++;
+        var s=quizState[slides[i].id];
+        if(s&&s.correct)correct++;
+      }
+    }
+    var pct=totalQuiz>0?Math.round((correct/totalQuiz)*100):0;
+    var passed=pct>=(r.passThreshold||0);
+    var page=document.createElement("div");
+    page.style.cssText="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:32px;font-family:"+(ps.fontFamily||"system-ui,sans-serif")+";background:#f8fafc;color:#0f172a";
+    var card=document.createElement("div");
+    card.style.cssText="background:#fff;border-radius:12px;padding:40px;text-align:center;max-width:560px;box-shadow:0 10px 30px rgba(0,0,0,.1)";
+    var h=document.createElement("div");
+    h.style.cssText="font-size:48px;font-weight:700;margin-bottom:16px;color:"+(passed?"#16a34a":"#dc2626");
+    h.textContent=pct+"%";
+    var msg=document.createElement("div");
+    msg.style.cssText="font-size:20px;margin-bottom:8px;font-weight:600";
+    msg.textContent=passed?(r.passMessage||"Passed"):(r.failMessage||"Failed");
+    var sub=document.createElement("div");
+    sub.style.cssText="font-size:14px;color:#64748b";
+    sub.textContent=correct+" of "+totalQuiz+" correct";
+    card.appendChild(h);card.appendChild(msg);card.appendChild(sub);
+    page.appendChild(card);
+    stage.appendChild(page);
+    if(API){try{API.LMSSetValue("cmi.core.score.raw",""+pct);API.LMSSetValue("cmi.core.lesson_status",passed?"passed":"failed");API.LMSCommit("")}catch(e){}}
+  }
+
   function render(){
     stage.innerHTML="";
     if(current<0||current>=slides.length)return;
@@ -493,6 +699,8 @@ window.COURSE_DATA=${courseData.replace(/<\/script>/gi, '<\\/script>').replace(/
     var masterEls=getMasterElements(slide);
     masterEls.forEach(function(el){stage.appendChild(renderElement(el))});
     (slide.elements||[]).forEach(function(el){stage.appendChild(renderElement(el))});
+    if(slide.slideType==="quiz")renderQuizSlide(slide);
+    else if(slide.slideType==="results")renderResultsSlide(slide);
     if(meta)meta.textContent="Slide "+(current+1)+" / "+slides.length;
     prevBtn.disabled=current===0;
     buildMenu();
