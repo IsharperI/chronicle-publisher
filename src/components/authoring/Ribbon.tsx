@@ -467,10 +467,12 @@ export function Ribbon() {
                 </label>
               </div>
             </RibbonGroup>
+            <Separator orientation="vertical" className="h-12 mx-2" />
+            <RibbonGroup label="Assets">
+              <RibbonButton icon={FolderOpen} label="Media Library" onClick={() => setMediaLibraryOpen(true)} />
+            </RibbonGroup>
           </>
         )}
-
-        {activeTab === 'Transitions' && (
           <TransitionsTab />
         )}
 
