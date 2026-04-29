@@ -736,8 +736,8 @@ function gradeQuiz(quiz: QuizConfig, answer: unknown): boolean {
 function QuizSlideOverlay({ slide, isPreview }: { slide: Slide; isPreview: boolean }) {
   const { state, dispatch } = useCourse();
   const quiz = slide.quiz!;
-  const answer = state.quizAnswers[slide.id];
-  const result = state.quizResults[slide.id];
+  const answer = state.quizAnswers?.[slide.id];
+  const result = state.quizResults?.[slide.id];
   const interactive = isPreview && !result?.submitted;
 
   const setAnswer = (a: unknown) => {
