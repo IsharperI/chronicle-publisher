@@ -361,21 +361,18 @@ function TemplateEditorDialog({
           </div>
         </div>
 
-        <DialogFooter>
-          <div className="flex items-center gap-2 w-full">
-            <Label className="text-xs shrink-0">Template name</Label>
-            <Input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Dark Modern"
-              className="h-8 text-xs"
-              autoFocus
-            />
-            <Button size="sm" onClick={handleSave} disabled={!name.trim()}>
-              <Check className="h-4 w-4 mr-1" /> Save Template
-            </Button>
-          </div>
-        </DialogFooter>
+        <div className="flex items-center gap-2 w-full pt-2 border-t">
+          <Label className="text-xs shrink-0">Template name</Label>
+          <Input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="e.g. Dark Modern"
+            className="h-8 text-xs"
+          />
+          <Button size="sm" onClick={handleSave} disabled={!name.trim()}>
+            <Check className="h-4 w-4 mr-1" /> Save Template
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   );
