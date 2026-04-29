@@ -76,6 +76,7 @@ const initialState: CourseState = {
   quizAnswers: {},
   quizFeedbackOpen: null,
   quizAttemptsRemaining: {},
+  motionPathEditor: null,
 };
 
 type Action =
