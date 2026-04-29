@@ -478,6 +478,10 @@ export function Ribbon() {
             </RibbonGroup>
           </>
         )}
+
+        {activeTab === 'Quiz Templates' && (
+          <QuizTemplatesTab />
+        )}
       </div>
     </div>
   );
