@@ -388,4 +388,6 @@ export interface CourseState {
   quizFeedbackOpen: { slideId: string; correct: boolean } | null;
   /** Runtime (preview/player): attempts remaining per quiz slide. */
   quizAttemptsRemaining: Record<string, number>;
+  /** Editor-only: when set, canvas enters motion-path drawing mode for the given element. */
+  motionPathEditor: { elementId: string } | null;
 }
