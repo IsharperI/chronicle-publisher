@@ -4,6 +4,7 @@ import { Plus, Trash2 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import type { Slide, SlideElement } from '@/types/course';
+import { resolveColor } from '@/lib/themeVars';
 import { memo, useEffect, useRef, useState } from 'react';
 
 const THUMB_WIDTH = 160; // px rendered width of the thumbnail box
