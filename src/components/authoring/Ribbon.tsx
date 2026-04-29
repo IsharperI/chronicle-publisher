@@ -310,9 +310,9 @@ export function Ribbon() {
   }
 
   return (
-    <div className="border-b bg-card shrink-0">
+    <div className="glass border-b border-white/60 shrink-0 rounded-none">
       {/* Title bar + Tab row */}
-      <div className="h-9 flex items-center px-4 border-b bg-muted/30">
+      <div className="h-9 flex items-center px-4 border-b border-white/40 bg-white/30">
         <span className="font-semibold text-foreground text-sm mr-6">eLearning Authoring Tool</span>
         <div className="flex">
           {TABS.map((tab) => (
