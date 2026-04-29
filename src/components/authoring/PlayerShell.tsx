@@ -1,6 +1,6 @@
 import { useCourse } from '@/context/CourseContext';
 import { Canvas } from './Canvas';
-import { ChevronLeft, ChevronRight, Play, Pause, Captions, CaptionsOff, Menu, FileText } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Play, Pause, Captions, CaptionsOff, Menu, FileText, Check, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { themeVarStyle } from '@/lib/themeVars';
 import type { PlayerSettings } from '@/types/course';
