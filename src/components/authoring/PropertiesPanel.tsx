@@ -824,3 +824,305 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
     </div>
   );
 }
+
+// ============================================================================
+// Quiz Slide editor
+// ============================================================================
+
+function QuizEditor({ slide, index, allSlides }: { slide: Slide; index: number; allSlides: Slide[] }) {
+  const { dispatch } = useCourse();
+  const quiz = slide.quiz!;
+
+  const update = (updates: Partial<QuizConfig>) => {
+    dispatch({ type: 'UPDATE_QUIZ', index, updates });
+  };
+
+  const otherSlides = allSlides.filter((s) => s.id !== slide.id);
+
+  return (
+    <div className="space-y-3 pt-2 border-t">
+      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Quiz</p>
+
+      <div className="space-y-1">
+        <Label className="text-xs">Question Type</Label>
+        <Select
+          value={quiz.questionType}
+          onValueChange={(v) => update({ questionType: v as QuizQuestionType })}
+        >
+          <SelectTrigger className="h-8 text-xs bg-white text-slate-800"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="multiple-choice">Multiple Choice</SelectItem>
+            <SelectItem value="dnd-matching">Drag & Drop — Matching</SelectItem>
+            <SelectItem value="dnd-sorting">Drag & Drop — Sorting</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="space-y-1">
+        <Label className="text-xs">Question</Label>
+        <Textarea
+          value={quiz.question}
+          onChange={(e) => update({ question: e.target.value })}
+          className="text-xs min-h-[60px] bg-white text-slate-800"
+          placeholder="Enter your question…"
+        />
+      </div>
+
+      {quiz.questionType === 'multiple-choice' && (
+        <MCEditor quiz={quiz} update={update} />
+      )}
+
+      {quiz.questionType === 'dnd-matching' && (
+        <PairsEditor quiz={quiz} update={update} />
+      )}
+
+      {quiz.questionType === 'dnd-sorting' && (
+        <SortEditor quiz={quiz} update={update} />
+      )}
+
+      <div className="pt-2 border-t space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">If Correct</p>
+        <FeedbackEditor target={quiz.correctFeedback} otherSlides={otherSlides} onChange={(t) => update({ correctFeedback: t })} />
+      </div>
+
+      <div className="pt-2 border-t space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">If Incorrect</p>
+        <FeedbackEditor target={quiz.incorrectFeedback} otherSlides={otherSlides} onChange={(t) => update({ incorrectFeedback: t })} />
+      </div>
+    </div>
+  );
+}
+
+function MCEditor({ quiz, update }: { quiz: QuizConfig; update: (u: Partial<QuizConfig>) => void }) {
+  const choices = quiz.choices ?? [];
+  const single = quiz.singleSelect !== false;
+
+  const setChoices = (next: QuizChoice[]) => update({ choices: next });
+
+  const toggleCorrect = (id: string) => {
+    if (single) {
+      setChoices(choices.map((c) => ({ ...c, correct: c.id === id })));
+    } else {
+      setChoices(choices.map((c) => (c.id === id ? { ...c, correct: !c.correct } : c)));
+    }
+  };
+
+  const addChoice = () => {
+    if (choices.length >= 6) return;
+    setChoices([...choices, { id: crypto.randomUUID(), text: `Option ${choices.length + 1}`, correct: false }]);
+  };
+
+  const removeChoice = (id: string) => {
+    if (choices.length <= 2) return;
+    setChoices(choices.filter((c) => c.id !== id));
+  };
+
+  const setText = (id: string, text: string) => {
+    setChoices(choices.map((c) => (c.id === id ? { ...c, text } : c)));
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <Label className="text-xs cursor-pointer" htmlFor="quiz-single">Single answer</Label>
+        <Switch
+          id="quiz-single"
+          checked={single}
+          onCheckedChange={(v) => {
+            if (v) {
+              // collapse to first correct only
+              const firstCorrect = choices.find((c) => c.correct)?.id;
+              update({
+                singleSelect: true,
+                choices: choices.map((c) => ({ ...c, correct: c.id === firstCorrect })),
+              });
+            } else {
+              update({ singleSelect: false });
+            }
+          }}
+        />
+      </div>
+      <p className="text-[10px] text-muted-foreground">{single ? 'Radio buttons — one correct answer.' : 'Checkboxes — one or more correct answers.'}</p>
+
+      {choices.map((c) => (
+        <div key={c.id} className="flex items-center gap-1.5 bg-white border border-slate-200 rounded p-1.5">
+          <input
+            type={single ? 'radio' : 'checkbox'}
+            checked={c.correct}
+            onChange={() => toggleCorrect(c.id)}
+            className="cursor-pointer"
+            title="Mark as correct"
+          />
+          <Input
+            value={c.text}
+            onChange={(e) => setText(c.id, e.target.value)}
+            className="h-7 text-xs flex-1"
+            placeholder="Answer text"
+          />
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6 shrink-0 text-slate-500 hover:text-destructive"
+            onClick={() => removeChoice(c.id)}
+            disabled={choices.length <= 2}
+            aria-label="Remove option"
+          >
+            <X className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      ))}
+      <Button
+        variant="outline"
+        size="sm"
+        className="w-full h-7 text-xs"
+        onClick={addChoice}
+        disabled={choices.length >= 6}
+      >
+        <Plus className="h-3 w-3 mr-1" />Add option {choices.length >= 6 && '(max 6)'}
+      </Button>
+    </div>
+  );
+}
+
+function PairsEditor({ quiz, update }: { quiz: QuizConfig; update: (u: Partial<QuizConfig>) => void }) {
+  const pairs = quiz.pairs ?? [];
+  const setPairs = (next: QuizMatchPair[]) => update({ pairs: next });
+  const addPair = () => setPairs([...pairs, { id: crypto.randomUUID(), left: '', right: '' }]);
+  const removePair = (id: string) => {
+    if (pairs.length <= 2) return;
+    setPairs(pairs.filter((p) => p.id !== id));
+  };
+  const setField = (id: string, field: 'left' | 'right', v: string) => {
+    setPairs(pairs.map((p) => (p.id === id ? { ...p, [field]: v } : p)));
+  };
+  return (
+    <div className="space-y-2">
+      <p className="text-[10px] text-muted-foreground">Define matching pairs. The learner drags left items onto the correct right items.</p>
+      {pairs.map((p) => (
+        <div key={p.id} className="flex items-center gap-1.5 bg-white border border-slate-200 rounded p-1.5">
+          <Input value={p.left} onChange={(e) => setField(p.id, 'left', e.target.value)} className="h-7 text-xs flex-1" placeholder="Left (term)" />
+          <span className="text-slate-400 text-xs">→</span>
+          <Input value={p.right} onChange={(e) => setField(p.id, 'right', e.target.value)} className="h-7 text-xs flex-1" placeholder="Right (match)" />
+          <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0 text-slate-500 hover:text-destructive" onClick={() => removePair(p.id)} disabled={pairs.length <= 2} aria-label="Remove pair">
+            <X className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      ))}
+      <Button variant="outline" size="sm" className="w-full h-7 text-xs" onClick={addPair}>
+        <Plus className="h-3 w-3 mr-1" />Add pair
+      </Button>
+    </div>
+  );
+}
+
+function SortEditor({ quiz, update }: { quiz: QuizConfig; update: (u: Partial<QuizConfig>) => void }) {
+  const items = quiz.sortItems ?? [];
+  const setItems = (next: QuizSortItem[]) => update({ sortItems: next });
+  const addItem = () => setItems([...items, { id: crypto.randomUUID(), text: '' }]);
+  const removeItem = (id: string) => {
+    if (items.length <= 2) return;
+    setItems(items.filter((i) => i.id !== id));
+  };
+  const setText = (id: string, text: string) => {
+    setItems(items.map((i) => (i.id === id ? { ...i, text } : i)));
+  };
+  const move = (id: string, dir: -1 | 1) => {
+    const idx = items.findIndex((i) => i.id === id);
+    const swap = idx + dir;
+    if (idx < 0 || swap < 0 || swap >= items.length) return;
+    const next = items.slice();
+    [next[idx], next[swap]] = [next[swap], next[idx]];
+    setItems(next);
+  };
+  return (
+    <div className="space-y-2">
+      <p className="text-[10px] text-muted-foreground">Items in correct order (top → bottom). Learner drags to arrange.</p>
+      {items.map((it, i) => (
+        <div key={it.id} className="flex items-center gap-1.5 bg-white border border-slate-200 rounded p-1.5">
+          <span className="text-[10px] text-slate-500 w-4 text-right">{i + 1}.</span>
+          <Input value={it.text} onChange={(e) => setText(it.id, e.target.value)} className="h-7 text-xs flex-1" placeholder="Item text" />
+          <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => move(it.id, -1)} disabled={i === 0} aria-label="Move up">↑</Button>
+          <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => move(it.id, 1)} disabled={i === items.length - 1} aria-label="Move down">↓</Button>
+          <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0 text-slate-500 hover:text-destructive" onClick={() => removeItem(it.id)} disabled={items.length <= 2} aria-label="Remove">
+            <X className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      ))}
+      <Button variant="outline" size="sm" className="w-full h-7 text-xs" onClick={addItem}>
+        <Plus className="h-3 w-3 mr-1" />Add item
+      </Button>
+    </div>
+  );
+}
+
+function FeedbackEditor({ target, otherSlides, onChange }: { target: QuizFeedbackTarget; otherSlides: Slide[]; onChange: (t: QuizFeedbackTarget) => void }) {
+  return (
+    <div className="space-y-1.5">
+      <Select value={target.mode} onValueChange={(v) => onChange({ ...target, mode: v as QuizFeedbackMode })}>
+        <SelectTrigger className="h-8 text-xs bg-white text-slate-800"><SelectValue /></SelectTrigger>
+        <SelectContent>
+          <SelectItem value="inline">Inline message</SelectItem>
+          <SelectItem value="overlay">Overlay popup</SelectItem>
+          <SelectItem value="jumpToSlide">Jump to slide</SelectItem>
+        </SelectContent>
+      </Select>
+      {(target.mode === 'inline' || target.mode === 'overlay') && (
+        <Input
+          value={target.message ?? ''}
+          onChange={(e) => onChange({ ...target, message: e.target.value })}
+          className="h-7 text-xs bg-white text-slate-800"
+          placeholder="Message text"
+        />
+      )}
+      {target.mode === 'jumpToSlide' && (
+        <Select value={target.targetSlideId ?? ''} onValueChange={(v) => onChange({ ...target, targetSlideId: v })}>
+          <SelectTrigger className="h-8 text-xs bg-white text-slate-800"><SelectValue placeholder="Select slide…" /></SelectTrigger>
+          <SelectContent>
+            {otherSlides.map((s, i) => (
+              <SelectItem key={s.id} value={s.id}>{s.title || `Slide ${i + 1}`}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
+    </div>
+  );
+}
+
+// ============================================================================
+// Results Slide editor
+// ============================================================================
+
+function ResultsEditor({ results, index }: { results: ResultsConfig; index: number }) {
+  const { dispatch } = useCourse();
+  const update = (updates: Partial<ResultsConfig>) => {
+    dispatch({ type: 'UPDATE_RESULTS', index, updates });
+  };
+  return (
+    <div className="space-y-3 pt-2 border-t">
+      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Results</p>
+      <div className="space-y-1">
+        <Label className="text-xs">Pass Threshold (%)</Label>
+        <Input
+          type="number"
+          min={0}
+          max={100}
+          value={results.passThreshold}
+          onChange={(e) => {
+            const n = Number(e.target.value);
+            const clamped = Math.max(0, Math.min(100, Number.isFinite(n) ? n : 0));
+            update({ passThreshold: clamped });
+          }}
+          className="h-8 text-xs bg-white text-slate-800"
+        />
+      </div>
+      <div className="space-y-1">
+        <Label className="text-xs">Pass Message</Label>
+        <Textarea value={results.passMessage} onChange={(e) => update({ passMessage: e.target.value })} className="text-xs min-h-[50px] bg-white text-slate-800" />
+      </div>
+      <div className="space-y-1">
+        <Label className="text-xs">Fail Message</Label>
+        <Textarea value={results.failMessage} onChange={(e) => update({ failMessage: e.target.value })} className="text-xs min-h-[50px] bg-white text-slate-800" />
+      </div>
+    </div>
+  );
+}
