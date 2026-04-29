@@ -88,7 +88,7 @@ export function PlayerShell({ playerSettings, interactive = true }: PlayerShellP
                   style={i === state.activeSlideIndex ? { backgroundColor: `${ps.buttonColor}33` } : undefined}
                 >
                   <span className="opacity-60 mr-1.5">{i + 1}.</span>
-                  Slide {i + 1}
+                  {s.title?.trim() || `Slide ${i + 1}`}
                 </button>
               </li>
             ))}

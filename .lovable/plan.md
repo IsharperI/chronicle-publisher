@@ -1,37 +1,47 @@
+# Add Slide Title Property
 
+Add an optional `title` field to each slide. The user can edit it in the right Properties panel (capped at 30 characters). When set, it replaces the default "Slide X" label in the left Slide Panel and in the Player Menu (both preview and SCORM export). When empty, "Slide X" is used as a fallback.
 
-# Timeline & Triggers Implementation
+## Changes
 
-## 1. State Schema Updates (`src/types/course.ts`)
-- Add `startTime: number` (default 0) and `duration: number` (default 5000) to `BaseElement`
-- Add `triggers: Trigger[]` to `BaseElement`
-- New `Trigger` interface: `{ event: string; action: string; targetId: string }`
-- Update default element creation in `Toolbox.tsx` to include these new fields
+### 1. Schema — `src/types/course.ts`
+Add to the `Slide` interface:
+```ts
+/** Optional human-readable title (max 30 chars). Falls back to "Slide N". */
+title?: string;
+```
 
-## 2. Context Updates (`src/context/CourseContext.tsx`)
-- Existing `UPDATE_ELEMENT` action already handles partial updates, so timeline property changes (startTime, duration) will work automatically through the properties panel and timeline UI
+### 2. Sanitization — `src/lib/sanitize.ts`
+In `sanitizeSlide`, accept and clamp the title:
+```ts
+title: typeof raw?.title === 'string' ? raw.title.slice(0, 30) : undefined,
+```
 
-## 3. Bottom Timeline Panel (`src/components/authoring/TimelinePanel.tsx`)
-- New collapsible panel at the bottom of the editor (hidden in preview mode)
-- **Left column (~200px)**: Lists element names/types for the active slide, clicking selects the element
-- **Right area**: Horizontal timeline tracks using `react-rnd` (already installed) for each element — bars are draggable (changes startTime) and resizable horizontally (changes duration)
-- Timeline scale: configurable, default showing ~10 seconds with tick marks
-- Bars color-coded by element type (text, image, shape)
-- Collapsible via a toggle button using Radix Collapsible (already available)
+### 3. Properties panel — `src/components/authoring/PropertiesPanel.tsx`
+Add a "Slide Title" `Input` near the top of the Slide Properties section (just under the heading, above Duration). Apply for both main and master slides.
+- `maxLength={30}`, `bg-white text-slate-800`, placeholder `Slide {index+1}`
+- onChange dispatches `UPDATE_SLIDE` with `{ title: e.target.value.slice(0, 30) }`
+- Small helper text: "Up to 30 characters. Shown in the slide list and player menu."
 
-## 4. Layout Update (`src/pages/Index.tsx`)
-- Insert `TimelinePanel` below the canvas area, inside the main flex column, outside the three-panel row
-- Only visible when not in preview mode
+### 4. Left slide panel — `src/components/authoring/SlidePanel.tsx`
+Replace the hard-coded label:
+```ts
+const label = (slide.title?.trim())
+  || (isMain ? `Slide ${i + 1}` : `Master ${i + 1}`);
+```
+Used in the `01 Slide 1` heading above each thumbnail.
 
-## 5. Properties Panel Update (`src/components/authoring/PropertiesPanel.tsx`)
-- Add startTime and duration number fields for all element types
-- Add a triggers section: list existing triggers with delete, button to add new trigger with dropdowns for event/action and an ID input for targetId
+### 5. Player preview menu — `src/components/authoring/PlayerShell.tsx`
+In the sidebar menu list, replace `Slide {i + 1}` with `s.title?.trim() || \`Slide ${i + 1}\``.
 
-## Files Changed
-- `src/types/course.ts` — schema additions
-- `src/context/CourseContext.tsx` — no reducer changes needed (UPDATE_ELEMENT covers it)
-- `src/components/authoring/Toolbox.tsx` — add defaults for new fields
-- `src/components/authoring/TimelinePanel.tsx` — new component
-- `src/components/authoring/PropertiesPanel.tsx` — timeline + trigger fields
-- `src/pages/Index.tsx` — layout update
+### 6. SCORM export menu — `src/lib/exportScorm.ts`
+In `buildMenu`, replace:
+```js
+b.textContent = "Slide " + (idx + 1);
+```
+with logic that uses `slides[idx].title` when present, else `"Slide " + (idx+1)`. The slides object passed to runtime already serializes the full Slide JSON, so `title` rides along automatically once the schema field exists; only the label resolution needs updating.
 
+## Behavior summary
+- Empty/whitespace title → falls back to "Slide N" everywhere.
+- Input enforces 30-character limit via `maxLength` and a defensive `.slice(0, 30)` in the dispatch.
+- No state-shape migration needed (field is optional); existing saved courses load unchanged.
