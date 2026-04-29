@@ -161,7 +161,7 @@ export function SlidePanel() {
             'flex-1 px-2 py-2 text-xs font-medium transition-colors border-t-2',
             isMain
               ? 'bg-white border-blue-600 text-slate-800'
-              : 'bg-blue-500 border-transparent text-slate-900 hover:bg-blue-400'
+              : 'bg-slate-100 border-transparent text-slate-600 hover:bg-slate-200'
           )}
         >
           Main Timeline
@@ -172,7 +172,7 @@ export function SlidePanel() {
             'flex-1 px-2 py-2 text-xs font-medium transition-colors border-t-2',
             !isMain
               ? 'bg-white border-blue-600 text-slate-800'
-              : 'bg-blue-500 border-transparent text-slate-900 hover:bg-blue-400'
+              : 'bg-slate-100 border-transparent text-slate-600 hover:bg-slate-200'
           )}
         >
           Masters
