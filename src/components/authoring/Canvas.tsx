@@ -777,6 +777,15 @@ function QuizSlideOverlay({ slide, isPreview }: { slide: Slide; isPreview: boole
   const interactive = isPreview && !isLocked;
   const revealCorrect = isLocked && !result?.correct && exhaustedBehavior === 'reveal';
 
+  // Whether to suppress the inline retry banner — set when the learner clicks
+  // "Try Again" to dismiss the previous incorrect feedback. Cleared when the
+  // attempts-remaining count changes (i.e. the next submit happens) or when
+  // the active slide changes.
+  const [retryDismissed, setRetryDismissed] = useState(false);
+  useEffect(() => {
+    setRetryDismissed(false);
+  }, [slide.id, remainingRaw]);
+
   const setAnswer = (a: unknown) => {
     if (!isPreview || isLocked) return;
     dispatch({ type: 'SET_QUIZ_ANSWER', slideId: slide.id, answer: a });
