@@ -19,7 +19,7 @@ import type { QuizQuestionType, QuizStyleOverrides } from '@/types/course';
 
 const TYPES: QuizQuestionType[] = ['multiple-choice', 'dnd-matching', 'dnd-sorting'];
 
-export function QuizTemplatesTab() {
+export function TemplatesGallery() {
   const { state, dispatch } = useCourse();
   const [templates, setTemplates] = useState<QuizTemplate[]>(() => loadTemplates());
   const [editorOpen, setEditorOpen] = useState(false);
