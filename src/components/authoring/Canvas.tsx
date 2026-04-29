@@ -280,6 +280,9 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
   const audioRefs = useRef<Map<string, HTMLAudioElement>>(new Map());
   const previewAccumRef = useRef(0);
   const ccEnabled = state.ccEnabled;
+  // Stabilize onPreviewNext via ref so it doesn't re-trigger the preview play effect on every render.
+  const onPreviewNextRef = useRef(onPreviewNext);
+  useEffect(() => { onPreviewNextRef.current = onPreviewNext; }, [onPreviewNext]);
 
   const isPreview = state.previewMode;
   const isMasterMode = state.viewMode === 'master';
@@ -371,7 +374,7 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
         // Persist final position before any auto-advance.
         savedPlayheadsRef.current.set(activeSlide.id, next);
         if (advance === 'auto' && !isLastSlide) {
-          if (onPreviewNext) onPreviewNext();
+          if (onPreviewNextRef.current) onPreviewNextRef.current();
           else dispatch({ type: 'PREVIEW_NEXT' });
         } else {
           dispatch({ type: 'SET_PLAYING', playing: false });
@@ -386,7 +389,7 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
       // Save current playhead so 'resume' can pick up where we left off.
       savedPlayheadsRef.current.set(activeSlide.id, previewAccumRef.current);
     };
-  }, [isPreview, slideKey, activeSlide, state.activeSlideIndex, state.slides.length, dispatch, onPreviewNext]);
+  }, [isPreview, slideKey, activeSlide, state.activeSlideIndex, state.slides.length, dispatch]);
 
   // Reset & cleanup audio elements when slide changes or preview toggles.
   useEffect(() => {
