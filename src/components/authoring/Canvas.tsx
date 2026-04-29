@@ -895,20 +895,21 @@ function QuizSlideOverlay({ slide, isPreview }: { slide: Slide; isPreview: boole
           </p>
         )}
 
-        {/* Inline retry hint shown after a failed attempt when attempts remain. */}
+        {/* Inline incorrect feedback shown after a failed attempt when attempts
+            remain. Uses the same red banner style as the final inline feedback
+            below, mirroring how correct feedback renders in green. */}
         {showRetryHint && quiz.incorrectFeedback.mode === 'inline' && (
           <div
             style={{
-              marginTop: 12,
-              padding: 12,
+              marginTop: 20,
+              padding: 14,
               borderRadius: 8,
-              background: '#fef3c7',
-              color: '#92400e',
-              fontWeight: 500,
-              fontSize: 14,
+              background: '#fee2e2',
+              color: '#991b1b',
+              fontWeight: 600,
             }}
           >
-            {quiz.incorrectFeedback.message || 'Not quite. Try again.'}
+            {quiz.incorrectFeedback.message || 'Incorrect.'}
           </div>
         )}
 
