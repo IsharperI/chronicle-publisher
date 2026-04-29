@@ -272,7 +272,7 @@ function isElementVisible(el: SlideElement, playheadTime: number): boolean {
   return playheadTime >= el.startTime && playheadTime < el.startTime + el.duration;
 }
 
-export function Canvas() {
+export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
   const { state, dispatch } = useCourse();
   const containerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0.5);
@@ -371,7 +371,8 @@ export function Canvas() {
         // Persist final position before any auto-advance.
         savedPlayheadsRef.current.set(activeSlide.id, next);
         if (advance === 'auto' && !isLastSlide) {
-          dispatch({ type: 'PREVIEW_NEXT' });
+          if (onPreviewNext) onPreviewNext();
+          else dispatch({ type: 'PREVIEW_NEXT' });
         } else {
           dispatch({ type: 'SET_PLAYING', playing: false });
         }
@@ -385,7 +386,7 @@ export function Canvas() {
       // Save current playhead so 'resume' can pick up where we left off.
       savedPlayheadsRef.current.set(activeSlide.id, previewAccumRef.current);
     };
-  }, [isPreview, slideKey, activeSlide, state.activeSlideIndex, state.slides.length, dispatch]);
+  }, [isPreview, slideKey, activeSlide, state.activeSlideIndex, state.slides.length, dispatch, onPreviewNext]);
 
   // Reset & cleanup audio elements when slide changes or preview toggles.
   useEffect(() => {
