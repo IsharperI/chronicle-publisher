@@ -121,7 +121,10 @@ type Action =
   | { type: 'SUBMIT_QUIZ'; slideId: string; correct: boolean }
   | { type: 'OPEN_QUIZ_FEEDBACK'; slideId: string; correct: boolean }
   | { type: 'CLOSE_QUIZ_FEEDBACK' }
-  | { type: 'RESET_QUIZ_PROGRESS' };
+  | { type: 'RESET_QUIZ_PROGRESS' }
+  | { type: 'INIT_QUIZ_ATTEMPTS'; slideId: string; attempts: number }
+  | { type: 'CONSUME_QUIZ_ATTEMPT'; slideId: string }
+  | { type: 'RESET_QUIZ_SLIDE_PROGRESS'; slideId: string };
 
 function getActiveSlides(state: CourseState): Slide[] {
   return state.viewMode === 'master' ? state.masterSlides : state.slides;
