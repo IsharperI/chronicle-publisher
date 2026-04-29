@@ -1090,10 +1090,9 @@ function MCPlay({ quiz, answer, onChange, disabled, revealCorrect, ts }: { quiz:
   );
 }
 
-function MatchPlay({ quiz, answer, onChange, disabled }: { quiz: QuizConfig; answer: Record<string, string> | undefined; onChange: (a: Record<string, string>) => void; disabled: boolean }) {
+function MatchPlay({ quiz, answer, onChange, disabled, ts }: { quiz: QuizConfig; answer: Record<string, string> | undefined; onChange: (a: Record<string, string>) => void; disabled: boolean; ts: ResolvedQuizStyle }) {
   const pairs = quiz.pairs ?? [];
   const map = answer ?? {};
-  // Right-side options shuffled deterministically by id.
   const rights = pairs.map((p) => p.right);
   const handleDrop = (pairId: string, value: string) => {
     if (disabled) return;
@@ -1101,7 +1100,7 @@ function MatchPlay({ quiz, answer, onChange, disabled }: { quiz: QuizConfig; ans
   };
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', padding: 10, background: '#f1f5f9', borderRadius: 8 }}>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', padding: 10, background: '#f1f5f9', borderRadius: ts.optionRadius }}>
         {rights.map((r, i) => (
           <span
             key={i}
@@ -1109,11 +1108,12 @@ function MatchPlay({ quiz, answer, onChange, disabled }: { quiz: QuizConfig; ans
             onDragStart={(e) => e.dataTransfer.setData('text/plain', r)}
             style={{
               padding: '6px 12px',
-              background: '#fff',
-              border: '1px solid #cbd5e1',
+              background: ts.optionBackgroundColor,
+              border: `1px solid ${ts.optionBorderColor}`,
               borderRadius: 6,
               cursor: disabled ? 'default' : 'grab',
-              fontSize: 14,
+              fontSize: ts.optionFontSize - 2,
+              color: ts.textColor,
             }}
           >
             {r}
@@ -1122,7 +1122,7 @@ function MatchPlay({ quiz, answer, onChange, disabled }: { quiz: QuizConfig; ans
       </div>
       {pairs.map((p) => (
         <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ flex: 1, padding: '10px 14px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: 15 }}>
+          <div style={{ flex: 1, padding: '10px 14px', background: ts.optionBackgroundColor, border: `1px solid ${ts.optionBorderColor}`, borderRadius: ts.optionRadius, fontSize: ts.optionFontSize, color: ts.textColor }}>
             {p.left}
           </div>
           <span style={{ color: '#64748b' }}>→</span>
@@ -1132,15 +1132,56 @@ function MatchPlay({ quiz, answer, onChange, disabled }: { quiz: QuizConfig; ans
             style={{
               flex: 1, minHeight: 42,
               padding: '10px 14px',
-              background: map[p.id] ? '#eff6ff' : '#f8fafc',
-              border: `2px dashed ${map[p.id] ? '#3b82f6' : '#cbd5e1'}`,
-              borderRadius: 8,
-              fontSize: 15,
-              color: map[p.id] ? '#0f172a' : '#94a3b8',
+              background: map[p.id] ? ts.optionSelectedBackgroundColor : '#f8fafc',
+              border: `2px dashed ${map[p.id] ? ts.optionSelectedBorderColor : ts.optionBorderColor}`,
+              borderRadius: ts.optionRadius,
+              fontSize: ts.optionFontSize,
+              color: map[p.id] ? ts.textColor : '#94a3b8',
             }}
           >
             {map[p.id] || 'Drop match here'}
           </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function SortPlay({ quiz, answer, onChange, disabled, ts }: { quiz: QuizConfig; answer: string[] | undefined; onChange: (a: string[]) => void; disabled: boolean; ts: ResolvedQuizStyle }) {
+  const items = quiz.sortItems ?? [];
+  const order = answer && answer.length === items.length
+    ? answer
+    : items.slice().sort((a, b) => a.id.localeCompare(b.id)).map((i) => i.id);
+  const byId = new Map(items.map((i) => [i.id, i]));
+
+  const move = (idx: number, dir: -1 | 1) => {
+    if (disabled) return;
+    const swap = idx + dir;
+    if (swap < 0 || swap >= order.length) return;
+    const next = order.slice();
+    [next[idx], next[swap]] = [next[swap], next[idx]];
+    onChange(next);
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {order.map((id, i) => (
+        <div
+          key={id}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 12,
+            padding: '10px 14px',
+            background: ts.optionBackgroundColor,
+            border: `1px solid ${ts.optionBorderColor}`,
+            borderRadius: ts.optionRadius,
+            fontSize: ts.optionFontSize,
+            color: ts.textColor,
+          }}
+        >
+          <span style={{ color: '#94a3b8', width: 20 }}>{i + 1}.</span>
+          <span style={{ flex: 1 }}>{byId.get(id)?.text ?? ''}</span>
+          <button type="button" onClick={() => move(i, -1)} disabled={disabled || i === 0} style={{ padding: '4px 10px', border: `1px solid ${ts.optionBorderColor}`, background: ts.optionBackgroundColor, color: ts.textColor, borderRadius: 6, cursor: disabled || i === 0 ? 'not-allowed' : 'pointer' }}>↑</button>
+          <button type="button" onClick={() => move(i, 1)} disabled={disabled || i === order.length - 1} style={{ padding: '4px 10px', border: `1px solid ${ts.optionBorderColor}`, background: ts.optionBackgroundColor, color: ts.textColor, borderRadius: 6, cursor: disabled || i === order.length - 1 ? 'not-allowed' : 'pointer' }}>↓</button>
         </div>
       ))}
     </div>
