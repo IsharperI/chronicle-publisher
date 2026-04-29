@@ -958,7 +958,7 @@ function QuizSlideOverlay({ slide, isPreview }: { slide: Slide; isPreview: boole
   );
 }
 
-function MCPlay({ quiz, answer, onChange, disabled }: { quiz: QuizConfig; answer: string[] | undefined; onChange: (a: string[]) => void; disabled: boolean }) {
+function MCPlay({ quiz, answer, onChange, disabled, revealCorrect }: { quiz: QuizConfig; answer: string[] | undefined; onChange: (a: string[]) => void; disabled: boolean; revealCorrect?: boolean }) {
   const single = quiz.singleSelect !== false;
   const choices = quiz.choices ?? [];
   const selected = new Set(answer ?? []);
@@ -975,14 +975,17 @@ function MCPlay({ quiz, answer, onChange, disabled }: { quiz: QuizConfig; answer
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       {choices.map((c) => {
         const isOn = selected.has(c.id);
+        const showAsCorrect = revealCorrect && c.correct;
+        const borderColor = showAsCorrect ? '#16a34a' : (isOn ? '#3b82f6' : '#e2e8f0');
+        const bgColor = showAsCorrect ? '#dcfce7' : (isOn ? '#eff6ff' : '#fff');
         return (
           <label
             key={c.id}
             style={{
               display: 'flex', alignItems: 'center', gap: 12,
               padding: '10px 14px',
-              border: `2px solid ${isOn ? '#3b82f6' : '#e2e8f0'}`,
-              background: isOn ? '#eff6ff' : '#fff',
+              border: `2px solid ${borderColor}`,
+              background: bgColor,
               borderRadius: 8,
               cursor: disabled ? 'default' : 'pointer',
               fontSize: 16,
@@ -996,7 +999,10 @@ function MCPlay({ quiz, answer, onChange, disabled }: { quiz: QuizConfig; answer
               disabled={disabled}
               style={{ width: 18, height: 18 }}
             />
-            <span>{c.text}</span>
+            <span style={{ flex: 1 }}>{c.text}</span>
+            {showAsCorrect && (
+              <span style={{ fontSize: 12, fontWeight: 700, color: '#15803d' }}>✓ Correct</span>
+            )}
           </label>
         );
       })}
