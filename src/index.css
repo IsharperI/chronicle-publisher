@@ -137,24 +137,43 @@ All colors MUST be HSL.
 .anim-fly-out-left { animation: el-fly-out-left 0.5s ease-in forwards; }
 .anim-fly-out-right { animation: el-fly-out-right 0.5s ease-in forwards; }
 
-/* ===== Slide transitions (entrance only) ===== */
-@keyframes slide-trans-fade {
+/* ===== Slide transitions =====
+   Slides are stacked while transitioning. The incoming slide animates IN
+   on top; the outgoing slide stays beneath (fade/zoom) or animates OUT
+   (push variants). */
+@keyframes slide-in-fade {
   from { opacity: 0; }
   to   { opacity: 1; }
 }
-@keyframes slide-trans-push-up {
-  from { opacity: 0; transform: translateY(100%); }
-  to   { opacity: 1; transform: translateY(0); }
+@keyframes slide-in-push-up {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
 }
-@keyframes slide-trans-push-left {
-  from { opacity: 0; transform: translateX(100%); }
-  to   { opacity: 1; transform: translateX(0); }
+@keyframes slide-in-push-left {
+  from { transform: translateX(100%); }
+  to   { transform: translateX(0); }
 }
-@keyframes slide-trans-zoom-in {
+@keyframes slide-in-zoom-in {
   from { opacity: 0; transform: scale(0.92); }
   to   { opacity: 1; transform: scale(1); }
 }
-.slide-trans-fade      { animation: slide-trans-fade      var(--slide-trans-dur, 0.5s) ease-out both; }
-.slide-trans-push-up   { animation: slide-trans-push-up   var(--slide-trans-dur, 0.5s) ease-out both; }
-.slide-trans-push-left { animation: slide-trans-push-left var(--slide-trans-dur, 0.5s) ease-out both; }
-.slide-trans-zoom-in   { animation: slide-trans-zoom-in   var(--slide-trans-dur, 0.5s) ease-out both; }
+@keyframes slide-out-push-up {
+  from { transform: translateY(0); }
+  to   { transform: translateY(-100%); }
+}
+@keyframes slide-out-push-left {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-100%); }
+}
+.slide-in-fade      { animation: slide-in-fade      var(--slide-trans-dur, 0.5s) ease-out both; }
+.slide-in-push-up   { animation: slide-in-push-up   var(--slide-trans-dur, 0.5s) ease-out both; }
+.slide-in-push-left { animation: slide-in-push-left var(--slide-trans-dur, 0.5s) ease-out both; }
+.slide-in-zoom-in   { animation: slide-in-zoom-in   var(--slide-trans-dur, 0.5s) ease-out both; }
+.slide-out-push-up   { animation: slide-out-push-up   var(--slide-trans-dur, 0.5s) ease-out both; }
+.slide-out-push-left { animation: slide-out-push-left var(--slide-trans-dur, 0.5s) ease-out both; }
+
+/* Back-compat aliases (some code still references these). Treat as entrance fade. */
+.slide-trans-fade,
+.slide-trans-push-up,
+.slide-trans-push-left,
+.slide-trans-zoom-in { animation: slide-in-fade var(--slide-trans-dur, 0.5s) ease-out both; }
