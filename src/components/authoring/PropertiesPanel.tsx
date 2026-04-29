@@ -376,6 +376,14 @@ export function PropertiesPanel() {
               <p className="text-xs text-muted-foreground">Up to 30 characters. Shown in the slide list and player menu.</p>
             </div>
 
+            {!isMasterMode && (
+              <SlideNumberField
+                index={state.activeSlideIndex}
+                total={state.slides.length}
+                onMove={(to) => dispatch({ type: 'MOVE_SLIDE', from: state.activeSlideIndex, to })}
+              />
+            )}
+
             {!isMasterMode && activeSlide?.slideType === 'quiz' && activeSlide.quiz && (
               <QuizEditor slide={activeSlide} index={state.activeSlideIndex} allSlides={state.slides} />
             )}
