@@ -364,7 +364,7 @@ export function TimelinePanel() {
   const playheadLeft = (state.playheadTime / slideDuration) * trackWidth;
 
   return (
-    <Collapsible open={open} onOpenChange={setOpen} className="border-t bg-card shrink-0">
+    <Collapsible open={open} onOpenChange={setOpen} className="glass border-t border-white/60 shrink-0 rounded-none">
       <div className="flex items-center">
         <CollapsibleTrigger asChild>
           <Button variant="ghost" size="sm" className="rounded-none h-7 text-xs gap-1 text-muted-foreground px-3">
