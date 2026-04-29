@@ -261,7 +261,7 @@ export function Ribbon() {
 
         const el: VideoElement = {
           id: crypto.randomUUID(), type: 'video',
-          x, y, width: w, height: h,
+          x: 0, y: 0, width: w, height: h,
           src: base64,
           controls: true,
           autoplay: false,
