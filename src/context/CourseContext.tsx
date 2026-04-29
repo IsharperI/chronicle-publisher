@@ -435,8 +435,46 @@ function courseReducer(state: CourseState, action: Action): CourseState {
       }));
       return { ...state, ...updateActiveSlides(state, slides) };
     }
-    default:
-      return state;
+    case 'ADD_QUIZ_SLIDE': {
+      // Quiz slides only exist in main timeline.
+      if (state.viewMode === 'master') return state;
+      const newSlides = [...state.slides, createQuizSlide()];
+      return { ...state, slides: newSlides, activeSlideIndex: newSlides.length - 1, activeElementId: null, selectedElementIds: [] };
+    }
+    case 'ADD_RESULTS_SLIDE': {
+      if (state.viewMode === 'master') return state;
+      const newSlides = [...state.slides, createResultsSlide()];
+      return { ...state, slides: newSlides, activeSlideIndex: newSlides.length - 1, activeElementId: null, selectedElementIds: [] };
+    }
+    case 'UPDATE_QUIZ': {
+      const slides = state.slides.map((s, i) =>
+        i === action.index && s.slideType === 'quiz'
+          ? { ...s, quiz: { ...(s.quiz ?? defaultQuizConfig()), ...action.updates } }
+          : s
+      );
+      return { ...state, slides };
+    }
+    case 'UPDATE_RESULTS': {
+      const slides = state.slides.map((s, i) =>
+        i === action.index && s.slideType === 'results'
+          ? { ...s, results: { ...(s.results ?? defaultResultsConfig()), ...action.updates } }
+          : s
+      );
+      return { ...state, slides };
+    }
+    case 'SET_QUIZ_ANSWER':
+      return { ...state, quizAnswers: { ...state.quizAnswers, [action.slideId]: action.answer } };
+    case 'SUBMIT_QUIZ':
+      return {
+        ...state,
+        quizResults: { ...state.quizResults, [action.slideId]: { correct: action.correct, submitted: true } },
+      };
+    case 'OPEN_QUIZ_FEEDBACK':
+      return { ...state, quizFeedbackOpen: { slideId: action.slideId, correct: action.correct } };
+    case 'CLOSE_QUIZ_FEEDBACK':
+      return { ...state, quizFeedbackOpen: null };
+    case 'RESET_QUIZ_PROGRESS':
+      return { ...state, quizAnswers: {}, quizResults: {}, quizFeedbackOpen: null };
   }
 }
 
