@@ -153,8 +153,13 @@ export function PlayerShell({ playerSettings, interactive = true }: PlayerShellP
                   }`}
                   style={i === state.activeSlideIndex ? { backgroundColor: `${ps.buttonColor}33` } : undefined}
                 >
-                  <span className="opacity-60 mr-1.5">{i + 1}.</span>
-                  {s.title?.trim() || `Slide ${i + 1}`}
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="inline-flex w-3.5 justify-center">
+                      {visitedIds.has(s.id) ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : null}
+                    </span>
+                    <span className="opacity-60">{i + 1}.</span>
+                    <span>{s.title?.trim() || `Slide ${i + 1}`}</span>
+                  </span>
                 </button>
               </li>
             ))}
