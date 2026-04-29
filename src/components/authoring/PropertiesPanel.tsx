@@ -1159,8 +1159,8 @@ function FeedbackEditor({ target, otherSlides, onChange }: { target: QuizFeedbac
         <Select value={target.targetSlideId ?? ''} onValueChange={(v) => onChange({ ...target, targetSlideId: v })}>
           <SelectTrigger className="h-8 text-xs bg-white text-slate-800"><SelectValue placeholder="Select slide…" /></SelectTrigger>
           <SelectContent>
-            {otherSlides.map((s, i) => (
-              <SelectItem key={s.id} value={s.id}>{s.title || `Slide ${i + 1}`}</SelectItem>
+            {otherSlides.map(({ slide: s, label }) => (
+              <SelectItem key={s.id} value={s.id}>{label}</SelectItem>
             ))}
           </SelectContent>
         </Select>
