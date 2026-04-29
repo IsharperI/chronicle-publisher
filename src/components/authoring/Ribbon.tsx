@@ -506,6 +506,20 @@ export function Ribbon() {
             </RibbonGroup>
           </>
         )}
+
+        {activeTab === 'Quiz' && (
+          <>
+            <RibbonGroup label="Slides">
+              <RibbonButton icon={HelpCircle} label="Quiz Slide" onClick={() => dispatch({ type: 'ADD_QUIZ_SLIDE' })} />
+              <RibbonButton icon={Trophy} label="Results Slide" onClick={() => dispatch({ type: 'ADD_RESULTS_SLIDE' })} />
+            </RibbonGroup>
+            <Separator orientation="vertical" className="h-12 mx-2" />
+            <RibbonGroup label="Library">
+              <RibbonButton icon={Palette} label="Quiz Themes" onClick={() => setQuizThemesOpen(true)} />
+              <RibbonButton icon={Library} label="Question Bank" onClick={() => setQuestionBankOpen(true)} />
+            </RibbonGroup>
+          </>
+        )}
       </div>
 
     </div>
