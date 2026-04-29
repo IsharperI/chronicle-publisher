@@ -4,6 +4,7 @@ import { Plus, Trash2 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import type { Slide, SlideElement } from '@/types/course';
+import { resolveColor } from '@/lib/themeVars';
 import { memo, useEffect, useRef, useState } from 'react';
 
 const THUMB_WIDTH = 160; // px rendered width of the thumbnail box
@@ -12,7 +13,7 @@ const THUMB_WIDTH = 160; // px rendered width of the thumbnail box
  * Render a single static, non-interactive miniature element. No event
  * listeners, no draggable logic, no state — purely visual.
  */
-function ThumbElement({ el }: { el: SlideElement }) {
+function ThumbElement({ el, themeColors }: { el: SlideElement; themeColors: string[] }) {
   const baseStyle: React.CSSProperties = {
     position: 'absolute',
     left: el.x,
@@ -41,8 +42,10 @@ function ThumbElement({ el }: { el: SlideElement }) {
   }
 
   if (el.type === 'shape') {
-    const fill = el.fillColor || 'transparent';
-    const strokeColor = el.borderColor || 'transparent';
+    const rawFill = el.fillColor;
+    const rawStroke = el.borderColor;
+    const fill = !rawFill || rawFill === 'transparent' ? 'transparent' : resolveColor(rawFill, themeColors, 'transparent');
+    const strokeColor = !rawStroke || rawStroke === 'transparent' ? 'transparent' : resolveColor(rawStroke, themeColors, 'transparent');
     const strokeWidth = typeof el.borderWidth === 'number' ? el.borderWidth : 0;
 
     if (el.shapeType === 'triangle') {
@@ -134,10 +137,11 @@ function ThumbElement({ el }: { el: SlideElement }) {
  * preserve scroll height, but only mounts inner elements when the container
  * intersects the viewport. Unmounts inner elements when scrolled away.
  */
-const SlideThumbnail = memo(function SlideThumbnail({ slide, canvasWidth, canvasHeight }: {
+const SlideThumbnail = memo(function SlideThumbnail({ slide, canvasWidth, canvasHeight, themeColors }: {
   slide: Slide;
   canvasWidth: number;
   canvasHeight: number;
+  themeColors: string[];
 }) {
   const scale = THUMB_WIDTH / canvasWidth;
   const thumbHeight = canvasHeight * scale;
@@ -180,7 +184,7 @@ const SlideThumbnail = memo(function SlideThumbnail({ slide, canvasWidth, canvas
           }}
         >
           {slide.elements.map((el) => (
-            <ThumbElement key={el.id} el={el} />
+            <ThumbElement key={el.id} el={el} themeColors={themeColors} />
           ))}
         </div>
       )}
@@ -259,6 +263,7 @@ export function SlidePanel() {
                     slide={slide}
                     canvasWidth={canvasWidth}
                     canvasHeight={canvasHeight}
+                    themeColors={state.courseSettings.themeColors}
                   />
                 </button>
               </div>
