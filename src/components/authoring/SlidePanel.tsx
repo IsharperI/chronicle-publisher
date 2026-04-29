@@ -137,10 +137,11 @@ function ThumbElement({ el, themeColors }: { el: SlideElement; themeColors: stri
  * preserve scroll height, but only mounts inner elements when the container
  * intersects the viewport. Unmounts inner elements when scrolled away.
  */
-const SlideThumbnail = memo(function SlideThumbnail({ slide, canvasWidth, canvasHeight }: {
+const SlideThumbnail = memo(function SlideThumbnail({ slide, canvasWidth, canvasHeight, themeColors }: {
   slide: Slide;
   canvasWidth: number;
   canvasHeight: number;
+  themeColors: string[];
 }) {
   const scale = THUMB_WIDTH / canvasWidth;
   const thumbHeight = canvasHeight * scale;
