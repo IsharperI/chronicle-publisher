@@ -311,6 +311,32 @@ function AudioPanel({ audio }: { audio: SlideAudio }) {
   );
 }
 
+function SlideNumberField({ index, total, onMove }: { index: number; total: number; onMove: (to: number) => void }) {
+  const display = String(index + 1).padStart(2, '0');
+  const [value, setValue] = useState(display);
+  React.useEffect(() => { setValue(display); }, [display]);
+  const commit = () => {
+    const n = parseInt(value, 10);
+    if (isNaN(n) || n < 1 || n > total) { setValue(display); return; }
+    const to = n - 1;
+    if (to === index) { setValue(display); return; }
+    onMove(to);
+  };
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Slide Number</Label>
+      <Input
+        value={value}
+        onChange={(e) => setValue(e.target.value.replace(/[^0-9]/g, ''))}
+        onBlur={commit}
+        onKeyDown={(e) => { if (e.key === 'Enter') { e.currentTarget.blur(); } }}
+        className="h-8 text-xs bg-white text-slate-800 w-20"
+      />
+      <p className="text-xs text-muted-foreground">Position in the slide list (1–{total}). Press Enter to reorder.</p>
+    </div>
+  );
+}
+
 export function PropertiesPanel() {
   const { state, dispatch } = useCourse();
   const fileInputRef = useRef<HTMLInputElement>(null);
