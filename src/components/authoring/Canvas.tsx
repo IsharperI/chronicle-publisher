@@ -446,7 +446,7 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
   return (
     <div
       ref={containerRef}
-      className="flex-1 flex flex-col items-center justify-center overflow-hidden min-w-0"
+      className="flex-1 flex flex-col items-center justify-center overflow-hidden min-w-0 bg-gradient-to-br from-slate-200 to-slate-300"
       style={themeVarStyle(state.courseSettings.themeColors)}
     >
       <div
