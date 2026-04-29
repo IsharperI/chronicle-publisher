@@ -855,7 +855,7 @@ function QuizEditor({ slide, index, allSlides }: { slide: Slide; index: number; 
           <SelectContent>
             <SelectItem value="multiple-choice">Multiple Choice</SelectItem>
             <SelectItem value="dnd-matching">Drag & Drop — Matching</SelectItem>
-            <SelectItem value="dnd-sorting">Drag & Drop — Sorting</SelectItem>
+            <SelectItem value="dnd-sorting">Ordering</SelectItem>
           </SelectContent>
         </Select>
       </div>
