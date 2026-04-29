@@ -192,6 +192,10 @@ export interface QuizConfig {
   attemptsExhaustedBehavior?: QuizExhaustedBehavior;
   /** Quiz-specific revisit mode (separate from regular slide revisitMode). */
   quizRevisitMode?: QuizRevisitMode;
+  /** When true, learner can skip this question via a Skip button. */
+  allowSkip?: boolean;
+  /** Target slide id to navigate to when learner clicks Skip. */
+  skipTargetSlideId?: string;
 }
 
 export interface ResultsConfig {

@@ -777,6 +777,15 @@ function QuizSlideOverlay({ slide, isPreview }: { slide: Slide; isPreview: boole
   const interactive = isPreview && !isLocked;
   const revealCorrect = isLocked && !result?.correct && exhaustedBehavior === 'reveal';
 
+  // Whether to suppress the inline retry banner — set when the learner clicks
+  // "Try Again" to dismiss the previous incorrect feedback. Cleared when the
+  // attempts-remaining count changes (i.e. the next submit happens) or when
+  // the active slide changes.
+  const [retryDismissed, setRetryDismissed] = useState(false);
+  useEffect(() => {
+    setRetryDismissed(false);
+  }, [slide.id, remainingRaw]);
+
   const setAnswer = (a: unknown) => {
     if (!isPreview || isLocked) return;
     dispatch({ type: 'SET_QUIZ_ANSWER', slideId: slide.id, answer: a });
@@ -835,7 +844,7 @@ function QuizSlideOverlay({ slide, isPreview }: { slide: Slide; isPreview: boole
 
   // Inline incorrect message between attempts (when attempts remain).
   const showRetryHint =
-    isPreview && !isLocked && remainingRaw != null && remainingRaw < (isUnlimited ? Number.POSITIVE_INFINITY : maxAttempts);
+    isPreview && !isLocked && !retryDismissed && remainingRaw != null && remainingRaw < (isUnlimited ? Number.POSITIVE_INFINITY : maxAttempts);
 
   return (
     <div
@@ -935,27 +944,83 @@ function QuizSlideOverlay({ slide, isPreview }: { slide: Slide; isPreview: boole
           })()
         )}
 
-        {isPreview && !isLocked && (
-          <div style={{ marginTop: 24, display: 'flex', justifyContent: 'flex-end' }}>
-            <button
-              type="button"
-              onClick={submit}
-              disabled={answer == null}
-              style={{
-                background: '#3b82f6',
-                color: '#fff',
-                fontWeight: 600,
-                padding: '10px 24px',
-                borderRadius: 8,
-                opacity: answer == null ? 0.4 : 1,
-                cursor: answer == null ? 'not-allowed' : 'pointer',
-                border: 'none',
-              }}
-            >
-              Submit
-            </button>
-          </div>
-        )}
+        {isPreview && (() => {
+          // Determine which action button to render at the bottom of the quiz.
+          // After inline feedback, replace Submit with a contextual button.
+          const inlineCorrectShown = isLocked && result?.correct && quiz.correctFeedback.mode === 'inline';
+          const inlineFinalIncorrectShown = isLocked && !result?.correct && quiz.incorrectFeedback.mode === 'inline';
+          const inlineRetryShown = !isLocked && showRetryHint && quiz.incorrectFeedback.mode === 'inline';
+
+          const advanceNext = () => {
+            const next = Math.min(state.activeSlideIndex + 1, state.slides.length - 1);
+            dispatch({ type: 'SET_ACTIVE_SLIDE', index: next });
+          };
+          const tryAgain = () => {
+            // Clear selected answer and dismiss inline retry banner.
+            dispatch({ type: 'SET_QUIZ_ANSWER', slideId: slide.id, answer: null });
+            setRetryDismissed(true);
+          };
+          const goToSkipTarget = () => {
+            const tid = quiz.skipTargetSlideId;
+            if (!tid) return;
+            const idx = state.slides.findIndex((s) => s.id === tid);
+            if (idx >= 0) dispatch({ type: 'SET_ACTIVE_SLIDE', index: idx });
+          };
+
+          let primary: { label: string; onClick: () => void; disabled?: boolean } | null = null;
+          if (inlineCorrectShown || inlineFinalIncorrectShown) {
+            primary = { label: 'Continue', onClick: advanceNext };
+          } else if (inlineRetryShown) {
+            primary = { label: 'Try Again', onClick: tryAgain };
+          } else if (!isLocked) {
+            primary = { label: 'Submit', onClick: submit, disabled: answer == null };
+          }
+
+          if (!primary && !quiz.allowSkip) return null;
+
+          return (
+            <div style={{ marginTop: 24, display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
+              {quiz.allowSkip && !isLocked && (
+                <button
+                  type="button"
+                  onClick={goToSkipTarget}
+                  disabled={!quiz.skipTargetSlideId}
+                  style={{
+                    background: '#fff',
+                    color: '#0f172a',
+                    fontWeight: 600,
+                    padding: '10px 20px',
+                    borderRadius: 8,
+                    border: '1px solid #cbd5e1',
+                    cursor: quiz.skipTargetSlideId ? 'pointer' : 'not-allowed',
+                    opacity: quiz.skipTargetSlideId ? 1 : 0.5,
+                  }}
+                >
+                  Skip
+                </button>
+              )}
+              {primary && (
+                <button
+                  type="button"
+                  onClick={primary.onClick}
+                  disabled={primary.disabled}
+                  style={{
+                    background: '#3b82f6',
+                    color: '#fff',
+                    fontWeight: 600,
+                    padding: '10px 24px',
+                    borderRadius: 8,
+                    opacity: primary.disabled ? 0.4 : 1,
+                    cursor: primary.disabled ? 'not-allowed' : 'pointer',
+                    border: 'none',
+                  }}
+                >
+                  {primary.label}
+                </button>
+              )}
+            </div>
+          );
+        })()}
         {!isPreview && (
           <p style={{ marginTop: 18, fontSize: 12, color: '#64748b', fontStyle: 'italic' }}>
             Editor preview — quiz becomes interactive in Preview / SCORM.

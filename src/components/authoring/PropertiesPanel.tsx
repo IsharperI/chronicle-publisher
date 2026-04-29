@@ -894,6 +894,43 @@ function QuizEditor({ slide, index, allSlides }: { slide: Slide; index: number; 
 
       <AttemptsEditor quiz={quiz} update={update} />
       <QuizRevisitEditor quiz={quiz} update={update} />
+      <SkipEditor quiz={quiz} update={update} otherSlides={otherSlides} />
+    </div>
+  );
+}
+
+function SkipEditor({ quiz, update, otherSlides }: { quiz: QuizConfig; update: (u: Partial<QuizConfig>) => void; otherSlides: { slide: Slide; label: string }[] }) {
+  const allow = !!quiz.allowSkip;
+  return (
+    <div className="pt-2 border-t space-y-2">
+      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Skip</p>
+      <div className="flex items-center justify-between">
+        <Label className="text-xs cursor-pointer" htmlFor="quiz-allow-skip">Allow Skip</Label>
+        <Switch
+          id="quiz-allow-skip"
+          checked={allow}
+          onCheckedChange={(v) => update({ allowSkip: v })}
+        />
+      </div>
+      {allow && (
+        <div className="space-y-1">
+          <Label className="text-xs">Skip to slide</Label>
+          <Select
+            value={quiz.skipTargetSlideId ?? ''}
+            onValueChange={(v) => update({ skipTargetSlideId: v })}
+          >
+            <SelectTrigger className="h-8 text-xs bg-white text-slate-800"><SelectValue placeholder="Select slide…" /></SelectTrigger>
+            <SelectContent>
+              {otherSlides.map(({ slide: s, label }) => (
+                <SelectItem key={s.id} value={s.id}>{label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-[10px] text-muted-foreground">
+            Skipped questions are not scored.
+          </p>
+        </div>
+      )}
     </div>
   );
 }
