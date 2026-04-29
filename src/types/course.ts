@@ -211,6 +211,8 @@ export interface GlobalTransition {
   type: SlideTransitionType;
   /** Duration in seconds. Bound to 1–5s in UI. */
   duration: number;
+  /** Background color the canvas fades through during a transition. */
+  color: string;
 }
 
 export interface CourseSettings {
@@ -224,7 +226,7 @@ export interface CourseSettings {
 export const defaultCourseSettings: CourseSettings = {
   canvasDimensions: { width: 1024, height: 768 },
   themeColors: ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#1f2937', '#f9fafb'],
-  transition: { type: 'none', duration: 1 },
+  transition: { type: 'fade', duration: 1, color: '#000000' },
 };
 
 export interface CourseState {
