@@ -13,7 +13,9 @@ export function TopNav() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'course-project.json';
+    const rawName = (state.playerSettings?.courseTitle || '').trim();
+    const slug = rawName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60);
+    a.download = `${slug || 'course-project'}.json`;
     a.click();
     URL.revokeObjectURL(url);
   };
