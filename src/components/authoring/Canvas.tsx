@@ -4,6 +4,8 @@ import { useCourse } from '@/context/CourseContext';
 import type { SlideElement, TextElement, ShapeElement, AnimationIn, AnimationOut, TableElement, Slide, QuizConfig, QuizChoice, QuizMatchPair, QuizSortItem } from '@/types/course';
 import { resolveQuizStyle, type ResolvedQuizStyle } from '@/lib/quizTemplates';
 import { themeVarStyle } from '@/lib/themeVars';
+import { MotionPathLayer } from './MotionPathLayer';
+import { motionPathOffset } from '@/lib/motionPath';
 
 function getAnimInClass(anim: AnimationIn): string {
   switch (anim) {
@@ -524,12 +526,15 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
                   }
                 }
               } : undefined;
+              const mpOffset = motionPathOffset(el, state.playheadTime);
+              const baseTransform = mpOffset ? `translate(${mpOffset.dx}px, ${mpOffset.dy}px)` : undefined;
               return (
                 <div
                   key={el.id}
                   className={`${animClass}${hasClickTrigger ? ' cursor-pointer' : ''}`}
                   style={{
                     position: 'absolute', left: el.x, top: el.y, width: el.width, height: el.height, zIndex: 2,
+                    ...(baseTransform ? { transform: baseTransform } : {}),
                     ...(animClass ? { animationDuration: `${animDurMs}ms` } : {}),
                   }}
                   onClick={handleTriggerClick}
@@ -677,6 +682,11 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
               {activeCaption}
             </span>
           </div>
+        )}
+
+        {/* Motion-path overlay (editor + dotted previews) — only in editor view */}
+        {!isPreview && (
+          <MotionPathLayer canvasW={CANVAS_W} canvasH={CANVAS_H} scale={scale} elements={editElements} />
         )}
 
         {/* Quiz / Results slide overlays — fixed centered layout */}

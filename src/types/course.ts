@@ -26,6 +26,20 @@ export interface BaseElement {
   exitDuration: number;
   isLocked?: boolean;
   isHidden?: boolean;
+  /** Optional motion path animation. Coordinates are in canvas pixels (absolute, not offsets). */
+  motionPath?: MotionPath;
+}
+
+/** Cubic bezier motion path in absolute canvas coordinates. */
+export interface MotionPath {
+  startX: number;
+  startY: number;
+  endX: number;
+  endY: number;
+  c1x: number;
+  c1y: number;
+  c2x: number;
+  c2y: number;
 }
 
 export interface TextElement extends BaseElement {
@@ -374,4 +388,6 @@ export interface CourseState {
   quizFeedbackOpen: { slideId: string; correct: boolean } | null;
   /** Runtime (preview/player): attempts remaining per quiz slide. */
   quizAttemptsRemaining: Record<string, number>;
+  /** Editor-only: when set, canvas enters motion-path drawing mode for the given element. */
+  motionPathEditor: { elementId: string } | null;
 }

@@ -76,6 +76,7 @@ const initialState: CourseState = {
   quizAnswers: {},
   quizFeedbackOpen: null,
   quizAttemptsRemaining: {},
+  motionPathEditor: null,
 };
 
 type Action =
@@ -125,7 +126,9 @@ type Action =
   | { type: 'INIT_QUIZ_ATTEMPTS'; slideId: string; attempts: number }
   | { type: 'CONSUME_QUIZ_ATTEMPT'; slideId: string }
   | { type: 'RESET_QUIZ_SLIDE_PROGRESS'; slideId: string }
-  | { type: 'MOVE_SLIDE'; from: number; to: number };
+  | { type: 'MOVE_SLIDE'; from: number; to: number }
+  | { type: 'OPEN_MOTION_PATH_EDITOR'; elementId: string }
+  | { type: 'CLOSE_MOTION_PATH_EDITOR' };
 
 function getActiveSlides(state: CourseState): Slide[] {
   return state.viewMode === 'master' ? state.masterSlides : state.slides;
@@ -523,6 +526,10 @@ function courseReducer(state: CourseState, action: Action): CourseState {
         quizFeedbackOpen: state.quizFeedbackOpen?.slideId === action.slideId ? null : state.quizFeedbackOpen,
       };
     }
+    case 'OPEN_MOTION_PATH_EDITOR':
+      return { ...state, motionPathEditor: { elementId: action.elementId } };
+    case 'CLOSE_MOTION_PATH_EDITOR':
+      return { ...state, motionPathEditor: null };
     default:
       return state;
   }
