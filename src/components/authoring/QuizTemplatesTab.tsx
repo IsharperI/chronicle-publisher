@@ -64,7 +64,7 @@ export function TemplatesGallery() {
         >
           <Plus className="h-5 w-5" />
         </Button>
-        <span className="text-[10px] mt-1 font-medium text-muted-foreground">New Template</span>
+        <span className="text-[10px] mt-1 font-medium text-muted-foreground">New Theme</span>
       </div>
 
       <div className="flex-1 min-w-0 flex flex-col gap-2">
@@ -79,9 +79,6 @@ export function TemplatesGallery() {
             if (group.length === 0) return null;
             return (
               <div key={qt} className="flex items-center gap-2">
-                <span className="text-[10px] font-semibold text-muted-foreground w-44 shrink-0 uppercase tracking-wide">
-                  {questionTypeLabel(qt)}
-                </span>
                 <div className="flex gap-2 overflow-x-auto">
                   {group.map((tpl) => {
                     const applicable = isQuizSelected && tpl.questionType === selectedQType;
@@ -101,7 +98,7 @@ export function TemplatesGallery() {
           })}
           {templates.length === 0 && (
             <span className="text-[11px] text-muted-foreground">
-              No saved templates yet. Click <strong>New Template</strong> to create one from the selected quiz slide.
+              No saved themes yet. Click <strong>New Theme</strong> to create one from the selected quiz slide.
             </span>
           )}
         </div>
@@ -144,7 +141,6 @@ function TemplateCard({
       <Thumbnail ts={ts} />
       <div className="p-1.5 border-t">
         <div className="text-[11px] font-medium truncate text-foreground">{tpl.name}</div>
-        <div className="text-[9px] text-muted-foreground truncate">{questionTypeLabel(tpl.questionType)}</div>
       </div>
       <button
         type="button"

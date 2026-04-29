@@ -17,7 +17,7 @@ import { sanitizeSlides, sanitizePlayerSettings, sanitizeCourseSettings } from '
 import { StorySizeControl, ThemeColorsControl } from './DesignControls';
 import { QuizTemplatesTab } from './QuizTemplatesTabContainer';
 
-const TABS = ['Home', 'Insert', 'Design', 'Transitions', 'Animations', 'View', 'Quiz Templates'] as const;
+const TABS = ['Home', 'Insert', 'Design', 'Transitions', 'Animations', 'View', 'Test Settings'] as const;
 type RibbonTab = typeof TABS[number];
 
 export function Ribbon() {
@@ -337,7 +337,7 @@ export function Ribbon() {
       </div>
 
       {/* Ribbon content area */}
-      <div className="h-[72px] flex items-center px-4 gap-1">
+      <div className={cn("flex items-center px-4 gap-1", activeTab === 'Test Settings' ? "hidden" : "h-[72px]")}>
         {activeTab === 'Home' && (
           <>
             <RibbonGroup label="File">
@@ -480,11 +480,8 @@ export function Ribbon() {
         )}
       </div>
 
-      {/* Quiz Templates renders as a dedicated panel below the ribbon row,
-          not inside the fixed-height row above. This keeps its taller
-          content from bleeding over the canvas/filmstrip. */}
-      {activeTab === 'Quiz Templates' && (
-        <div className="border-t border-white/40 bg-white/40 px-4 py-2 max-h-[260px] overflow-y-auto">
+      {activeTab === 'Test Settings' && (
+        <div className="bg-white/40 px-4 py-2 max-h-[260px] overflow-y-auto">
           <QuizTemplatesTab />
         </div>
       )}
