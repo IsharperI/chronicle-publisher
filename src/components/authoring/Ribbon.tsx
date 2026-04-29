@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Save, Upload, Play, X, Type, ImageIcon, Square, Eye, Settings, Music, Video as VideoIcon, AlignLeft, AlignCenter, AlignRight, AlignStartVertical, AlignCenterVertical, AlignEndVertical, AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter, Ban, Sparkles, ArrowUpFromLine, ArrowLeftFromLine, ZoomIn, CopyCheck, MousePointerClick, Target, CheckSquare, ChevronDown, Table as TableIcon, HelpCircle, Trophy, Layers, FolderOpen, Map as MapIcon, Spline } from 'lucide-react';
+import { Save, Upload, Play, X, Type, ImageIcon, Square, Eye, Settings, Music, Video as VideoIcon, AlignLeft, AlignCenter, AlignRight, AlignStartVertical, AlignCenterVertical, AlignEndVertical, AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter, Ban, Sparkles, ArrowUpFromLine, ArrowLeftFromLine, ZoomIn, CopyCheck, MousePointerClick, Target, CheckSquare, ChevronDown, Table as TableIcon, HelpCircle, Trophy, Layers, FolderOpen, Map as MapIcon, Spline, Palette, Library } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { MediaLibraryOverlay } from './MediaLibraryOverlay';
 import { StoryViewOverlay } from './StoryViewOverlay';
@@ -18,7 +18,7 @@ import { PlayerSettingsModal } from './PlayerSettingsModal';
 import { sanitizeSlides, sanitizePlayerSettings, sanitizeCourseSettings } from '@/lib/sanitize';
 
 import { StorySizeControl, ThemeColorsControl } from './DesignControls';
-import { QuizTemplatesTab } from './QuizTemplatesTabContainer';
+import { QuizThemesOverlay, QuestionBankOverlay } from './QuizOverlays';
 
 const TABS = ['Home', 'Insert', 'Design', 'Transitions', 'Animations', 'View', 'Quiz'] as const;
 type RibbonTab = typeof TABS[number];
@@ -31,6 +31,8 @@ export function Ribbon() {
   const [mediaLibraryOpen, setMediaLibraryOpen] = useState(false);
   const [storyViewOpen, setStoryViewOpen] = useState(false);
   const [publishOpen, setPublishOpen] = useState(false);
+  const [quizThemesOpen, setQuizThemesOpen] = useState(false);
+  const [questionBankOpen, setQuestionBankOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const audioInputRef = useRef<HTMLInputElement>(null);
@@ -351,7 +353,7 @@ export function Ribbon() {
       </div>
 
       {/* Ribbon content area */}
-      <div className={cn("flex items-center px-4 gap-1", activeTab === 'Quiz' ? "hidden" : "h-[72px]")}>
+      <div className="flex items-center px-4 gap-1 h-[72px]">
         {activeTab === 'Home' && (
           <>
             <RibbonGroup label="File">
@@ -504,26 +506,28 @@ export function Ribbon() {
             </RibbonGroup>
           </>
         )}
-      </div>
 
-      {activeTab === 'Quiz' && (
-        <div className="bg-white/40 px-4 py-2 max-h-[260px] overflow-y-auto">
-          <div className="flex items-start gap-3">
+        {activeTab === 'Quiz' && (
+          <>
             <RibbonGroup label="Slides">
               <RibbonButton icon={HelpCircle} label="Quiz Slide" onClick={() => dispatch({ type: 'ADD_QUIZ_SLIDE' })} />
               <RibbonButton icon={Trophy} label="Results Slide" onClick={() => dispatch({ type: 'ADD_RESULTS_SLIDE' })} />
             </RibbonGroup>
-            <Separator orientation="vertical" className="h-20 mx-1" />
-            <div className="flex-1 min-w-0">
-              <QuizTemplatesTab />
-            </div>
-          </div>
-        </div>
-      )}
+            <Separator orientation="vertical" className="h-12 mx-2" />
+            <RibbonGroup label="Library">
+              <RibbonButton icon={Palette} label="Quiz Themes" onClick={() => setQuizThemesOpen(true)} />
+              <RibbonButton icon={Library} label="Question Bank" onClick={() => setQuestionBankOpen(true)} />
+            </RibbonGroup>
+          </>
+        )}
+      </div>
+
     </div>
     <MediaLibraryOverlay open={mediaLibraryOpen} onClose={() => setMediaLibraryOpen(false)} />
     <StoryViewOverlay open={storyViewOpen} onClose={() => setStoryViewOpen(false)} />
     <PublishDialog open={publishOpen} onOpenChange={setPublishOpen} />
+    <QuizThemesOverlay open={quizThemesOpen} onClose={() => setQuizThemesOpen(false)} />
+    <QuestionBankOverlay open={questionBankOpen} onClose={() => setQuestionBankOpen(false)} />
     </>
   );
 }
