@@ -134,7 +134,7 @@ function TimelineTrack({ element, timelineWidth, slideDuration }: { element: Sli
   const isSelected = state.activeElementId === element.id;
 
   return (
-    <div className="relative h-7 w-full">
+    <div className="relative h-7 w-full timeline-groove my-0.5">
       <div
         className={cn(
           'absolute top-0.5 h-6 rounded cursor-grab flex items-center text-[10px] text-white font-medium select-none overflow-hidden',
@@ -477,7 +477,7 @@ export function TimelinePanel() {
                     const widthPx = Math.max(8, Math.min(slideDuration, a.duration * 1000) / slideDuration * trackWidth);
                     const selected = state.activeAudioId === a.id;
                     return (
-                      <div key={a.id} className="relative h-7 w-full border-t">
+                      <div key={a.id} className="relative h-7 w-full timeline-groove my-0.5">
                         <div
                           className={cn(
                             'absolute top-0.5 h-6 rounded bg-amber-500/80 flex items-center text-[10px] text-white font-medium select-none overflow-hidden px-1.5 cursor-pointer',
