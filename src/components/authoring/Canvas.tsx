@@ -366,13 +366,58 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
     dispatch({ type: 'SET_PLAYHEAD', time: startTime });
     dispatch({ type: 'SET_PLAYING', playing: true });
 
+    // Track which timeline triggers have already fired this play-through.
+    const fired = new Set<string>();
+    const runAction = (t: { action: string; targetId: string }) => {
+      if (t.action === 'jumpToSlide') {
+        const idx = state.slides.findIndex((s) => s.id === t.targetId);
+        if (idx >= 0) {
+          dispatch({ type: 'SET_PLAYING', playing: false });
+          dispatch({ type: 'SET_ACTIVE_SLIDE', index: idx });
+        }
+      } else if (t.action === 'hideElement') {
+        dispatch({ type: 'UPDATE_ELEMENT', id: t.targetId, updates: { isHidden: true } as any });
+      } else if (t.action === 'showElement') {
+        dispatch({ type: 'UPDATE_ELEMENT', id: t.targetId, updates: { isHidden: false } as any });
+      }
+    };
+    const fireTimelineTriggers = (prev: number, curr: number, isStart: boolean, isEnd: boolean) => {
+      const els = activeSlide.elements || [];
+      for (const el of els) {
+        const trigs = el.triggers || [];
+        for (let i = 0; i < trigs.length; i++) {
+          const t = trigs[i];
+          const key = el.id + ':' + i;
+          if (fired.has(key)) continue;
+          if (t.event === 'timelineStart' && isStart) {
+            fired.add(key); runAction(t);
+          } else if (t.event === 'timelineEnd' && isEnd) {
+            fired.add(key); runAction(t);
+          } else if (t.event === 'atTime' && typeof t.time === 'number') {
+            const tMs = t.time * 1000;
+            if (prev <= tMs && curr >= tMs) {
+              fired.add(key); runAction(t);
+            }
+          }
+        }
+      }
+    };
+
+    // Fire timelineStart immediately at play-through begin.
+    fireTimelineTriggers(-1, startTime, true, false);
+    // Also fire any atTime triggers at <= startTime (e.g. resumed past them — only fire if exactly at start).
+    fireTimelineTriggers(startTime, startTime, false, false);
+
     const tick = (now: number) => {
       const dt = now - last;
       last = now;
+      const prev = previewAccumRef.current;
       previewAccumRef.current += dt;
       const next = Math.min(slideDur, previewAccumRef.current);
       dispatch({ type: 'SET_PLAYHEAD', time: next });
-      if (next >= slideDur) {
+      const reachedEnd = next >= slideDur;
+      fireTimelineTriggers(prev, next, false, reachedEnd);
+      if (reachedEnd) {
         cancelAnimationFrame(raf);
         // Persist final position before any auto-advance.
         savedPlayheadsRef.current.set(activeSlide.id, next);
@@ -392,7 +437,7 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
       // Save current playhead so 'resume' can pick up where we left off.
       savedPlayheadsRef.current.set(activeSlide.id, previewAccumRef.current);
     };
-  }, [isPreview, slideKey, activeSlide, state.activeSlideIndex, state.slides.length, dispatch]);
+  }, [isPreview, slideKey, activeSlide, state.activeSlideIndex, state.slides.length, state.slides, dispatch]);
 
   // Reset & cleanup audio elements when slide changes or preview toggles.
   useEffect(() => {
