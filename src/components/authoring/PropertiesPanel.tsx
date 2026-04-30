@@ -784,6 +784,7 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
   const [newEvent, setNewEvent] = useState('onClick');
   const [newAction, setNewAction] = useState('jumpToSlide');
   const [newTarget, setNewTarget] = useState('');
+  const [newTime, setNewTime] = useState<string>('0');
   const isSlideAction = newAction === 'jumpToSlide';
 
   const slideLabel = (id: string) => {
@@ -795,6 +796,10 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
   const addTrigger = () => {
     if (!newTarget) return;
     const t: Trigger = { event: newEvent, action: newAction, targetId: newTarget };
+    if (newEvent === 'atTime') {
+      const parsed = parseFloat(newTime);
+      t.time = isFinite(parsed) && parsed >= 0 ? parsed : 0;
+    }
     onUpdate({ triggers: [...triggers, t] } as any);
     setNewTarget('');
   };
@@ -807,7 +812,13 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
     <div className="space-y-2">
       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Triggers</p>
       {triggers.map((t, i) => {
-        const eventLabel = t.event === 'onClick' ? 'User clicks' : t.event === 'onHover' ? 'User hovers' : t.event;
+        let eventLabel: string;
+        if (t.event === 'onClick') eventLabel = 'User clicks';
+        else if (t.event === 'onHover') eventLabel = 'User hovers';
+        else if (t.event === 'timelineStart') eventLabel = 'Timeline starts';
+        else if (t.event === 'timelineEnd') eventLabel = 'Timeline ends';
+        else if (t.event === 'atTime') eventLabel = `At ${typeof t.time === 'number' ? t.time : 0}s`;
+        else eventLabel = t.event;
         let actionLabel: string;
         if (t.action === 'jumpToSlide') actionLabel = `Jump to ${slideLabel(t.targetId)}`;
         else if (t.action === 'hideElement') actionLabel = `Hide element (${t.targetId.slice(0, 8)})`;
@@ -831,8 +842,22 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
           <SelectContent>
             <SelectItem value="onClick">onClick</SelectItem>
             <SelectItem value="onHover">onHover</SelectItem>
+            <SelectItem value="timelineStart">When timeline starts</SelectItem>
+            <SelectItem value="timelineEnd">When timeline ends</SelectItem>
+            <SelectItem value="atTime">At time</SelectItem>
           </SelectContent>
         </Select>
+        {newEvent === 'atTime' && (
+          <Input
+            type="number"
+            step="0.1"
+            min="0"
+            placeholder="Time (seconds)"
+            value={newTime}
+            onChange={(e) => setNewTime(e.target.value)}
+            className="h-7 text-xs"
+          />
+        )}
         <Select value={newAction} onValueChange={(v) => { setNewAction(v); setNewTarget(''); }}>
           <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
           <SelectContent>

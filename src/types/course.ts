@@ -5,9 +5,12 @@ export type AnimationOut = 'none' | 'fade' | 'fly-out-left' | 'fly-out-right';
 export type ViewMode = 'main' | 'master';
 
 export interface Trigger {
+  /** 'onClick' | 'onHover' | 'timelineStart' | 'timelineEnd' | 'atTime' */
   event: string;
   action: string;
   targetId: string;
+  /** For 'atTime' events: time in seconds from slide start when the trigger fires. */
+  time?: number;
 }
 
 export interface BaseElement {
