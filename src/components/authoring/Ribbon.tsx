@@ -353,7 +353,7 @@ export function Ribbon() {
       </div>
 
       {/* Ribbon content area */}
-      <div className="flex items-center px-4 gap-1 h-[72px]">
+      <div className="flex items-center px-4 gap-1 min-h-[72px] py-2">
         {activeTab === 'Home' && (
           <>
             <RibbonGroup label="File">
