@@ -852,7 +852,12 @@ function AnimationsTab() {
       <Separator orientation="vertical" className="h-12 mx-2" />
 
       <RibbonGroup label="Motion Path">
-        <MotionPathButton element={element} disabled={disabled} />
+        <div className="flex flex-col items-start gap-1">
+          <MotionPathButton element={element} disabled={disabled} />
+          {element?.motionPath && (
+            <MotionPathDurationControls element={element} />
+          )}
+        </div>
       </RibbonGroup>
 
       {disabled && (
