@@ -136,11 +136,15 @@ function safeId(value: unknown): string {
 }
 
 function sanitizeTrigger(t: any): Trigger {
-  return {
+  const out: Trigger = {
     event: safeString(t?.event, '', 64),
     action: safeString(t?.action, '', 64),
     targetId: safeString(t?.targetId, '', 64),
   };
+  if (typeof t?.time === 'number' && isFinite(t.time)) {
+    out.time = Math.max(0, Math.min(3600, t.time));
+  }
+  return out;
 }
 
 function sanitizeElement(raw: any): SlideElement | null {
