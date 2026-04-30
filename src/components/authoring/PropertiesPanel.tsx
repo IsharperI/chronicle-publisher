@@ -812,7 +812,13 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
     <div className="space-y-2">
       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Triggers</p>
       {triggers.map((t, i) => {
-        const eventLabel = t.event === 'onClick' ? 'User clicks' : t.event === 'onHover' ? 'User hovers' : t.event;
+        let eventLabel: string;
+        if (t.event === 'onClick') eventLabel = 'User clicks';
+        else if (t.event === 'onHover') eventLabel = 'User hovers';
+        else if (t.event === 'timelineStart') eventLabel = 'Timeline starts';
+        else if (t.event === 'timelineEnd') eventLabel = 'Timeline ends';
+        else if (t.event === 'atTime') eventLabel = `At ${typeof t.time === 'number' ? t.time : 0}s`;
+        else eventLabel = t.event;
         let actionLabel: string;
         if (t.action === 'jumpToSlide') actionLabel = `Jump to ${slideLabel(t.targetId)}`;
         else if (t.action === 'hideElement') actionLabel = `Hide element (${t.targetId.slice(0, 8)})`;
