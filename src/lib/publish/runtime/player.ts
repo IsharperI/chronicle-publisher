@@ -692,7 +692,7 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
       var el=combined[i];if(!el||!el.motionPath||!el.id)continue;
       var node=stage.querySelector('[data-el-id="'+el.id+'"]');
       if(!node)continue;
-      motionTracks.push({node:node,mp:el.motionPath,start:el.startTime||0,dur:el.duration||1,baseX:el.x,baseY:el.y});
+      motionTracks.push({node:node,mp:el.motionPath,start:el.startTime||0,dur:(el.motionPathDuration&&el.motionPathDuration>0)?el.motionPathDuration:(el.duration||1),baseX:el.x,baseY:el.y});
     }
     if(motionTracks.length){applyMotionTracks()}
   }
