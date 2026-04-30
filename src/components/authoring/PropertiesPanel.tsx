@@ -784,6 +784,7 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
   const [newEvent, setNewEvent] = useState('onClick');
   const [newAction, setNewAction] = useState('jumpToSlide');
   const [newTarget, setNewTarget] = useState('');
+  const [newTime, setNewTime] = useState<string>('0');
   const isSlideAction = newAction === 'jumpToSlide';
 
   const slideLabel = (id: string) => {
