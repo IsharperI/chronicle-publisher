@@ -549,6 +549,8 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
               const locked = !!el.isLocked;
               const hidden = !!el.isHidden;
               if (hidden) return null;
+              const mpOffset = state.isPlaying ? motionPathOffset(el, state.playheadTime) : null;
+              const mpTransform = mpOffset ? `translate(${mpOffset.dx}px, ${mpOffset.dy}px)` : undefined;
               return (
                 <Rnd
                   key={el.id}
@@ -579,7 +581,7 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
                   bounds="parent"
                   dragGrid={state.snapToGrid ? [20, 20] : undefined}
                   resizeGrid={state.snapToGrid ? [20, 20] : undefined}
-                  disableDragging={isEditing || locked}
+                  disableDragging={isEditing || locked || state.isPlaying}
                   onMouseDown={(e: MouseEvent) => {
                     if (locked) return;
                     e.stopPropagation();
@@ -590,7 +592,7 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
                     }
                   }}
                   onDoubleClick={() => { if (!locked && el.type === 'shape') setEditingId(el.id); }}
-                  enableResizing={!locked && state.activeElementId === el.id && state.selectedElementIds.length === 1 && !isEditing}
+                  enableResizing={!locked && !state.isPlaying && state.activeElementId === el.id && state.selectedElementIds.length === 1 && !isEditing}
                   resizeHandleStyles={{
                     top: handleStyle, bottom: handleStyle, left: handleStyle, right: handleStyle,
                     topLeft: cornerStyle, topRight: cornerStyle, bottomLeft: cornerStyle, bottomRight: cornerStyle,
@@ -604,6 +606,7 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
                     zIndex: state.activeElementId === el.id ? 10 : 2,
                     opacity: visible ? 1 : 0.3,
                     pointerEvents: locked ? 'none' : undefined,
+                    transform: mpTransform,
                   }}
                 >
                   <ElementRenderer element={el} />

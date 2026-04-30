@@ -47,7 +47,7 @@ export function defaultMotionPath(el: BaseElement): MotionPath {
 export function motionPathOffset(el: BaseElement, playheadTime: number): { dx: number; dy: number } | null {
   if (!el.motionPath) return null;
   const mp = el.motionPath;
-  const dur = el.duration || 1;
+  const dur = (el.motionPathDuration && el.motionPathDuration > 0) ? el.motionPathDuration : (el.duration || 1);
   const t = Math.max(0, Math.min(1, (playheadTime - el.startTime) / dur));
   const p = bezierPoint(
     { x: mp.startX, y: mp.startY },
