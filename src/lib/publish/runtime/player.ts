@@ -697,8 +697,71 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
     if(motionTracks.length){applyMotionTracks()}
   }
 
+  // ===== Triggers (onClick / onHover / timelineStart / timelineEnd / atTime) =====
+  function runTriggerAction(t){
+    if(!t)return;
+    if(t.action==="jumpToSlide"){
+      for(var i=0;i<slides.length;i++){if(slides[i].id===t.targetId){goTo(i);return}}
+    } else if(t.action==="hideElement"){
+      var n=stage.querySelector('[data-el-id="'+t.targetId+'"]');if(n)n.style.display="none";
+    } else if(t.action==="showElement"){
+      var n2=stage.querySelector('[data-el-id="'+t.targetId+'"]');if(n2)n2.style.display="";
+    }
+  }
+  var triggerRaf=null;
+  var timelineTriggers=[];
+  var triggerLastPh=0;
+  function stopTriggerLoop(){if(triggerRaf){cancelAnimationFrame(triggerRaf);triggerRaf=null}timelineTriggers=[]}
+  function tickTriggers(){
+    var ph=currentPlayhead();
+    var slideDur=(slides[current]&&slides[current].duration)||5000;
+    var atEnd=ph>=slideDur-1;
+    for(var i=0;i<timelineTriggers.length;i++){
+      var tt=timelineTriggers[i];if(tt.fired)continue;
+      if(tt.t.event==="timelineEnd"){
+        if(atEnd){tt.fired=true;runTriggerAction(tt.t)}
+      } else if(tt.t.event==="atTime"){
+        var tMs=(typeof tt.t.time==="number"?tt.t.time:0)*1000;
+        if(triggerLastPh<=tMs&&ph>=tMs){tt.fired=true;runTriggerAction(tt.t)}
+      }
+    }
+    triggerLastPh=ph;
+    triggerRaf=requestAnimationFrame(tickTriggers);
+  }
+  function startTriggersFor(slide){
+    stopTriggerLoop();
+    var els=(slide.elements||[]);
+    for(var i=0;i<els.length;i++){
+      var el=els[i];if(!el||!el.id)continue;
+      var trigs=el.triggers||[];if(!trigs.length)continue;
+      var node=stage.querySelector('[data-el-id="'+el.id+'"]');if(!node)continue;
+      (function(node,trigs){
+        var hasClick=false;
+        for(var j=0;j<trigs.length;j++){
+          var t=trigs[j];
+          if(t.event==="onClick"||t.event==="click"){
+            hasClick=true;
+            (function(t){node.addEventListener("click",function(e){e.stopPropagation();runTriggerAction(t)})})(t);
+          } else if(t.event==="onHover"||t.event==="hover"){
+            (function(t){node.addEventListener("mouseenter",function(){runTriggerAction(t)})})(t);
+          } else if(t.event==="timelineStart"||t.event==="timelineEnd"||t.event==="atTime"){
+            timelineTriggers.push({t:t,fired:false});
+          }
+        }
+        if(hasClick)node.style.cursor="pointer";
+      })(node,trigs);
+    }
+    triggerLastPh=currentPlayhead();
+    for(var k=0;k<timelineTriggers.length;k++){
+      var tt=timelineTriggers[k];
+      if(tt.t.event==="timelineStart"){tt.fired=true;runTriggerAction(tt.t)}
+    }
+    triggerRaf=requestAnimationFrame(tickTriggers);
+  }
+
   function render(){
     stopMotionTracks();
+    stopTriggerLoop();
     stage.innerHTML="";
     if(current<0||current>=slides.length)return;
     var slide=slides[current];
