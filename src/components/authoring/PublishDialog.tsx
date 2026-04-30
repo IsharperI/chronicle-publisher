@@ -248,9 +248,19 @@ export function PublishDialog({ open, onOpenChange }: Props) {
             <DialogTitle>Reporting and Tracking</DialogTitle>
           </DialogHeader>
           <Tabs defaultValue={format === 'xapi' ? 'lrs' : 'lms'}>
-            <TabsList>
-              <TabsTrigger value="lms">{format === 'xapi' ? 'LRS' : 'LMS'}</TabsTrigger>
-              <TabsTrigger value="tracking">Tracking</TabsTrigger>
+            <TabsList className="h-auto bg-sky-100 p-0 rounded-none gap-0 border-b border-slate-200 w-full justify-start">
+              <TabsTrigger
+                value="lms"
+                className="rounded-none px-4 py-1.5 text-xs font-medium border-t-2 border-transparent bg-sky-100 text-slate-600 hover:bg-sky-200 data-[state=active]:bg-white data-[state=active]:border-blue-600 data-[state=active]:text-slate-800 data-[state=active]:shadow-none"
+              >
+                {format === 'xapi' ? 'LRS' : 'LMS'}
+              </TabsTrigger>
+              <TabsTrigger
+                value="tracking"
+                className="rounded-none px-4 py-1.5 text-xs font-medium border-t-2 border-transparent bg-sky-100 text-slate-600 hover:bg-sky-200 data-[state=active]:bg-white data-[state=active]:border-blue-600 data-[state=active]:text-slate-800 data-[state=active]:shadow-none"
+              >
+                Tracking
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="lms" className="space-y-3 pt-2">
