@@ -896,7 +896,44 @@ function MotionPathButton({ element, disabled }: { element: SlideElement | undef
   );
 }
 
-function TableInsertPopover({ onInsert }: { onInsert: (rows: number, cols: number) => void }) {
+function MotionPathDurationControls({ element }: { element: SlideElement }) {
+  const { dispatch } = useCourse();
+  const defaultMs = element.duration || 1000;
+  const currentMs = element.motionPathDuration ?? defaultMs;
+  const sec = Math.round((currentMs / 1000) * 100) / 100;
+  const onChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const v = Number(e.target.value);
+    if (!Number.isFinite(v) || v <= 0) return;
+    dispatch({ type: 'UPDATE_ELEMENT', id: element.id, updates: { motionPathDuration: Math.round(v * 1000) } as Partial<SlideElement> });
+  };
+  const onRemove = () => {
+    dispatch({ type: 'UPDATE_ELEMENT', id: element.id, updates: { motionPath: undefined, motionPathDuration: undefined } as Partial<SlideElement> });
+  };
+  return (
+    <div className="flex items-end gap-1 mt-1">
+      <div className="flex flex-col gap-0.5">
+        <label className="text-[10px] text-muted-foreground font-medium">Duration (s)</label>
+        <input
+          type="number"
+          min={0.1}
+          step={0.1}
+          value={sec}
+          onChange={onChange}
+          className="h-7 w-20 rounded border bg-white px-2 text-xs text-slate-800"
+        />
+      </div>
+      <button
+        type="button"
+        onClick={onRemove}
+        title="Remove motion path"
+        aria-label="Remove motion path"
+        className="h-7 w-7 flex items-center justify-center rounded border bg-white hover:bg-red-50 hover:border-red-300 text-slate-700 hover:text-red-600"
+      >
+        <X className="h-4 w-4" />
+      </button>
+    </div>
+  );
+}
   const [open, setOpen] = useState(false);
   const [rows, setRows] = useState(3);
   const [cols, setCols] = useState(3);
