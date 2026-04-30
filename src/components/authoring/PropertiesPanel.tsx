@@ -842,8 +842,22 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
           <SelectContent>
             <SelectItem value="onClick">onClick</SelectItem>
             <SelectItem value="onHover">onHover</SelectItem>
+            <SelectItem value="timelineStart">When timeline starts</SelectItem>
+            <SelectItem value="timelineEnd">When timeline ends</SelectItem>
+            <SelectItem value="atTime">At time</SelectItem>
           </SelectContent>
         </Select>
+        {newEvent === 'atTime' && (
+          <Input
+            type="number"
+            step="0.1"
+            min="0"
+            placeholder="Time (seconds)"
+            value={newTime}
+            onChange={(e) => setNewTime(e.target.value)}
+            className="h-7 text-xs"
+          />
+        )}
         <Select value={newAction} onValueChange={(v) => { setNewAction(v); setNewTarget(''); }}>
           <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
           <SelectContent>
