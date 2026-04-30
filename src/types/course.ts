@@ -28,6 +28,8 @@ export interface BaseElement {
   isHidden?: boolean;
   /** Optional motion path animation. Coordinates are in canvas pixels (absolute, not offsets). */
   motionPath?: MotionPath;
+  /** Optional override duration (ms) for the motion-path traversal. Defaults to the element's `duration`. */
+  motionPathDuration?: number;
 }
 
 /** Cubic bezier motion path in absolute canvas coordinates. */
