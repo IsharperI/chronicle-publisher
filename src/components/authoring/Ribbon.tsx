@@ -934,6 +934,8 @@ function MotionPathDurationControls({ element }: { element: SlideElement }) {
     </div>
   );
 }
+
+function TableInsertPopover({ onInsert }: { onInsert: (rows: number, cols: number) => void }) {
   const [open, setOpen] = useState(false);
   const [rows, setRows] = useState(3);
   const [cols, setCols] = useState(3);
