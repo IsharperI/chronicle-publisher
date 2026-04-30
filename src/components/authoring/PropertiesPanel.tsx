@@ -796,6 +796,10 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
   const addTrigger = () => {
     if (!newTarget) return;
     const t: Trigger = { event: newEvent, action: newAction, targetId: newTarget };
+    if (newEvent === 'atTime') {
+      const parsed = parseFloat(newTime);
+      t.time = isFinite(parsed) && parsed >= 0 ? parsed : 0;
+    }
     onUpdate({ triggers: [...triggers, t] } as any);
     setNewTarget('');
   };
