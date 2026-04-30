@@ -780,6 +780,7 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
     if(revisit==="reset")savedPlayheads[slide.id]=0;
     startAudio(slide);setPlaying(true);startSlideTimer(startMs);scaleStage();
     startMotionTracksFor(slide);
+    startTriggersFor(slide);
     try{LMS.setLocation(current)}catch(e){}
     maybeReportPercentCompletion();
   }
