@@ -576,6 +576,7 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
               return (
                 <div
                   key={el.id}
+                  data-el-id={el.id}
                   className={`${animClass}${hasClickTrigger ? ' cursor-pointer' : ''}`}
                   style={{
                     position: 'absolute', left: el.x, top: el.y, width: el.width, height: el.height, zIndex: 2,
