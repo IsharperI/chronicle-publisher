@@ -144,6 +144,9 @@ function sanitizeTrigger(t: any): Trigger {
   if (typeof t?.time === 'number' && isFinite(t.time)) {
     out.time = Math.max(0, Math.min(3600, t.time));
   }
+  if (typeof t?.mediaId === 'string' && /^(audio|video):[A-Za-z0-9_-]{1,64}$/.test(t.mediaId)) {
+    out.mediaId = t.mediaId;
+  }
   return out;
 }
 
