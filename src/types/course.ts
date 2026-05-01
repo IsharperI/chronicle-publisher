@@ -5,12 +5,18 @@ export type AnimationOut = 'none' | 'fade' | 'fly-out-left' | 'fly-out-right';
 export type ViewMode = 'main' | 'master';
 
 export interface Trigger {
-  /** 'onClick' | 'onHover' | 'timelineStart' | 'timelineEnd' | 'atTime' */
+  /** 'onClick' | 'onHover' | 'timelineStart' | 'timelineEnd' | 'atTime' | 'mediaStart' | 'mediaEnd' | 'mediaPause' */
   event: string;
   action: string;
   targetId: string;
   /** For 'atTime' events: time in seconds from slide start when the trigger fires. */
   time?: number;
+  /**
+   * For media events ('mediaStart' | 'mediaEnd' | 'mediaPause'): identifies the
+   * audio or video source element on the slide. Format: 'audio:<audioId>' or
+   * 'video:<elementId>'.
+   */
+  mediaId?: string;
 }
 
 export interface BaseElement {
