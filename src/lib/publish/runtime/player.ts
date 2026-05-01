@@ -386,9 +386,11 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
   }
 
   var activeAudio=[];
+  var audioById={};
   function stopAudio(){
     for(var i=0;i<activeAudio.length;i++){try{activeAudio[i].pause();activeAudio[i].currentTime=0;activeAudio[i].src=""}catch(e){}}
     activeAudio=[];
+    audioById={};
   }
   function startAudio(slide){
     stopAudio();
@@ -398,6 +400,7 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
       var a=new Audio();a.preload="auto";a.src=t.src;
       var p=a.play();if(p&&p.catch)p.catch(function(){});
       activeAudio.push(a);
+      if(t.id)audioById[t.id]=a;
     }
   }
 
@@ -728,6 +731,16 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
     triggerLastPh=ph;
     triggerRaf=requestAnimationFrame(tickTriggers);
   }
+  function bindMediaTrigger(target,t){
+    if(!target)return;
+    if(t.event==="mediaStart"){
+      target.addEventListener("play",function(){runTriggerAction(t)});
+    } else if(t.event==="mediaEnd"){
+      target.addEventListener("ended",function(){runTriggerAction(t)});
+    } else if(t.event==="mediaPause"){
+      target.addEventListener("pause",function(){if(target.ended)return;runTriggerAction(t)});
+    }
+  }
   function startTriggersFor(slide){
     stopTriggerLoop();
     var els=(slide.elements||[]);
@@ -746,6 +759,17 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
             (function(t){node.addEventListener("mouseenter",function(){runTriggerAction(t)})})(t);
           } else if(t.event==="timelineStart"||t.event==="timelineEnd"||t.event==="atTime"){
             timelineTriggers.push({t:t,fired:false});
+          } else if((t.event==="mediaStart"||t.event==="mediaEnd"||t.event==="mediaPause")&&t.mediaId){
+            var colon=t.mediaId.indexOf(":");
+            var kind=t.mediaId.slice(0,colon);
+            var mid=t.mediaId.slice(colon+1);
+            var target=null;
+            if(kind==="audio"){target=audioById[mid]||null}
+            else if(kind==="video"){
+              var wrap=stage.querySelector('[data-el-id="'+mid+'"]');
+              target=wrap?wrap.querySelector("video"):null;
+            }
+            bindMediaTrigger(target,t);
           }
         }
         if(hasClick)node.style.cursor="pointer";

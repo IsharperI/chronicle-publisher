@@ -476,6 +476,74 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
     });
   }, [audioTracks, state.isPlaying, state.playheadTime]);
 
+  // ===== Media event triggers (mediaStart / mediaEnd / mediaPause) =====
+  // Wires play/ended/pause listeners on audio + video media sources to the
+  // current slide's triggers when in preview mode.
+  useEffect(() => {
+    if (!isPreview || !activeSlide) return;
+    const slide = activeSlide;
+
+    const runAction = (t: { action: string; targetId: string }) => {
+      if (t.action === 'jumpToSlide') {
+        const idx = state.slides.findIndex((s) => s.id === t.targetId);
+        if (idx >= 0) {
+          dispatch({ type: 'SET_PLAYING', playing: false });
+          dispatch({ type: 'SET_ACTIVE_SLIDE', index: idx });
+        }
+      } else if (t.action === 'hideElement') {
+        dispatch({ type: 'UPDATE_ELEMENT', id: t.targetId, updates: { isHidden: true } as any });
+      } else if (t.action === 'showElement') {
+        dispatch({ type: 'UPDATE_ELEMENT', id: t.targetId, updates: { isHidden: false } as any });
+      }
+    };
+
+    type MT = { event: string; t: { action: string; targetId: string } };
+    const byMedia = new Map<string, MT[]>();
+    (slide.elements || []).forEach((el) => {
+      (el.triggers || []).forEach((t) => {
+        if ((t.event === 'mediaStart' || t.event === 'mediaEnd' || t.event === 'mediaPause') && t.mediaId) {
+          if (!byMedia.has(t.mediaId)) byMedia.set(t.mediaId, []);
+          byMedia.get(t.mediaId)!.push({ event: t.event, t });
+        }
+      });
+    });
+    if (byMedia.size === 0) return;
+
+    const cleanups: Array<() => void> = [];
+    byMedia.forEach((list, mediaId) => {
+      const colon = mediaId.indexOf(':');
+      const kind = mediaId.slice(0, colon);
+      const id = mediaId.slice(colon + 1);
+      let target: HTMLMediaElement | null = null;
+      if (kind === 'audio') {
+        target = audioRefs.current.get(id) ?? null;
+      } else if (kind === 'video') {
+        const root = containerRef.current;
+        if (root) {
+          const wrap = root.querySelector(`[data-el-id="${id}"]`);
+          target = wrap ? (wrap.querySelector('video') as HTMLVideoElement | null) : null;
+        }
+      }
+      if (!target) return;
+      const onPlay = () => list.forEach((m) => { if (m.event === 'mediaStart') runAction(m.t); });
+      const onEnded = () => list.forEach((m) => { if (m.event === 'mediaEnd') runAction(m.t); });
+      const onPause = () => {
+        if (target!.ended) return;
+        list.forEach((m) => { if (m.event === 'mediaPause') runAction(m.t); });
+      };
+      target.addEventListener('play', onPlay);
+      target.addEventListener('ended', onEnded);
+      target.addEventListener('pause', onPause);
+      cleanups.push(() => {
+        target!.removeEventListener('play', onPlay);
+        target!.removeEventListener('ended', onEnded);
+        target!.removeEventListener('pause', onPause);
+      });
+    });
+    return () => { cleanups.forEach((c) => c()); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isPreview, slideKey, activeSlide, state.playheadTime, state.slides, dispatch]);
+
   const handleCanvasClick = (e: React.MouseEvent) => {
     if (!isPreview && e.target === e.currentTarget) dispatch({ type: 'CLEAR_SELECTION' });
   };
@@ -576,6 +644,7 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
               return (
                 <div
                   key={el.id}
+                  data-el-id={el.id}
                   className={`${animClass}${hasClickTrigger ? ' cursor-pointer' : ''}`}
                   style={{
                     position: 'absolute', left: el.x, top: el.y, width: el.width, height: el.height, zIndex: 2,

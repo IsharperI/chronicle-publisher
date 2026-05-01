@@ -780,12 +780,15 @@ export function PropertiesPanel() {
 function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdate: (u: Partial<SlideElement>) => void }) {
   const { state } = useCourse();
   const slides = state.slides;
+  const activeSlide = slides[state.activeSlideIndex];
   const triggers = element.triggers ?? [];
   const [newEvent, setNewEvent] = useState('onClick');
   const [newAction, setNewAction] = useState('jumpToSlide');
   const [newTarget, setNewTarget] = useState('');
   const [newTime, setNewTime] = useState<string>('0');
+  const [newMediaId, setNewMediaId] = useState<string>('');
   const isSlideAction = newAction === 'jumpToSlide';
+  const isMediaEvent = newEvent === 'mediaStart' || newEvent === 'mediaEnd' || newEvent === 'mediaPause';
 
   const slideLabel = (id: string) => {
     const idx = slides.findIndex((s) => s.id === id);
@@ -793,15 +796,42 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
     return slides[idx].title || `Slide ${idx + 1}`;
   };
 
+  // Media sources available on the current slide: audio tracks + video elements.
+  const mediaSources = (() => {
+    const out: { id: string; label: string }[] = [];
+    const audios = activeSlide?.audio ?? [];
+    audios.forEach((a) => out.push({ id: `audio:${a.id}`, label: `🎵 ${a.name || 'Audio'}` }));
+    (activeSlide?.elements ?? []).forEach((el, i) => {
+      if (el.type === 'video') {
+        const ve = el as VideoElement;
+        const name = (ve as any).alt || `Video ${i + 1}`;
+        out.push({ id: `video:${el.id}`, label: `🎬 ${name}` });
+      }
+    });
+    return out;
+  })();
+
+  const mediaLabel = (mediaId?: string) => {
+    if (!mediaId) return 'media';
+    const m = mediaSources.find((s) => s.id === mediaId);
+    if (m) return m.label;
+    return mediaId;
+  };
+
   const addTrigger = () => {
     if (!newTarget) return;
+    if (isMediaEvent && !newMediaId) return;
     const t: Trigger = { event: newEvent, action: newAction, targetId: newTarget };
     if (newEvent === 'atTime') {
       const parsed = parseFloat(newTime);
       t.time = isFinite(parsed) && parsed >= 0 ? parsed : 0;
     }
+    if (isMediaEvent) {
+      t.mediaId = newMediaId;
+    }
     onUpdate({ triggers: [...triggers, t] } as any);
     setNewTarget('');
+    setNewMediaId('');
   };
 
   const removeTrigger = (idx: number) => {
@@ -818,6 +848,9 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
         else if (t.event === 'timelineStart') eventLabel = 'Timeline starts';
         else if (t.event === 'timelineEnd') eventLabel = 'Timeline ends';
         else if (t.event === 'atTime') eventLabel = `At ${typeof t.time === 'number' ? t.time : 0}s`;
+        else if (t.event === 'mediaStart') eventLabel = `${mediaLabel(t.mediaId)} starts`;
+        else if (t.event === 'mediaEnd') eventLabel = `${mediaLabel(t.mediaId)} ends`;
+        else if (t.event === 'mediaPause') eventLabel = `${mediaLabel(t.mediaId)} pauses`;
         else eventLabel = t.event;
         let actionLabel: string;
         if (t.action === 'jumpToSlide') actionLabel = `Jump to ${slideLabel(t.targetId)}`;
@@ -837,7 +870,7 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
         );
       })}
       <div className="space-y-1.5">
-        <Select value={newEvent} onValueChange={setNewEvent}>
+        <Select value={newEvent} onValueChange={(v) => { setNewEvent(v); setNewMediaId(''); }}>
           <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="onClick">onClick</SelectItem>
@@ -845,6 +878,9 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
             <SelectItem value="timelineStart">When timeline starts</SelectItem>
             <SelectItem value="timelineEnd">When timeline ends</SelectItem>
             <SelectItem value="atTime">At time</SelectItem>
+            <SelectItem value="mediaStart">When media starts</SelectItem>
+            <SelectItem value="mediaEnd">When media ends</SelectItem>
+            <SelectItem value="mediaPause">When media pauses</SelectItem>
           </SelectContent>
         </Select>
         {newEvent === 'atTime' && (
@@ -857,6 +893,18 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
             onChange={(e) => setNewTime(e.target.value)}
             className="h-7 text-xs"
           />
+        )}
+        {isMediaEvent && (
+          <Select value={newMediaId} onValueChange={setNewMediaId}>
+            <SelectTrigger className="h-7 text-xs bg-white text-slate-800 rounded-md">
+              <SelectValue placeholder={mediaSources.length ? 'Select media element…' : 'No audio or video on slide'} />
+            </SelectTrigger>
+            <SelectContent>
+              {mediaSources.map((m) => (
+                <SelectItem key={m.id} value={m.id}>{m.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         )}
         <Select value={newAction} onValueChange={(v) => { setNewAction(v); setNewTarget(''); }}>
           <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
