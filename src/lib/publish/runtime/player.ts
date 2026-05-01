@@ -386,9 +386,11 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
   }
 
   var activeAudio=[];
+  var audioById={};
   function stopAudio(){
     for(var i=0;i<activeAudio.length;i++){try{activeAudio[i].pause();activeAudio[i].currentTime=0;activeAudio[i].src=""}catch(e){}}
     activeAudio=[];
+    audioById={};
   }
   function startAudio(slide){
     stopAudio();
@@ -398,6 +400,7 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
       var a=new Audio();a.preload="auto";a.src=t.src;
       var p=a.play();if(p&&p.catch)p.catch(function(){});
       activeAudio.push(a);
+      if(t.id)audioById[t.id]=a;
     }
   }
 
