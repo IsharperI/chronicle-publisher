@@ -788,6 +788,9 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
   const [newTime, setNewTime] = useState<string>('0');
   const [newMediaId, setNewMediaId] = useState<string>('');
   const isSlideAction = newAction === 'jumpToSlide';
+  const isElementAction = newAction === 'showElement' || newAction === 'hideElement';
+  const isMediaAction = newAction === 'playMedia' || newAction === 'pauseMedia' || newAction === 'stopMedia';
+  const isCourseAction = newAction === 'restartCourse' || newAction === 'exitCourse' || newAction === 'completeCourse';
   const isMediaEvent = newEvent === 'mediaStart' || newEvent === 'mediaEnd' || newEvent === 'mediaPause';
 
   const slideLabel = (id: string) => {
@@ -795,6 +798,19 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
     if (idx === -1) return id.slice(0, 8);
     return slides[idx].title || `Slide ${idx + 1}`;
   };
+
+  // Element name resolver — used for Show/Hide Element dropdowns + labels.
+  const elementName = (el: SlideElement, idx: number): string => {
+    const fallback = `${el.type.charAt(0).toUpperCase() + el.type.slice(1)} ${idx + 1}`;
+    if (el.type === 'text') return ((el as TextElement).content || fallback).slice(0, 30);
+    if (el.type === 'image') return (el as ImageElement).alt || fallback;
+    if (el.type === 'video') return (el as any).alt || fallback;
+    if (el.type === 'checkbox') return (el as CheckboxElement).label || fallback;
+    if (el.type === 'shape') return ((el as ShapeElement).text || fallback).slice(0, 30);
+    return fallback;
+  };
+  const slideElements = (activeSlide?.elements ?? []).map((el, i) => ({ id: el.id, label: elementName(el, i) }));
+  const elementLabel = (id: string) => slideElements.find((e) => e.id === id)?.label || id.slice(0, 8);
 
   // Media sources available on the current slide: audio tracks + video elements.
   const mediaSources = (() => {
@@ -819,9 +835,15 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
   };
 
   const addTrigger = () => {
-    if (!newTarget) return;
     if (isMediaEvent && !newMediaId) return;
-    const t: Trigger = { event: newEvent, action: newAction, targetId: newTarget };
+    if (isCourseAction) {
+      // No target needed.
+    } else if (isMediaAction) {
+      if (!newTarget) return; // newTarget holds mediaId for media actions
+    } else {
+      if (!newTarget) return;
+    }
+    const t: Trigger = { event: newEvent, action: newAction, targetId: isCourseAction ? '' : newTarget };
     if (newEvent === 'atTime') {
       const parsed = parseFloat(newTime);
       t.time = isFinite(parsed) && parsed >= 0 ? parsed : 0;
