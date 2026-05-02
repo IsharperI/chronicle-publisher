@@ -700,7 +700,18 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
     if(motionTracks.length){applyMotionTracks()}
   }
 
-  // ===== Triggers (onClick / onHover / timelineStart / timelineEnd / atTime) =====
+  // ===== Triggers (onClick / onHover / timelineStart / timelineEnd / atTime / media* / course actions) =====
+  function resolveMediaTarget(mid){
+    if(!mid)return null;
+    var colon=mid.indexOf(":");if(colon<0)return null;
+    var kind=mid.slice(0,colon),id=mid.slice(colon+1);
+    if(kind==="audio")return audioById[id]||null;
+    if(kind==="video"){
+      var wrap=stage.querySelector('[data-el-id="'+id+'"]');
+      return wrap?wrap.querySelector("video"):null;
+    }
+    return null;
+  }
   function runTriggerAction(t){
     if(!t)return;
     if(t.action==="jumpToSlide"){
@@ -709,6 +720,24 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
       var n=stage.querySelector('[data-el-id="'+t.targetId+'"]');if(n)n.style.display="none";
     } else if(t.action==="showElement"){
       var n2=stage.querySelector('[data-el-id="'+t.targetId+'"]');if(n2)n2.style.display="";
+    } else if(t.action==="playMedia"){
+      var pm=resolveMediaTarget(t.targetId);if(pm){try{pm.play()}catch(e){}}
+    } else if(t.action==="pauseMedia"){
+      var pa=resolveMediaTarget(t.targetId);if(pa){try{pa.pause()}catch(e){}}
+    } else if(t.action==="stopMedia"){
+      var st=resolveMediaTarget(t.targetId);if(st){try{st.pause();st.currentTime=0}catch(e){}}
+    } else if(t.action==="restartCourse"){
+      try{for(var k in savedPlayheads)delete savedPlayheads[k]}catch(e){}
+      try{for(var v in visited)delete visited[v]}catch(e){}
+      try{LMS.setLocation(0)}catch(e){}
+      goTo(0);
+    } else if(t.action==="exitCourse"){
+      try{if(LMS.finish)LMS.finish()}catch(e){}
+      try{window.close()}catch(e){}
+    } else if(t.action==="completeCourse"){
+      try{LMS.setStatus("completed")}catch(e){}
+      try{LMS.setScore(1,100,0,100)}catch(e){}
+      try{if(LMS.commit)LMS.commit()}catch(e){}
     }
   }
   var triggerRaf=null;
