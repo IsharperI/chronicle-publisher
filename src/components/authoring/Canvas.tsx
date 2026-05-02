@@ -517,19 +517,7 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
     if (!isPreview || !activeSlide) return;
     const slide = activeSlide;
 
-    const runAction = (t: { action: string; targetId: string }) => {
-      if (t.action === 'jumpToSlide') {
-        const idx = state.slides.findIndex((s) => s.id === t.targetId);
-        if (idx >= 0) {
-          dispatch({ type: 'SET_PLAYING', playing: false });
-          dispatch({ type: 'SET_ACTIVE_SLIDE', index: idx });
-        }
-      } else if (t.action === 'hideElement') {
-        dispatch({ type: 'UPDATE_ELEMENT', id: t.targetId, updates: { isHidden: true } as any });
-      } else if (t.action === 'showElement') {
-        dispatch({ type: 'UPDATE_ELEMENT', id: t.targetId, updates: { isHidden: false } as any });
-      }
-    };
+    const runAction = runTriggerAction;
 
     type MT = { event: string; t: { action: string; targetId: string } };
     const byMedia = new Map<string, MT[]>();
