@@ -876,8 +876,14 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
         else eventLabel = t.event;
         let actionLabel: string;
         if (t.action === 'jumpToSlide') actionLabel = `Jump to ${slideLabel(t.targetId)}`;
-        else if (t.action === 'hideElement') actionLabel = `Hide element (${t.targetId.slice(0, 8)})`;
-        else if (t.action === 'showElement') actionLabel = `Show element (${t.targetId.slice(0, 8)})`;
+        else if (t.action === 'hideElement') actionLabel = `Hide ${elementLabel(t.targetId)}`;
+        else if (t.action === 'showElement') actionLabel = `Show ${elementLabel(t.targetId)}`;
+        else if (t.action === 'playMedia') actionLabel = `Play ${mediaLabel(t.targetId)}`;
+        else if (t.action === 'pauseMedia') actionLabel = `Pause ${mediaLabel(t.targetId)}`;
+        else if (t.action === 'stopMedia') actionLabel = `Stop ${mediaLabel(t.targetId)}`;
+        else if (t.action === 'restartCourse') actionLabel = 'Restart Course';
+        else if (t.action === 'exitCourse') actionLabel = 'Exit Course';
+        else if (t.action === 'completeCourse') actionLabel = 'Complete Course';
         else actionLabel = `${t.action} (${t.targetId.slice(0, 8)})`;
         return (
           <div key={i} className="flex items-center gap-2 bg-white border border-slate-200 rounded-md shadow-sm p-2">
