@@ -647,19 +647,7 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
               const hasClickTrigger = clickTriggers.length > 0;
               const handleTriggerClick = hasClickTrigger ? (e: React.MouseEvent) => {
                 e.stopPropagation();
-                for (const t of clickTriggers) {
-                  if (t.action === 'jumpToSlide') {
-                    const idx = state.slides.findIndex((s) => s.id === t.targetId);
-                    if (idx >= 0) {
-                      dispatch({ type: 'SET_PLAYING', playing: false });
-                      dispatch({ type: 'SET_ACTIVE_SLIDE', index: idx });
-                    }
-                  } else if (t.action === 'hideElement') {
-                    dispatch({ type: 'UPDATE_ELEMENT', id: t.targetId, updates: { isHidden: true } as any });
-                  } else if (t.action === 'showElement') {
-                    dispatch({ type: 'UPDATE_ELEMENT', id: t.targetId, updates: { isHidden: false } as any });
-                  }
-                }
+                for (const t of clickTriggers) runTriggerAction(t);
               } : undefined;
               const mpOffset = motionPathOffset(el, state.playheadTime);
               const baseTransform = mpOffset ? `translate(${mpOffset.dx}px, ${mpOffset.dy}px)` : undefined;
