@@ -288,6 +288,52 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
   useEffect(() => { onPreviewNextRef.current = onPreviewNext; }, [onPreviewNext]);
 
   const isPreview = state.previewMode;
+
+  // Shared trigger-action runner used by all event sources (timeline, click, hover, media).
+  const runTriggerAction = useCallback((t: { action: string; targetId: string }) => {
+    if (t.action === 'jumpToSlide') {
+      const idx = state.slides.findIndex((s) => s.id === t.targetId);
+      if (idx >= 0) {
+        dispatch({ type: 'SET_PLAYING', playing: false });
+        dispatch({ type: 'SET_ACTIVE_SLIDE', index: idx });
+      }
+    } else if (t.action === 'hideElement') {
+      dispatch({ type: 'UPDATE_ELEMENT', id: t.targetId, updates: { isHidden: true } as any });
+    } else if (t.action === 'showElement') {
+      dispatch({ type: 'UPDATE_ELEMENT', id: t.targetId, updates: { isHidden: false } as any });
+    } else if (t.action === 'playMedia' || t.action === 'pauseMedia' || t.action === 'stopMedia') {
+      const mid = t.targetId || '';
+      const colon = mid.indexOf(':');
+      if (colon < 0) return;
+      const kind = mid.slice(0, colon);
+      const id = mid.slice(colon + 1);
+      let target: HTMLMediaElement | null = null;
+      if (kind === 'audio') {
+        target = audioRefs.current.get(id) ?? null;
+      } else if (kind === 'video') {
+        const root = containerRef.current;
+        if (root) {
+          const wrap = root.querySelector(`[data-el-id="${id}"]`);
+          target = wrap ? (wrap.querySelector('video') as HTMLVideoElement | null) : null;
+        }
+      }
+      if (!target) return;
+      if (t.action === 'playMedia') { target.play().catch(() => { /* noop */ }); }
+      else if (t.action === 'pauseMedia') { try { target.pause(); } catch { /* noop */ } }
+      else if (t.action === 'stopMedia') { try { target.pause(); target.currentTime = 0; } catch { /* noop */ } }
+    } else if (t.action === 'restartCourse') {
+      dispatch({ type: 'SET_PLAYING', playing: false });
+      dispatch({ type: 'RESET_QUIZ_PROGRESS' });
+      dispatch({ type: 'SET_ACTIVE_SLIDE', index: 0 });
+      dispatch({ type: 'SET_PLAYHEAD', time: 0 });
+    } else if (t.action === 'exitCourse') {
+      dispatch({ type: 'SET_PLAYING', playing: false });
+      dispatch({ type: 'SET_PREVIEW_MODE', enabled: false });
+    } else if (t.action === 'completeCourse') {
+      // No LMS in editor preview — published runtime calls LMS.setStatus("completed").
+    }
+  }, [state.slides, dispatch]);
+
   const isMasterMode = state.viewMode === 'master';
 
   // Get current slide based on view mode
@@ -368,19 +414,7 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
 
     // Track which timeline triggers have already fired this play-through.
     const fired = new Set<string>();
-    const runAction = (t: { action: string; targetId: string }) => {
-      if (t.action === 'jumpToSlide') {
-        const idx = state.slides.findIndex((s) => s.id === t.targetId);
-        if (idx >= 0) {
-          dispatch({ type: 'SET_PLAYING', playing: false });
-          dispatch({ type: 'SET_ACTIVE_SLIDE', index: idx });
-        }
-      } else if (t.action === 'hideElement') {
-        dispatch({ type: 'UPDATE_ELEMENT', id: t.targetId, updates: { isHidden: true } as any });
-      } else if (t.action === 'showElement') {
-        dispatch({ type: 'UPDATE_ELEMENT', id: t.targetId, updates: { isHidden: false } as any });
-      }
-    };
+    const runAction = runTriggerAction;
     const fireTimelineTriggers = (prev: number, curr: number, isStart: boolean, isEnd: boolean) => {
       const els = activeSlide.elements || [];
       for (const el of els) {
@@ -483,19 +517,7 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
     if (!isPreview || !activeSlide) return;
     const slide = activeSlide;
 
-    const runAction = (t: { action: string; targetId: string }) => {
-      if (t.action === 'jumpToSlide') {
-        const idx = state.slides.findIndex((s) => s.id === t.targetId);
-        if (idx >= 0) {
-          dispatch({ type: 'SET_PLAYING', playing: false });
-          dispatch({ type: 'SET_ACTIVE_SLIDE', index: idx });
-        }
-      } else if (t.action === 'hideElement') {
-        dispatch({ type: 'UPDATE_ELEMENT', id: t.targetId, updates: { isHidden: true } as any });
-      } else if (t.action === 'showElement') {
-        dispatch({ type: 'UPDATE_ELEMENT', id: t.targetId, updates: { isHidden: false } as any });
-      }
-    };
+    const runAction = runTriggerAction;
 
     type MT = { event: string; t: { action: string; targetId: string } };
     const byMedia = new Map<string, MT[]>();
@@ -625,19 +647,7 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
               const hasClickTrigger = clickTriggers.length > 0;
               const handleTriggerClick = hasClickTrigger ? (e: React.MouseEvent) => {
                 e.stopPropagation();
-                for (const t of clickTriggers) {
-                  if (t.action === 'jumpToSlide') {
-                    const idx = state.slides.findIndex((s) => s.id === t.targetId);
-                    if (idx >= 0) {
-                      dispatch({ type: 'SET_PLAYING', playing: false });
-                      dispatch({ type: 'SET_ACTIVE_SLIDE', index: idx });
-                    }
-                  } else if (t.action === 'hideElement') {
-                    dispatch({ type: 'UPDATE_ELEMENT', id: t.targetId, updates: { isHidden: true } as any });
-                  } else if (t.action === 'showElement') {
-                    dispatch({ type: 'UPDATE_ELEMENT', id: t.targetId, updates: { isHidden: false } as any });
-                  }
-                }
+                for (const t of clickTriggers) runTriggerAction(t);
               } : undefined;
               const mpOffset = motionPathOffset(el, state.playheadTime);
               const baseTransform = mpOffset ? `translate(${mpOffset.dx}px, ${mpOffset.dy}px)` : undefined;

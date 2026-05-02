@@ -788,6 +788,9 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
   const [newTime, setNewTime] = useState<string>('0');
   const [newMediaId, setNewMediaId] = useState<string>('');
   const isSlideAction = newAction === 'jumpToSlide';
+  const isElementAction = newAction === 'showElement' || newAction === 'hideElement';
+  const isMediaAction = newAction === 'playMedia' || newAction === 'pauseMedia' || newAction === 'stopMedia';
+  const isCourseAction = newAction === 'restartCourse' || newAction === 'exitCourse' || newAction === 'completeCourse';
   const isMediaEvent = newEvent === 'mediaStart' || newEvent === 'mediaEnd' || newEvent === 'mediaPause';
 
   const slideLabel = (id: string) => {
@@ -795,6 +798,19 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
     if (idx === -1) return id.slice(0, 8);
     return slides[idx].title || `Slide ${idx + 1}`;
   };
+
+  // Element name resolver — used for Show/Hide Element dropdowns + labels.
+  const elementName = (el: SlideElement, idx: number): string => {
+    const fallback = `${el.type.charAt(0).toUpperCase() + el.type.slice(1)} ${idx + 1}`;
+    if (el.type === 'text') return ((el as TextElement).content || fallback).slice(0, 30);
+    if (el.type === 'image') return (el as ImageElement).alt || fallback;
+    if (el.type === 'video') return (el as any).alt || fallback;
+    if (el.type === 'checkbox') return (el as CheckboxElement).label || fallback;
+    if (el.type === 'shape') return ((el as ShapeElement).text || fallback).slice(0, 30);
+    return fallback;
+  };
+  const slideElements = (activeSlide?.elements ?? []).map((el, i) => ({ id: el.id, label: elementName(el, i) }));
+  const elementLabel = (id: string) => slideElements.find((e) => e.id === id)?.label || id.slice(0, 8);
 
   // Media sources available on the current slide: audio tracks + video elements.
   const mediaSources = (() => {
@@ -819,9 +835,15 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
   };
 
   const addTrigger = () => {
-    if (!newTarget) return;
     if (isMediaEvent && !newMediaId) return;
-    const t: Trigger = { event: newEvent, action: newAction, targetId: newTarget };
+    if (isCourseAction) {
+      // No target needed.
+    } else if (isMediaAction) {
+      if (!newTarget) return; // newTarget holds mediaId for media actions
+    } else {
+      if (!newTarget) return;
+    }
+    const t: Trigger = { event: newEvent, action: newAction, targetId: isCourseAction ? '' : newTarget };
     if (newEvent === 'atTime') {
       const parsed = parseFloat(newTime);
       t.time = isFinite(parsed) && parsed >= 0 ? parsed : 0;
@@ -854,8 +876,14 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
         else eventLabel = t.event;
         let actionLabel: string;
         if (t.action === 'jumpToSlide') actionLabel = `Jump to ${slideLabel(t.targetId)}`;
-        else if (t.action === 'hideElement') actionLabel = `Hide element (${t.targetId.slice(0, 8)})`;
-        else if (t.action === 'showElement') actionLabel = `Show element (${t.targetId.slice(0, 8)})`;
+        else if (t.action === 'hideElement') actionLabel = `Hide ${elementLabel(t.targetId)}`;
+        else if (t.action === 'showElement') actionLabel = `Show ${elementLabel(t.targetId)}`;
+        else if (t.action === 'playMedia') actionLabel = `Play ${mediaLabel(t.targetId)}`;
+        else if (t.action === 'pauseMedia') actionLabel = `Pause ${mediaLabel(t.targetId)}`;
+        else if (t.action === 'stopMedia') actionLabel = `Stop ${mediaLabel(t.targetId)}`;
+        else if (t.action === 'restartCourse') actionLabel = 'Restart Course';
+        else if (t.action === 'exitCourse') actionLabel = 'Exit Course';
+        else if (t.action === 'completeCourse') actionLabel = 'Complete Course';
         else actionLabel = `${t.action} (${t.targetId.slice(0, 8)})`;
         return (
           <div key={i} className="flex items-center gap-2 bg-white border border-slate-200 rounded-md shadow-sm p-2">
@@ -910,11 +938,17 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
           <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="jumpToSlide">Jump to Slide</SelectItem>
-            <SelectItem value="hideElement">Hide Element</SelectItem>
             <SelectItem value="showElement">Show Element</SelectItem>
+            <SelectItem value="hideElement">Hide Element</SelectItem>
+            <SelectItem value="playMedia">Play Media</SelectItem>
+            <SelectItem value="pauseMedia">Pause Media</SelectItem>
+            <SelectItem value="stopMedia">Stop Media</SelectItem>
+            <SelectItem value="restartCourse">Restart Course</SelectItem>
+            <SelectItem value="exitCourse">Exit Course</SelectItem>
+            <SelectItem value="completeCourse">Complete Course</SelectItem>
           </SelectContent>
         </Select>
-        {isSlideAction ? (
+        {isSlideAction && (
           <Select value={newTarget} onValueChange={setNewTarget}>
             <SelectTrigger className="h-7 text-xs bg-white text-slate-800 rounded-md"><SelectValue placeholder="Select slide..." /></SelectTrigger>
             <SelectContent>
@@ -923,8 +957,30 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
               ))}
             </SelectContent>
           </Select>
-        ) : (
-          <Input placeholder="Target ID" value={newTarget} onChange={(e) => setNewTarget(e.target.value)} className="h-7 text-xs" />
+        )}
+        {isElementAction && (
+          <Select value={newTarget} onValueChange={setNewTarget}>
+            <SelectTrigger className="h-7 text-xs bg-white text-slate-800 rounded-md">
+              <SelectValue placeholder={slideElements.length ? 'Select element…' : 'No elements on slide'} />
+            </SelectTrigger>
+            <SelectContent>
+              {slideElements.map((e) => (
+                <SelectItem key={e.id} value={e.id}>{e.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+        {isMediaAction && (
+          <Select value={newTarget} onValueChange={setNewTarget}>
+            <SelectTrigger className="h-7 text-xs bg-white text-slate-800 rounded-md">
+              <SelectValue placeholder={mediaSources.length ? 'Select media element…' : 'No audio or video on slide'} />
+            </SelectTrigger>
+            <SelectContent>
+              {mediaSources.map((m) => (
+                <SelectItem key={m.id} value={m.id}>{m.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         )}
         <Button variant="outline" size="sm" className="w-full h-7 text-xs" onClick={addTrigger}><Plus className="h-3 w-3 mr-1" />Add Trigger</Button>
       </div>
