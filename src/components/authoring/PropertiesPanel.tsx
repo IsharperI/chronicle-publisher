@@ -938,11 +938,17 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
           <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="jumpToSlide">Jump to Slide</SelectItem>
-            <SelectItem value="hideElement">Hide Element</SelectItem>
             <SelectItem value="showElement">Show Element</SelectItem>
+            <SelectItem value="hideElement">Hide Element</SelectItem>
+            <SelectItem value="playMedia">Play Media</SelectItem>
+            <SelectItem value="pauseMedia">Pause Media</SelectItem>
+            <SelectItem value="stopMedia">Stop Media</SelectItem>
+            <SelectItem value="restartCourse">Restart Course</SelectItem>
+            <SelectItem value="exitCourse">Exit Course</SelectItem>
+            <SelectItem value="completeCourse">Complete Course</SelectItem>
           </SelectContent>
         </Select>
-        {isSlideAction ? (
+        {isSlideAction && (
           <Select value={newTarget} onValueChange={setNewTarget}>
             <SelectTrigger className="h-7 text-xs bg-white text-slate-800 rounded-md"><SelectValue placeholder="Select slide..." /></SelectTrigger>
             <SelectContent>
@@ -951,8 +957,30 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
               ))}
             </SelectContent>
           </Select>
-        ) : (
-          <Input placeholder="Target ID" value={newTarget} onChange={(e) => setNewTarget(e.target.value)} className="h-7 text-xs" />
+        )}
+        {isElementAction && (
+          <Select value={newTarget} onValueChange={setNewTarget}>
+            <SelectTrigger className="h-7 text-xs bg-white text-slate-800 rounded-md">
+              <SelectValue placeholder={slideElements.length ? 'Select element…' : 'No elements on slide'} />
+            </SelectTrigger>
+            <SelectContent>
+              {slideElements.map((e) => (
+                <SelectItem key={e.id} value={e.id}>{e.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+        {isMediaAction && (
+          <Select value={newTarget} onValueChange={setNewTarget}>
+            <SelectTrigger className="h-7 text-xs bg-white text-slate-800 rounded-md">
+              <SelectValue placeholder={mediaSources.length ? 'Select media element…' : 'No audio or video on slide'} />
+            </SelectTrigger>
+            <SelectContent>
+              {mediaSources.map((m) => (
+                <SelectItem key={m.id} value={m.id}>{m.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         )}
         <Button variant="outline" size="sm" className="w-full h-7 text-xs" onClick={addTrigger}><Plus className="h-3 w-3 mr-1" />Add Trigger</Button>
       </div>
