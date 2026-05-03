@@ -1012,6 +1012,49 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
             </SelectContent>
           </Select>
         )}
+        {isJumpToTime && (
+          <Input
+            type="number"
+            step="0.1"
+            min="0"
+            placeholder="Jump to time (seconds)"
+            value={newJumpTime}
+            onChange={(e) => setNewJumpTime(e.target.value)}
+            className="h-7 text-xs"
+          />
+        )}
+        {isEmphasize && (
+          <>
+            <Select value={newTarget} onValueChange={setNewTarget}>
+              <SelectTrigger className="h-7 text-xs bg-white text-slate-800 rounded-md">
+                <SelectValue placeholder={slideElements.length ? 'Select element…' : 'No elements on slide'} />
+              </SelectTrigger>
+              <SelectContent>
+                {slideElements.map((e) => (
+                  <SelectItem key={e.id} value={e.id}>{e.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={newEmphasis} onValueChange={(v) => setNewEmphasis(v as any)}>
+              <SelectTrigger className="h-7 text-xs bg-white text-slate-800 rounded-md"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="pulse">Pulse</SelectItem>
+                <SelectItem value="shake">Shake</SelectItem>
+                <SelectItem value="bounce">Bounce</SelectItem>
+                <SelectItem value="flash">Flash</SelectItem>
+              </SelectContent>
+            </Select>
+          </>
+        )}
+        {isOpenUrl && (
+          <Input
+            type="url"
+            placeholder="https://example.com"
+            value={newUrl}
+            onChange={(e) => setNewUrl(e.target.value)}
+            className="h-7 text-xs"
+          />
+        )}
         <Button variant="outline" size="sm" className="w-full h-7 text-xs" onClick={addTrigger}><Plus className="h-3 w-3 mr-1" />Add Trigger</Button>
       </div>
     </div>
