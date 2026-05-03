@@ -103,6 +103,14 @@ body{background-color:${ps.backgroundColor};${ps.backgroundImage ? `background-i
 .anim-fly-in-right{animation:anim-fly-in-right .5s ease forwards}
 .anim-fly-out-left{animation:anim-fly-out-left .5s ease forwards}
 .anim-fly-out-right{animation:anim-fly-out-right .5s ease forwards}
+@keyframes trigger-emph-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.15)}}
+@keyframes trigger-emph-shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-8px)}40%{transform:translateX(8px)}60%{transform:translateX(-6px)}80%{transform:translateX(6px)}}
+@keyframes trigger-emph-bounce{0%,100%{transform:translateY(0)}30%{transform:translateY(-18px)}60%{transform:translateY(0)}75%{transform:translateY(-8px)}}
+@keyframes trigger-emph-flash{0%,100%{opacity:1}25%,75%{opacity:.2}50%{opacity:1}}
+.trigger-emph-pulse{animation:trigger-emph-pulse .6s ease-in-out 1;transform-origin:center}
+.trigger-emph-shake{animation:trigger-emph-shake .6s ease-in-out 1}
+.trigger-emph-bounce{animation:trigger-emph-bounce .7s ease-in-out 1}
+.trigger-emph-flash{animation:trigger-emph-flash .6s ease-in-out 1}
 #controls{flex:0 0 auto;height:56px;display:flex;gap:8px;align-items:center;justify-content:center;padding:0 20px;background:rgba(0,0,0,.4);backdrop-filter:blur(6px);border-top:1px solid rgba(255,255,255,.08)}
 #controls button{padding:8px 18px;border:none;border-radius:${ps.buttonBorderRadius}px;background:${ps.buttonColor};color:#fff;font-size:13px;cursor:pointer;font-weight:500;font-family:${ps.fontFamily};display:inline-flex;align-items:center;gap:4px}
 #controls button:hover{filter:brightness(1.15)}
