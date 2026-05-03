@@ -334,7 +334,8 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
     } else if (t.action === 'jumpToTime') {
       const sec = typeof (t as any).time === 'number' ? (t as any).time : 0;
       const ms = Math.max(0, sec * 1000);
-      const slideDur = activeSlide?.duration ?? 5000;
+      const curSlide = state.slides[state.activeSlideIndex];
+      const slideDur = curSlide?.duration ?? 5000;
       const clamped = Math.min(slideDur, ms);
       previewAccumRef.current = clamped;
       dispatch({ type: 'SET_PLAYHEAD', time: clamped });
