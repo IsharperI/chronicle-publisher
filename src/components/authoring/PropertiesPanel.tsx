@@ -787,10 +787,16 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
   const [newTarget, setNewTarget] = useState('');
   const [newTime, setNewTime] = useState<string>('0');
   const [newMediaId, setNewMediaId] = useState<string>('');
+  const [newJumpTime, setNewJumpTime] = useState<string>('0');
+  const [newEmphasis, setNewEmphasis] = useState<'pulse' | 'shake' | 'bounce' | 'flash'>('pulse');
+  const [newUrl, setNewUrl] = useState<string>('');
   const isSlideAction = newAction === 'jumpToSlide';
   const isElementAction = newAction === 'showElement' || newAction === 'hideElement';
   const isMediaAction = newAction === 'playMedia' || newAction === 'pauseMedia' || newAction === 'stopMedia';
   const isCourseAction = newAction === 'restartCourse' || newAction === 'exitCourse' || newAction === 'completeCourse';
+  const isJumpToTime = newAction === 'jumpToTime';
+  const isEmphasize = newAction === 'emphasizeElement';
+  const isOpenUrl = newAction === 'openUrl';
   const isMediaEvent = newEvent === 'mediaStart' || newEvent === 'mediaEnd' || newEvent === 'mediaPause';
 
   const slideLabel = (id: string) => {
