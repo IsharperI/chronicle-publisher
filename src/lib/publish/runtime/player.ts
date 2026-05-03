@@ -746,6 +746,35 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
       try{LMS.setStatus("completed")}catch(e){}
       try{LMS.setScore(1,100,0,100)}catch(e){}
       try{if(LMS.commit)LMS.commit()}catch(e){}
+    } else if(t.action==="jumpToTime"){
+      var jSec=(typeof t.time==="number"?t.time:0);
+      var jMs=Math.max(0,jSec*1000);
+      var sl=slides[current];var dur=(sl&&sl.duration)||5000;
+      if(jMs>dur)jMs=dur;
+      // Reset fired state for atTime/timelineEnd triggers we may want to refire if jumping backward.
+      for(var ji=0;ji<timelineTriggers.length;ji++){
+        var jt=timelineTriggers[ji];
+        if(jt.t.event==="atTime"){
+          var jtMs=(typeof jt.t.time==="number"?jt.t.time:0)*1000;
+          if(jtMs>=jMs)jt.fired=false;
+        } else if(jt.t.event==="timelineEnd"){
+          if(jMs<dur-1)jt.fired=false;
+        }
+      }
+      triggerLastPh=jMs;
+      startSlideTimer(jMs);
+    } else if(t.action==="emphasizeElement"){
+      var en=stage.querySelector('[data-el-id="'+t.targetId+'"]');
+      if(en){
+        var st=t.emphasis||"pulse";
+        var cls="trigger-emph-"+st;
+        en.classList.remove("trigger-emph-pulse","trigger-emph-shake","trigger-emph-bounce","trigger-emph-flash");
+        void en.offsetWidth;
+        en.classList.add(cls);
+        (function(node,c){setTimeout(function(){node.classList.remove(c)},1000)})(en,cls);
+      }
+    } else if(t.action==="openUrl"){
+      if(t.url){try{window.open(t.url,"_blank","noopener,noreferrer")}catch(e){}}
     }
   }
   var triggerRaf=null;
