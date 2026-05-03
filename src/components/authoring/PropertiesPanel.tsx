@@ -908,6 +908,9 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
         else if (t.action === 'restartCourse') actionLabel = 'Restart Course';
         else if (t.action === 'exitCourse') actionLabel = 'Exit Course';
         else if (t.action === 'completeCourse') actionLabel = 'Complete Course';
+        else if (t.action === 'jumpToTime') actionLabel = `Jump to ${typeof t.time === 'number' ? t.time : 0}s`;
+        else if (t.action === 'emphasizeElement') actionLabel = `Emphasize ${elementLabel(t.targetId)} (${t.emphasis || 'pulse'})`;
+        else if (t.action === 'openUrl') actionLabel = `Open URL: ${(t.url || '').slice(0, 30)}`;
         else actionLabel = `${t.action} (${t.targetId.slice(0, 8)})`;
         return (
           <div key={i} className="flex items-center gap-2 bg-white border border-slate-200 rounded-md shadow-sm p-2">
