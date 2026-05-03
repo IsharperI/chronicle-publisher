@@ -331,8 +331,33 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
       dispatch({ type: 'SET_PREVIEW_MODE', enabled: false });
     } else if (t.action === 'completeCourse') {
       // No LMS in editor preview — published runtime calls LMS.setStatus("completed").
+    } else if (t.action === 'jumpToTime') {
+      const sec = typeof (t as any).time === 'number' ? (t as any).time : 0;
+      const ms = Math.max(0, sec * 1000);
+      const slideDur = activeSlide?.duration ?? 5000;
+      const clamped = Math.min(slideDur, ms);
+      previewAccumRef.current = clamped;
+      dispatch({ type: 'SET_PLAYHEAD', time: clamped });
+    } else if (t.action === 'emphasizeElement') {
+      const root = containerRef.current;
+      if (!root) return;
+      const wrap = root.querySelector(`[data-el-id="${t.targetId}"]`) as HTMLElement | null;
+      if (!wrap) return;
+      const style = (t as any).emphasis || 'pulse';
+      const cls = `trigger-emph-${style}`;
+      // Restart animation if already applied.
+      wrap.classList.remove('trigger-emph-pulse', 'trigger-emph-shake', 'trigger-emph-bounce', 'trigger-emph-flash');
+      // Force reflow to restart animation.
+      void wrap.offsetWidth;
+      wrap.classList.add(cls);
+      window.setTimeout(() => { wrap.classList.remove(cls); }, 1000);
+    } else if (t.action === 'openUrl') {
+      const url = (t as any).url;
+      if (typeof url === 'string' && url) {
+        try { window.open(url, '_blank', 'noopener,noreferrer'); } catch { /* noop */ }
+      }
     }
-  }, [state.slides, dispatch]);
+  }, [state.slides, dispatch, activeSlide]);
 
   const isMasterMode = state.viewMode === 'master';
 
