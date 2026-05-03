@@ -842,24 +842,42 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
 
   const addTrigger = () => {
     if (isMediaEvent && !newMediaId) return;
-    if (isCourseAction) {
-      // No target needed.
+    if (isCourseAction || isJumpToTime || isOpenUrl) {
+      // No element/slide/media target needed.
+    } else if (isEmphasize) {
+      if (!newTarget) return;
     } else if (isMediaAction) {
-      if (!newTarget) return; // newTarget holds mediaId for media actions
+      if (!newTarget) return;
     } else {
       if (!newTarget) return;
     }
-    const t: Trigger = { event: newEvent, action: newAction, targetId: isCourseAction ? '' : newTarget };
+    if (isOpenUrl) {
+      const trimmed = newUrl.trim();
+      if (!trimmed) return;
+    }
+    const targetId = (isCourseAction || isJumpToTime || isOpenUrl) ? '' : newTarget;
+    const t: Trigger = { event: newEvent, action: newAction, targetId };
     if (newEvent === 'atTime') {
       const parsed = parseFloat(newTime);
+      t.time = isFinite(parsed) && parsed >= 0 ? parsed : 0;
+    }
+    if (isJumpToTime) {
+      const parsed = parseFloat(newJumpTime);
       t.time = isFinite(parsed) && parsed >= 0 ? parsed : 0;
     }
     if (isMediaEvent) {
       t.mediaId = newMediaId;
     }
+    if (isEmphasize) {
+      t.emphasis = newEmphasis;
+    }
+    if (isOpenUrl) {
+      t.url = newUrl.trim();
+    }
     onUpdate({ triggers: [...triggers, t] } as any);
     setNewTarget('');
     setNewMediaId('');
+    setNewUrl('');
   };
 
   const removeTrigger = (idx: number) => {
