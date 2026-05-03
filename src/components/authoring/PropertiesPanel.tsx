@@ -973,6 +973,9 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
             <SelectItem value="restartCourse">Restart Course</SelectItem>
             <SelectItem value="exitCourse">Exit Course</SelectItem>
             <SelectItem value="completeCourse">Complete Course</SelectItem>
+            <SelectItem value="jumpToTime">Jump to Time</SelectItem>
+            <SelectItem value="emphasizeElement">Emphasize Element</SelectItem>
+            <SelectItem value="openUrl">Open URL</SelectItem>
           </SelectContent>
         </Select>
         {isSlideAction && (
