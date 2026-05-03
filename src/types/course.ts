@@ -17,6 +17,10 @@ export interface Trigger {
    * 'video:<elementId>'.
    */
   mediaId?: string;
+  /** For 'emphasizeElement' action: emphasis animation style. */
+  emphasis?: 'pulse' | 'shake' | 'bounce' | 'flash';
+  /** For 'openUrl' action: the URL to open in a new tab. */
+  url?: string;
 }
 
 export interface BaseElement {

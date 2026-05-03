@@ -147,6 +147,13 @@ function sanitizeTrigger(t: any): Trigger {
   if (typeof t?.mediaId === 'string' && /^(audio|video):[A-Za-z0-9_-]{1,64}$/.test(t.mediaId)) {
     out.mediaId = t.mediaId;
   }
+  if (t?.emphasis === 'pulse' || t?.emphasis === 'shake' || t?.emphasis === 'bounce' || t?.emphasis === 'flash') {
+    out.emphasis = t.emphasis;
+  }
+  if (typeof t?.url === 'string') {
+    const u = t.url.slice(0, 2048);
+    if (/^https?:\/\//i.test(u) || /^mailto:/i.test(u)) out.url = u;
+  }
   return out;
 }
 

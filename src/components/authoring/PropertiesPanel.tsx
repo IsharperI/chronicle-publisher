@@ -787,10 +787,16 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
   const [newTarget, setNewTarget] = useState('');
   const [newTime, setNewTime] = useState<string>('0');
   const [newMediaId, setNewMediaId] = useState<string>('');
+  const [newJumpTime, setNewJumpTime] = useState<string>('0');
+  const [newEmphasis, setNewEmphasis] = useState<'pulse' | 'shake' | 'bounce' | 'flash'>('pulse');
+  const [newUrl, setNewUrl] = useState<string>('');
   const isSlideAction = newAction === 'jumpToSlide';
   const isElementAction = newAction === 'showElement' || newAction === 'hideElement';
   const isMediaAction = newAction === 'playMedia' || newAction === 'pauseMedia' || newAction === 'stopMedia';
   const isCourseAction = newAction === 'restartCourse' || newAction === 'exitCourse' || newAction === 'completeCourse';
+  const isJumpToTime = newAction === 'jumpToTime';
+  const isEmphasize = newAction === 'emphasizeElement';
+  const isOpenUrl = newAction === 'openUrl';
   const isMediaEvent = newEvent === 'mediaStart' || newEvent === 'mediaEnd' || newEvent === 'mediaPause';
 
   const slideLabel = (id: string) => {
@@ -836,24 +842,42 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
 
   const addTrigger = () => {
     if (isMediaEvent && !newMediaId) return;
-    if (isCourseAction) {
-      // No target needed.
+    if (isCourseAction || isJumpToTime || isOpenUrl) {
+      // No element/slide/media target needed.
+    } else if (isEmphasize) {
+      if (!newTarget) return;
     } else if (isMediaAction) {
-      if (!newTarget) return; // newTarget holds mediaId for media actions
+      if (!newTarget) return;
     } else {
       if (!newTarget) return;
     }
-    const t: Trigger = { event: newEvent, action: newAction, targetId: isCourseAction ? '' : newTarget };
+    if (isOpenUrl) {
+      const trimmed = newUrl.trim();
+      if (!trimmed) return;
+    }
+    const targetId = (isCourseAction || isJumpToTime || isOpenUrl) ? '' : newTarget;
+    const t: Trigger = { event: newEvent, action: newAction, targetId };
     if (newEvent === 'atTime') {
       const parsed = parseFloat(newTime);
+      t.time = isFinite(parsed) && parsed >= 0 ? parsed : 0;
+    }
+    if (isJumpToTime) {
+      const parsed = parseFloat(newJumpTime);
       t.time = isFinite(parsed) && parsed >= 0 ? parsed : 0;
     }
     if (isMediaEvent) {
       t.mediaId = newMediaId;
     }
+    if (isEmphasize) {
+      t.emphasis = newEmphasis;
+    }
+    if (isOpenUrl) {
+      t.url = newUrl.trim();
+    }
     onUpdate({ triggers: [...triggers, t] } as any);
     setNewTarget('');
     setNewMediaId('');
+    setNewUrl('');
   };
 
   const removeTrigger = (idx: number) => {
@@ -884,6 +908,9 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
         else if (t.action === 'restartCourse') actionLabel = 'Restart Course';
         else if (t.action === 'exitCourse') actionLabel = 'Exit Course';
         else if (t.action === 'completeCourse') actionLabel = 'Complete Course';
+        else if (t.action === 'jumpToTime') actionLabel = `Jump to ${typeof t.time === 'number' ? t.time : 0}s`;
+        else if (t.action === 'emphasizeElement') actionLabel = `Emphasize ${elementLabel(t.targetId)} (${t.emphasis || 'pulse'})`;
+        else if (t.action === 'openUrl') actionLabel = `Open URL: ${(t.url || '').slice(0, 30)}`;
         else actionLabel = `${t.action} (${t.targetId.slice(0, 8)})`;
         return (
           <div key={i} className="flex items-center gap-2 bg-white border border-slate-200 rounded-md shadow-sm p-2">
@@ -946,6 +973,9 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
             <SelectItem value="restartCourse">Restart Course</SelectItem>
             <SelectItem value="exitCourse">Exit Course</SelectItem>
             <SelectItem value="completeCourse">Complete Course</SelectItem>
+            <SelectItem value="jumpToTime">Jump to Time</SelectItem>
+            <SelectItem value="emphasizeElement">Emphasize Element</SelectItem>
+            <SelectItem value="openUrl">Open URL</SelectItem>
           </SelectContent>
         </Select>
         {isSlideAction && (
@@ -981,6 +1011,49 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
               ))}
             </SelectContent>
           </Select>
+        )}
+        {isJumpToTime && (
+          <Input
+            type="number"
+            step="0.1"
+            min="0"
+            placeholder="Jump to time (seconds)"
+            value={newJumpTime}
+            onChange={(e) => setNewJumpTime(e.target.value)}
+            className="h-7 text-xs"
+          />
+        )}
+        {isEmphasize && (
+          <>
+            <Select value={newTarget} onValueChange={setNewTarget}>
+              <SelectTrigger className="h-7 text-xs bg-white text-slate-800 rounded-md">
+                <SelectValue placeholder={slideElements.length ? 'Select element…' : 'No elements on slide'} />
+              </SelectTrigger>
+              <SelectContent>
+                {slideElements.map((e) => (
+                  <SelectItem key={e.id} value={e.id}>{e.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={newEmphasis} onValueChange={(v) => setNewEmphasis(v as any)}>
+              <SelectTrigger className="h-7 text-xs bg-white text-slate-800 rounded-md"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="pulse">Pulse</SelectItem>
+                <SelectItem value="shake">Shake</SelectItem>
+                <SelectItem value="bounce">Bounce</SelectItem>
+                <SelectItem value="flash">Flash</SelectItem>
+              </SelectContent>
+            </Select>
+          </>
+        )}
+        {isOpenUrl && (
+          <Input
+            type="url"
+            placeholder="https://example.com"
+            value={newUrl}
+            onChange={(e) => setNewUrl(e.target.value)}
+            className="h-7 text-xs"
+          />
         )}
         <Button variant="outline" size="sm" className="w-full h-7 text-xs" onClick={addTrigger}><Plus className="h-3 w-3 mr-1" />Add Trigger</Button>
       </div>

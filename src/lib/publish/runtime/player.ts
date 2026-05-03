@@ -103,6 +103,14 @@ body{background-color:${ps.backgroundColor};${ps.backgroundImage ? `background-i
 .anim-fly-in-right{animation:anim-fly-in-right .5s ease forwards}
 .anim-fly-out-left{animation:anim-fly-out-left .5s ease forwards}
 .anim-fly-out-right{animation:anim-fly-out-right .5s ease forwards}
+@keyframes trigger-emph-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.15)}}
+@keyframes trigger-emph-shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-8px)}40%{transform:translateX(8px)}60%{transform:translateX(-6px)}80%{transform:translateX(6px)}}
+@keyframes trigger-emph-bounce{0%,100%{transform:translateY(0)}30%{transform:translateY(-18px)}60%{transform:translateY(0)}75%{transform:translateY(-8px)}}
+@keyframes trigger-emph-flash{0%,100%{opacity:1}25%,75%{opacity:.2}50%{opacity:1}}
+.trigger-emph-pulse{animation:trigger-emph-pulse .6s ease-in-out 1;transform-origin:center}
+.trigger-emph-shake{animation:trigger-emph-shake .6s ease-in-out 1}
+.trigger-emph-bounce{animation:trigger-emph-bounce .7s ease-in-out 1}
+.trigger-emph-flash{animation:trigger-emph-flash .6s ease-in-out 1}
 #controls{flex:0 0 auto;height:56px;display:flex;gap:8px;align-items:center;justify-content:center;padding:0 20px;background:rgba(0,0,0,.4);backdrop-filter:blur(6px);border-top:1px solid rgba(255,255,255,.08)}
 #controls button{padding:8px 18px;border:none;border-radius:${ps.buttonBorderRadius}px;background:${ps.buttonColor};color:#fff;font-size:13px;cursor:pointer;font-weight:500;font-family:${ps.fontFamily};display:inline-flex;align-items:center;gap:4px}
 #controls button:hover{filter:brightness(1.15)}
@@ -738,6 +746,35 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
       try{LMS.setStatus("completed")}catch(e){}
       try{LMS.setScore(1,100,0,100)}catch(e){}
       try{if(LMS.commit)LMS.commit()}catch(e){}
+    } else if(t.action==="jumpToTime"){
+      var jSec=(typeof t.time==="number"?t.time:0);
+      var jMs=Math.max(0,jSec*1000);
+      var sl=slides[current];var dur=(sl&&sl.duration)||5000;
+      if(jMs>dur)jMs=dur;
+      // Reset fired state for atTime/timelineEnd triggers we may want to refire if jumping backward.
+      for(var ji=0;ji<timelineTriggers.length;ji++){
+        var jt=timelineTriggers[ji];
+        if(jt.t.event==="atTime"){
+          var jtMs=(typeof jt.t.time==="number"?jt.t.time:0)*1000;
+          if(jtMs>=jMs)jt.fired=false;
+        } else if(jt.t.event==="timelineEnd"){
+          if(jMs<dur-1)jt.fired=false;
+        }
+      }
+      triggerLastPh=jMs;
+      startSlideTimer(jMs);
+    } else if(t.action==="emphasizeElement"){
+      var en=stage.querySelector('[data-el-id="'+t.targetId+'"]');
+      if(en){
+        var st=t.emphasis||"pulse";
+        var cls="trigger-emph-"+st;
+        en.classList.remove("trigger-emph-pulse","trigger-emph-shake","trigger-emph-bounce","trigger-emph-flash");
+        void en.offsetWidth;
+        en.classList.add(cls);
+        (function(node,c){setTimeout(function(){node.classList.remove(c)},1000)})(en,cls);
+      }
+    } else if(t.action==="openUrl"){
+      if(t.url){try{window.open(t.url,"_blank","noopener,noreferrer")}catch(e){}}
     }
   }
   var triggerRaf=null;
