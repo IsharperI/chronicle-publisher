@@ -358,7 +358,7 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
         try { window.open(url, '_blank', 'noopener,noreferrer'); } catch { /* noop */ }
       }
     }
-  }, [state.slides, dispatch, activeSlide]);
+  }, [state.slides, state.activeSlideIndex, dispatch]);
 
   const isMasterMode = state.viewMode === 'master';
 
