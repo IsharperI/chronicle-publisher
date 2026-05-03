@@ -305,3 +305,31 @@
   transition: color 0.2s ease;
 }
 /* Tab buttons in ribbon get pill underline */
+
+/* Trigger "Emphasize Element" animations (preview + editor) */
+@keyframes trigger-emph-pulse {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.15); }
+}
+@keyframes trigger-emph-shake {
+  0%, 100% { transform: translateX(0); }
+  20%      { transform: translateX(-8px); }
+  40%      { transform: translateX(8px); }
+  60%      { transform: translateX(-6px); }
+  80%      { transform: translateX(6px); }
+}
+@keyframes trigger-emph-bounce {
+  0%, 100% { transform: translateY(0); }
+  30%      { transform: translateY(-18px); }
+  60%      { transform: translateY(0); }
+  75%      { transform: translateY(-8px); }
+}
+@keyframes trigger-emph-flash {
+  0%, 100% { opacity: 1; }
+  25%, 75% { opacity: 0.2; }
+  50%      { opacity: 1; }
+}
+.trigger-emph-pulse  { animation: trigger-emph-pulse  0.6s ease-in-out 1; transform-origin: center; }
+.trigger-emph-shake  { animation: trigger-emph-shake  0.6s ease-in-out 1; }
+.trigger-emph-bounce { animation: trigger-emph-bounce 0.7s ease-in-out 1; }
+.trigger-emph-flash  { animation: trigger-emph-flash  0.6s ease-in-out 1; }
