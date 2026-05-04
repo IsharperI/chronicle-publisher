@@ -16,6 +16,7 @@ export function buildPlayerHtml(state: CourseState, opts: PublishOptions, lmsRun
     masterSlides: state.masterSlides,
     playerSettings: state.playerSettings,
     courseSettings: state.courseSettings,
+    variables: state.variables || [],
   });
 
   const rawPs = state.playerSettings;
