@@ -165,6 +165,38 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
   var slides=data.slides||[];
   var masters=data.masterSlides||[];
   var ps=data.playerSettings||{};
+  // ===== Variables: course-level values that persist across slides for this session.
+  var variableDefs=data.variables||[];
+  var variableValues={};
+  (function initVars(){for(var i=0;i<variableDefs.length;i++){var v=variableDefs[i];variableValues[v.id]=v.defaultValue}})();
+  function adjustVariable(t){
+    if(!t||!t.variableId||!t.variableOperator)return;
+    var def=null;
+    for(var i=0;i<variableDefs.length;i++){if(variableDefs[i].id===t.variableId){def=variableDefs[i];break}}
+    if(!def)return;
+    var op=t.variableOperator;
+    var cur=(t.variableId in variableValues)?variableValues[t.variableId]:def.defaultValue;
+    var next=cur;
+    if(def.type==="boolean"){
+      if(op==="setTrue")next=true;
+      else if(op==="setFalse")next=false;
+      else if(op==="toggle")next=!cur;
+    } else if(def.type==="number"){
+      var c=(typeof cur==="number")?cur:(parseFloat(cur)||0);
+      var v=(typeof t.variableValue==="number")?t.variableValue:(parseFloat(t.variableValue)||0);
+      if(op==="setNumber")next=v;
+      else if(op==="add")next=c+v;
+      else if(op==="subtract")next=c-v;
+      else if(op==="multiply")next=c*v;
+      else if(op==="divide")next=(v===0)?c:(c/v);
+    } else {
+      var cs=(typeof cur==="string")?cur:String(cur==null?"":cur);
+      var vs=(typeof t.variableValue==="string")?t.variableValue:String(t.variableValue==null?"":t.variableValue);
+      if(op==="setText")next=vs;
+      else if(op==="append")next=cs+vs;
+    }
+    variableValues[t.variableId]=next;
+  }
   var navMode=ps.navigationMode||"free";
   var current=0;
   var unlocked=false;
