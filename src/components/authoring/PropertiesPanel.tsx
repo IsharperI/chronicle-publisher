@@ -962,6 +962,24 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
         else if (t.action === 'jumpToTime') actionLabel = `Jump to ${typeof t.time === 'number' ? t.time : 0}s`;
         else if (t.action === 'emphasizeElement') actionLabel = `Emphasize ${elementLabel(t.targetId)} (${t.emphasis || 'pulse'})`;
         else if (t.action === 'openUrl') actionLabel = `Open URL: ${(t.url || '').slice(0, 30)}`;
+        else if (t.action === 'adjustVariable') {
+          const v = variables.find((x) => x.id === t.variableId);
+          const opLabel = (() => {
+            switch (t.variableOperator) {
+              case 'setTrue': return 'set to True';
+              case 'setFalse': return 'set to False';
+              case 'toggle': return 'toggle';
+              case 'setNumber': case 'setText': return `set to ${JSON.stringify(t.variableValue ?? '')}`;
+              case 'add': return `+ ${t.variableValue ?? 0}`;
+              case 'subtract': return `- ${t.variableValue ?? 0}`;
+              case 'multiply': return `× ${t.variableValue ?? 0}`;
+              case 'divide': return `÷ ${t.variableValue ?? 0}`;
+              case 'append': return `append ${JSON.stringify(t.variableValue ?? '')}`;
+              default: return t.variableOperator || '';
+            }
+          })();
+          actionLabel = `Adjust ${v?.name || t.variableId || 'variable'}: ${opLabel}`;
+        }
         else actionLabel = `${t.action} (${t.targetId.slice(0, 8)})`;
         return (
           <div key={i} className="flex items-center gap-2 bg-white border border-slate-200 rounded-md shadow-sm p-2">
