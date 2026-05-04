@@ -875,7 +875,10 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
 
   const addTrigger = () => {
     if (isMediaEvent && !newMediaId) return;
-    if (isCourseAction || isJumpToTime || isOpenUrl) {
+    if (isAdjustVariable) {
+      if (!newVarId || !newVarOp) return;
+      if (opNeedsValue(newVarOp) && newVarValue === '' && selectedVar?.type !== 'text') return;
+    } else if (isCourseAction || isJumpToTime || isOpenUrl) {
       // No element/slide/media target needed.
     } else if (isEmphasize) {
       if (!newTarget) return;
@@ -888,7 +891,7 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
       const trimmed = newUrl.trim();
       if (!trimmed) return;
     }
-    const targetId = (isCourseAction || isJumpToTime || isOpenUrl) ? '' : newTarget;
+    const targetId = (isCourseAction || isJumpToTime || isOpenUrl || isAdjustVariable) ? '' : newTarget;
     const t: Trigger = { event: newEvent, action: newAction, targetId };
     if (newEvent === 'atTime') {
       const parsed = parseFloat(newTime);
@@ -907,10 +910,25 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
     if (isOpenUrl) {
       t.url = newUrl.trim();
     }
+    if (isAdjustVariable && selectedVar) {
+      t.variableId = newVarId;
+      t.variableOperator = newVarOp;
+      if (opNeedsValue(newVarOp)) {
+        if (selectedVar.type === 'number') {
+          const n = parseFloat(newVarValue);
+          t.variableValue = Number.isFinite(n) ? n : 0;
+        } else if (selectedVar.type === 'boolean') {
+          t.variableValue = newVarValue === 'true';
+        } else {
+          t.variableValue = newVarValue;
+        }
+      }
+    }
     onUpdate({ triggers: [...triggers, t] } as any);
     setNewTarget('');
     setNewMediaId('');
     setNewUrl('');
+    setNewVarValue('');
   };
 
   const removeTrigger = (idx: number) => {
