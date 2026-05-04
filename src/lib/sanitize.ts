@@ -115,6 +115,7 @@ import type {
   ImageElement,
   ShapeElement,
   Trigger,
+  CourseVariable,
 } from '@/types/course';
 
 const ANIM_IN = ['none', 'fade', 'fly-in-left', 'fly-in-right'] as const;
@@ -153,6 +154,19 @@ function sanitizeTrigger(t: any): Trigger {
   if (typeof t?.url === 'string') {
     const u = t.url.slice(0, 2048);
     if (/^https?:\/\//i.test(u) || /^mailto:/i.test(u)) out.url = u;
+  }
+  if (typeof t?.variableId === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(t.variableId)) {
+    out.variableId = t.variableId;
+  }
+  if (typeof t?.variableOperator === 'string' && t.variableOperator.length <= 32) {
+    out.variableOperator = t.variableOperator;
+  }
+  if (typeof t?.variableValue === 'string') {
+    out.variableValue = t.variableValue.slice(0, 5_000);
+  } else if (typeof t?.variableValue === 'number' && Number.isFinite(t.variableValue)) {
+    out.variableValue = t.variableValue;
+  } else if (typeof t?.variableValue === 'boolean') {
+    out.variableValue = t.variableValue;
   }
   return out;
 }
