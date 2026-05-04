@@ -409,6 +409,10 @@ export interface CourseState {
   viewMode: ViewMode;
   playerSettings: PlayerSettings;
   courseSettings: CourseSettings;
+  /** Course-level variables, authored in the Variable Manager. */
+  variables: CourseVariable[];
+  /** Runtime (preview/player): live values keyed by variable id. */
+  variableValues: Record<string, boolean | number | string>;
   /** Editor-only: show 20px visual grid on canvas. Not exported. */
   showGrid: boolean;
   /** Editor-only: snap drag/resize to 20px grid. Not exported. */
