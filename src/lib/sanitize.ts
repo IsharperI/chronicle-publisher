@@ -115,6 +115,7 @@ import type {
   ImageElement,
   ShapeElement,
   Trigger,
+  CourseVariable,
 } from '@/types/course';
 
 const ANIM_IN = ['none', 'fade', 'fly-in-left', 'fly-in-right'] as const;
@@ -153,6 +154,19 @@ function sanitizeTrigger(t: any): Trigger {
   if (typeof t?.url === 'string') {
     const u = t.url.slice(0, 2048);
     if (/^https?:\/\//i.test(u) || /^mailto:/i.test(u)) out.url = u;
+  }
+  if (typeof t?.variableId === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(t.variableId)) {
+    out.variableId = t.variableId;
+  }
+  if (typeof t?.variableOperator === 'string' && t.variableOperator.length <= 32) {
+    out.variableOperator = t.variableOperator;
+  }
+  if (typeof t?.variableValue === 'string') {
+    out.variableValue = t.variableValue.slice(0, 5_000);
+  } else if (typeof t?.variableValue === 'number' && Number.isFinite(t.variableValue)) {
+    out.variableValue = t.variableValue;
+  } else if (typeof t?.variableValue === 'boolean') {
+    out.variableValue = t.variableValue;
   }
   return out;
 }
@@ -374,4 +388,33 @@ export function sanitizeCourseSettings(raw: unknown): Partial<CourseSettings> | 
     themeColors,
     transition,
   };
+}
+
+/**
+ * Sanitize the course-level variables list. Validates name (no spaces),
+ * type, and coerces defaultValue to match the declared type.
+ */
+export function sanitizeVariables(raw: unknown): CourseVariable[] {
+  if (!Array.isArray(raw)) return [];
+  const out: CourseVariable[] = [];
+  for (const r of raw.slice(0, 500)) {
+    if (!r || typeof r !== 'object') continue;
+    const rr = r as any;
+    const id = safeId(rr.id);
+    const rawName = typeof rr.name === 'string' ? rr.name.trim() : '';
+    if (!rawName) continue;
+    // No spaces; alphanumerics + underscore only; max 64 chars.
+    if (!/^[A-Za-z_][A-Za-z0-9_]{0,63}$/.test(rawName)) continue;
+    const type = safeEnum(rr.type, ['boolean', 'number', 'text'] as const, 'text');
+    let defaultValue: boolean | number | string;
+    if (type === 'boolean') {
+      defaultValue = safeBoolean(rr.defaultValue, false);
+    } else if (type === 'number') {
+      defaultValue = safeNumber(rr.defaultValue, 0, -1e12, 1e12);
+    } else {
+      defaultValue = typeof rr.defaultValue === 'string' ? rr.defaultValue.slice(0, 5000) : '';
+    }
+    out.push({ id, name: rawName, type, defaultValue });
+  }
+  return out;
 }

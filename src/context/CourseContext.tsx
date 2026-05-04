@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useReducer, type Dispatch } from 'react';
-import type { CourseState, Slide, SlideElement, ViewMode, PlayerSettings, CourseSettings, SlideAudio, QuizConfig, ResultsConfig, SlideKind } from '@/types/course';
+import type { CourseState, Slide, SlideElement, ViewMode, PlayerSettings, CourseSettings, SlideAudio, QuizConfig, ResultsConfig, SlideKind, CourseVariable } from '@/types/course';
 import { defaultPlayerSettings, defaultCourseSettings } from '@/types/course';
 
 const createSlide = (): Slide => ({
@@ -77,6 +77,8 @@ const initialState: CourseState = {
   quizFeedbackOpen: null,
   quizAttemptsRemaining: {},
   motionPathEditor: null,
+  variables: [],
+  variableValues: {},
 };
 
 type Action =
@@ -91,7 +93,7 @@ type Action =
   | { type: 'CLEAR_SELECTION' }
   | { type: 'ALIGN_ELEMENTS'; mode: 'canvas' | 'selection'; alignment: 'left' | 'center' | 'right' | 'top' | 'middle' | 'bottom' }
   | { type: 'DISTRIBUTE_ELEMENTS'; axis: 'horizontal' | 'vertical' }
-  | { type: 'LOAD_COURSE'; slides: Slide[]; masterSlides?: Slide[]; playerSettings?: Partial<PlayerSettings>; courseSettings?: Partial<CourseSettings> }
+  | { type: 'LOAD_COURSE'; slides: Slide[]; masterSlides?: Slide[]; playerSettings?: Partial<PlayerSettings>; courseSettings?: Partial<CourseSettings>; variables?: CourseVariable[] }
   | { type: 'SET_PREVIEW_MODE'; enabled: boolean }
   | { type: 'PREVIEW_NEXT' }
   | { type: 'PREVIEW_PREV' }
@@ -128,7 +130,12 @@ type Action =
   | { type: 'RESET_QUIZ_SLIDE_PROGRESS'; slideId: string }
   | { type: 'MOVE_SLIDE'; from: number; to: number }
   | { type: 'OPEN_MOTION_PATH_EDITOR'; elementId: string }
-  | { type: 'CLOSE_MOTION_PATH_EDITOR' };
+  | { type: 'CLOSE_MOTION_PATH_EDITOR' }
+  | { type: 'ADD_VARIABLE'; variable: CourseVariable }
+  | { type: 'UPDATE_VARIABLE'; id: string; updates: Partial<CourseVariable> }
+  | { type: 'DELETE_VARIABLE'; id: string }
+  | { type: 'SET_VARIABLE_VALUE'; id: string; value: boolean | number | string }
+  | { type: 'RESET_VARIABLE_VALUES' };
 
 function getActiveSlides(state: CourseState): Slide[] {
   return state.viewMode === 'master' ? state.masterSlides : state.slides;
@@ -136,6 +143,12 @@ function getActiveSlides(state: CourseState): Slide[] {
 
 function updateActiveSlides(state: CourseState, slides: Slide[]): Partial<CourseState> {
   return state.viewMode === 'master' ? { masterSlides: slides } : { slides };
+}
+
+function computeVariableValues(vars: CourseVariable[]): Record<string, boolean | number | string> {
+  const out: Record<string, boolean | number | string> = {};
+  for (const v of vars) out[v.id] = v.defaultValue;
+  return out;
 }
 
 function courseReducer(state: CourseState, action: Action): CourseState {
@@ -339,6 +352,8 @@ function courseReducer(state: CourseState, action: Action): CourseState {
         activeElementId: null,
         selectedElementIds: [],
         previewMode: false,
+        variables: Array.isArray(action.variables) ? action.variables : [],
+        variableValues: computeVariableValues(Array.isArray(action.variables) ? action.variables : []),
       };
     }
     case 'SET_PREVIEW_MODE':
@@ -355,6 +370,8 @@ function courseReducer(state: CourseState, action: Action): CourseState {
         quizAnswers: {},
         quizFeedbackOpen: null,
         quizAttemptsRemaining: {},
+        // Reset live variable values to their defaults at the start of every preview session.
+        variableValues: computeVariableValues(state.variables),
       };
     case 'PREVIEW_NEXT':
       return { ...state, activeSlideIndex: Math.min(state.activeSlideIndex + 1, state.slides.length - 1) };
@@ -530,6 +547,33 @@ function courseReducer(state: CourseState, action: Action): CourseState {
       return { ...state, motionPathEditor: { elementId: action.elementId } };
     case 'CLOSE_MOTION_PATH_EDITOR':
       return { ...state, motionPathEditor: null };
+    case 'ADD_VARIABLE': {
+      const variables = [...state.variables, action.variable];
+      return {
+        ...state,
+        variables,
+        variableValues: { ...state.variableValues, [action.variable.id]: action.variable.defaultValue },
+      };
+    }
+    case 'UPDATE_VARIABLE': {
+      const variables = state.variables.map((v) => (v.id === action.id ? { ...v, ...action.updates } : v));
+      const updated = variables.find((v) => v.id === action.id);
+      // If type or defaultValue changed, refresh stored value to match new default to avoid type mismatches.
+      const nextValues = { ...state.variableValues };
+      if (updated && (action.updates.type != null || action.updates.defaultValue != null)) {
+        nextValues[action.id] = updated.defaultValue;
+      }
+      return { ...state, variables, variableValues: nextValues };
+    }
+    case 'DELETE_VARIABLE': {
+      const variables = state.variables.filter((v) => v.id !== action.id);
+      const { [action.id]: _, ...rest } = state.variableValues;
+      return { ...state, variables, variableValues: rest };
+    }
+    case 'SET_VARIABLE_VALUE':
+      return { ...state, variableValues: { ...state.variableValues, [action.id]: action.value } };
+    case 'RESET_VARIABLE_VALUES':
+      return { ...state, variableValues: computeVariableValues(state.variables) };
     default:
       return state;
   }

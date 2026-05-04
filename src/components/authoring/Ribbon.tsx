@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Save, Upload, Play, X, Type, ImageIcon, Square, Eye, Settings, Music, Video as VideoIcon, AlignLeft, AlignCenter, AlignRight, AlignStartVertical, AlignCenterVertical, AlignEndVertical, AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter, Ban, Sparkles, ArrowUpFromLine, ArrowLeftFromLine, ZoomIn, CopyCheck, MousePointerClick, Target, CheckSquare, ChevronDown, Table as TableIcon, HelpCircle, Trophy, Layers, FolderOpen, Map as MapIcon, Spline, Palette, Library } from 'lucide-react';
+import { Save, Upload, Play, X, Type, ImageIcon, Square, Eye, Settings, Music, Video as VideoIcon, AlignLeft, AlignCenter, AlignRight, AlignStartVertical, AlignCenterVertical, AlignEndVertical, AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter, Ban, Sparkles, ArrowUpFromLine, ArrowLeftFromLine, ZoomIn, CopyCheck, MousePointerClick, Target, CheckSquare, ChevronDown, Table as TableIcon, HelpCircle, Trophy, Layers, FolderOpen, Map as MapIcon, Spline, Palette, Library, Variable } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { MediaLibraryOverlay } from './MediaLibraryOverlay';
 import { StoryViewOverlay } from './StoryViewOverlay';
@@ -15,10 +15,11 @@ import { cn } from '@/lib/utils';
 import type { TextElement, ImageElement, ShapeElement, VideoElement, SlideAudio, SlideTransitionType, HotspotElement, CheckboxElement, SlideElement, TableElement, AnimationIn, AnimationOut } from '@/types/course';
 import { Separator } from '@/components/ui/separator';
 import { PlayerSettingsModal } from './PlayerSettingsModal';
-import { sanitizeSlides, sanitizePlayerSettings, sanitizeCourseSettings } from '@/lib/sanitize';
+import { sanitizeSlides, sanitizePlayerSettings, sanitizeCourseSettings, sanitizeVariables } from '@/lib/sanitize';
 
 import { StorySizeControl, ThemeColorsControl } from './DesignControls';
 import { QuizThemesOverlay, QuestionBankOverlay } from './QuizOverlays';
+import { VariableManagerOverlay } from './VariableManagerOverlay';
 
 const TABS = ['Home', 'Insert', 'Design', 'Transitions', 'Animations', 'View', 'Quiz'] as const;
 type RibbonTab = typeof TABS[number];
@@ -33,13 +34,14 @@ export function Ribbon() {
   const [publishOpen, setPublishOpen] = useState(false);
   const [quizThemesOpen, setQuizThemesOpen] = useState(false);
   const [questionBankOpen, setQuestionBankOpen] = useState(false);
+  const [variablesOpen, setVariablesOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const audioInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
 
   const saveProject = () => {
-    const json = JSON.stringify({ slides: state.slides, masterSlides: state.masterSlides, playerSettings: state.playerSettings, courseSettings: state.courseSettings }, null, 2);
+    const json = JSON.stringify({ slides: state.slides, masterSlides: state.masterSlides, playerSettings: state.playerSettings, courseSettings: state.courseSettings, variables: state.variables }, null, 2);
     const blob = new Blob([json], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -73,12 +75,14 @@ export function Ribbon() {
           const masterSlides = sanitizeSlides(data.masterSlides);
           const playerSettings = sanitizePlayerSettings(data.playerSettings);
           const courseSettings = sanitizeCourseSettings(data.courseSettings);
+          const variables = sanitizeVariables(data.variables);
           dispatch({
             type: 'LOAD_COURSE',
             slides,
             masterSlides,
             playerSettings,
             courseSettings,
+            variables,
           });
         }
       } catch {
@@ -373,10 +377,12 @@ export function Ribbon() {
 
             <RibbonGroup label="Settings">
               <RibbonButton icon={Settings} label="Player" onClick={() => setPlayerSettingsOpen(true)} />
+              <RibbonButton icon={Variable} label="Variables" onClick={() => setVariablesOpen(true)} />
             </RibbonGroup>
           </>
         )}
         <PlayerSettingsModal open={playerSettingsOpen} onOpenChange={setPlayerSettingsOpen} />
+        <VariableManagerOverlay open={variablesOpen} onOpenChange={setVariablesOpen} />
 
         {activeTab === 'Insert' && (
           <>

@@ -357,8 +357,36 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
       if (typeof url === 'string' && url) {
         try { window.open(url, '_blank', 'noopener,noreferrer'); } catch { /* noop */ }
       }
+    } else if (t.action === 'adjustVariable') {
+      const tv = t as any;
+      const varId: string | undefined = tv.variableId;
+      const op: string | undefined = tv.variableOperator;
+      if (!varId || !op) return;
+      const def = state.variables.find((v) => v.id === varId);
+      if (!def) return;
+      const current = state.variableValues[varId];
+      let next: boolean | number | string = current ?? def.defaultValue;
+      if (def.type === 'boolean') {
+        if (op === 'setTrue') next = true;
+        else if (op === 'setFalse') next = false;
+        else if (op === 'toggle') next = !Boolean(current);
+      } else if (def.type === 'number') {
+        const cur = typeof current === 'number' ? current : Number(current) || 0;
+        const v = typeof tv.variableValue === 'number' ? tv.variableValue : Number(tv.variableValue) || 0;
+        if (op === 'setNumber') next = v;
+        else if (op === 'add') next = cur + v;
+        else if (op === 'subtract') next = cur - v;
+        else if (op === 'multiply') next = cur * v;
+        else if (op === 'divide') next = v === 0 ? cur : cur / v;
+      } else {
+        const cur = typeof current === 'string' ? current : String(current ?? '');
+        const v = typeof tv.variableValue === 'string' ? tv.variableValue : String(tv.variableValue ?? '');
+        if (op === 'setText') next = v;
+        else if (op === 'append') next = cur + v;
+      }
+      dispatch({ type: 'SET_VARIABLE_VALUE', id: varId, value: next });
     }
-  }, [state.slides, state.activeSlideIndex, dispatch]);
+  }, [state.slides, state.activeSlideIndex, state.variables, state.variableValues, dispatch]);
 
   const isMasterMode = state.viewMode === 'master';
 

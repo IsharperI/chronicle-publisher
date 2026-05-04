@@ -782,6 +782,7 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
   const slides = state.slides;
   const activeSlide = slides[state.activeSlideIndex];
   const triggers = element.triggers ?? [];
+  const variables = state.variables;
   const [newEvent, setNewEvent] = useState('onClick');
   const [newAction, setNewAction] = useState('jumpToSlide');
   const [newTarget, setNewTarget] = useState('');
@@ -790,6 +791,9 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
   const [newJumpTime, setNewJumpTime] = useState<string>('0');
   const [newEmphasis, setNewEmphasis] = useState<'pulse' | 'shake' | 'bounce' | 'flash'>('pulse');
   const [newUrl, setNewUrl] = useState<string>('');
+  const [newVarId, setNewVarId] = useState<string>('');
+  const [newVarOp, setNewVarOp] = useState<string>('');
+  const [newVarValue, setNewVarValue] = useState<string>('');
   const isSlideAction = newAction === 'jumpToSlide';
   const isElementAction = newAction === 'showElement' || newAction === 'hideElement';
   const isMediaAction = newAction === 'playMedia' || newAction === 'pauseMedia' || newAction === 'stopMedia';
@@ -797,7 +801,36 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
   const isJumpToTime = newAction === 'jumpToTime';
   const isEmphasize = newAction === 'emphasizeElement';
   const isOpenUrl = newAction === 'openUrl';
+  const isAdjustVariable = newAction === 'adjustVariable';
   const isMediaEvent = newEvent === 'mediaStart' || newEvent === 'mediaEnd' || newEvent === 'mediaPause';
+
+  // Operator options per variable type.
+  const selectedVar = variables.find((v) => v.id === newVarId);
+  const operatorOptions: { value: string; label: string }[] = (() => {
+    if (!selectedVar) return [];
+    if (selectedVar.type === 'boolean') {
+      return [
+        { value: 'setTrue', label: 'Set to True' },
+        { value: 'setFalse', label: 'Set to False' },
+        { value: 'toggle', label: 'Toggle' },
+      ];
+    }
+    if (selectedVar.type === 'number') {
+      return [
+        { value: 'setNumber', label: 'Set to' },
+        { value: 'add', label: 'Add' },
+        { value: 'subtract', label: 'Subtract' },
+        { value: 'multiply', label: 'Multiply' },
+        { value: 'divide', label: 'Divide' },
+      ];
+    }
+    return [
+      { value: 'setText', label: 'Set to' },
+      { value: 'append', label: 'Append' },
+    ];
+  })();
+  const opNeedsValue = (op: string) =>
+    op !== '' && op !== 'setTrue' && op !== 'setFalse' && op !== 'toggle';
 
   const slideLabel = (id: string) => {
     const idx = slides.findIndex((s) => s.id === id);
@@ -842,7 +875,10 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
 
   const addTrigger = () => {
     if (isMediaEvent && !newMediaId) return;
-    if (isCourseAction || isJumpToTime || isOpenUrl) {
+    if (isAdjustVariable) {
+      if (!newVarId || !newVarOp) return;
+      if (opNeedsValue(newVarOp) && newVarValue === '' && selectedVar?.type !== 'text') return;
+    } else if (isCourseAction || isJumpToTime || isOpenUrl) {
       // No element/slide/media target needed.
     } else if (isEmphasize) {
       if (!newTarget) return;
@@ -855,7 +891,7 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
       const trimmed = newUrl.trim();
       if (!trimmed) return;
     }
-    const targetId = (isCourseAction || isJumpToTime || isOpenUrl) ? '' : newTarget;
+    const targetId = (isCourseAction || isJumpToTime || isOpenUrl || isAdjustVariable) ? '' : newTarget;
     const t: Trigger = { event: newEvent, action: newAction, targetId };
     if (newEvent === 'atTime') {
       const parsed = parseFloat(newTime);
@@ -874,10 +910,25 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
     if (isOpenUrl) {
       t.url = newUrl.trim();
     }
+    if (isAdjustVariable && selectedVar) {
+      t.variableId = newVarId;
+      t.variableOperator = newVarOp;
+      if (opNeedsValue(newVarOp)) {
+        if (selectedVar.type === 'number') {
+          const n = parseFloat(newVarValue);
+          t.variableValue = Number.isFinite(n) ? n : 0;
+        } else if (selectedVar.type === 'boolean') {
+          t.variableValue = newVarValue === 'true';
+        } else {
+          t.variableValue = newVarValue;
+        }
+      }
+    }
     onUpdate({ triggers: [...triggers, t] } as any);
     setNewTarget('');
     setNewMediaId('');
     setNewUrl('');
+    setNewVarValue('');
   };
 
   const removeTrigger = (idx: number) => {
@@ -911,6 +962,24 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
         else if (t.action === 'jumpToTime') actionLabel = `Jump to ${typeof t.time === 'number' ? t.time : 0}s`;
         else if (t.action === 'emphasizeElement') actionLabel = `Emphasize ${elementLabel(t.targetId)} (${t.emphasis || 'pulse'})`;
         else if (t.action === 'openUrl') actionLabel = `Open URL: ${(t.url || '').slice(0, 30)}`;
+        else if (t.action === 'adjustVariable') {
+          const v = variables.find((x) => x.id === t.variableId);
+          const opLabel = (() => {
+            switch (t.variableOperator) {
+              case 'setTrue': return 'set to True';
+              case 'setFalse': return 'set to False';
+              case 'toggle': return 'toggle';
+              case 'setNumber': case 'setText': return `set to ${JSON.stringify(t.variableValue ?? '')}`;
+              case 'add': return `+ ${t.variableValue ?? 0}`;
+              case 'subtract': return `- ${t.variableValue ?? 0}`;
+              case 'multiply': return `× ${t.variableValue ?? 0}`;
+              case 'divide': return `÷ ${t.variableValue ?? 0}`;
+              case 'append': return `append ${JSON.stringify(t.variableValue ?? '')}`;
+              default: return t.variableOperator || '';
+            }
+          })();
+          actionLabel = `Adjust ${v?.name || t.variableId || 'variable'}: ${opLabel}`;
+        }
         else actionLabel = `${t.action} (${t.targetId.slice(0, 8)})`;
         return (
           <div key={i} className="flex items-center gap-2 bg-white border border-slate-200 rounded-md shadow-sm p-2">
@@ -976,6 +1045,7 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
             <SelectItem value="jumpToTime">Jump to Time</SelectItem>
             <SelectItem value="emphasizeElement">Emphasize Element</SelectItem>
             <SelectItem value="openUrl">Open URL</SelectItem>
+            <SelectItem value="adjustVariable">Adjust Variable</SelectItem>
           </SelectContent>
         </Select>
         {isSlideAction && (
@@ -1054,6 +1124,61 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
             onChange={(e) => setNewUrl(e.target.value)}
             className="h-7 text-xs"
           />
+        )}
+        {isAdjustVariable && (
+          <>
+            <Select
+              value={newVarId}
+              onValueChange={(v) => {
+                setNewVarId(v);
+                setNewVarOp('');
+                setNewVarValue('');
+              }}
+            >
+              <SelectTrigger className="h-7 text-xs bg-white text-slate-800 rounded-md">
+                <SelectValue placeholder={variables.length ? 'Select variable…' : 'No variables defined'} />
+              </SelectTrigger>
+              <SelectContent>
+                {variables.map((v) => (
+                  <SelectItem key={v.id} value={v.id}>
+                    {v.name} ({v.type === 'boolean' ? 'True/False' : v.type === 'number' ? 'Number' : 'Text'})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {selectedVar && (
+              <Select value={newVarOp} onValueChange={(v) => { setNewVarOp(v); setNewVarValue(''); }}>
+                <SelectTrigger className="h-7 text-xs bg-white text-slate-800 rounded-md">
+                  <SelectValue placeholder="Select operator…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {operatorOptions.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            {selectedVar && opNeedsValue(newVarOp) && (
+              selectedVar.type === 'number' ? (
+                <Input
+                  type="number"
+                  step="any"
+                  placeholder="Value"
+                  value={newVarValue}
+                  onChange={(e) => setNewVarValue(e.target.value)}
+                  className="h-7 text-xs"
+                />
+              ) : (
+                <Input
+                  type="text"
+                  placeholder="Value"
+                  value={newVarValue}
+                  onChange={(e) => setNewVarValue(e.target.value)}
+                  className="h-7 text-xs"
+                />
+              )
+            )}
+          </>
         )}
         <Button variant="outline" size="sm" className="w-full h-7 text-xs" onClick={addTrigger}><Plus className="h-3 w-3 mr-1" />Add Trigger</Button>
       </div>
