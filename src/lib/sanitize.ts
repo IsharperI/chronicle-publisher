@@ -389,3 +389,32 @@ export function sanitizeCourseSettings(raw: unknown): Partial<CourseSettings> | 
     transition,
   };
 }
+
+/**
+ * Sanitize the course-level variables list. Validates name (no spaces),
+ * type, and coerces defaultValue to match the declared type.
+ */
+export function sanitizeVariables(raw: unknown): CourseVariable[] {
+  if (!Array.isArray(raw)) return [];
+  const out: CourseVariable[] = [];
+  for (const r of raw.slice(0, 500)) {
+    if (!r || typeof r !== 'object') continue;
+    const rr = r as any;
+    const id = safeId(rr.id);
+    const rawName = typeof rr.name === 'string' ? rr.name.trim() : '';
+    if (!rawName) continue;
+    // No spaces; alphanumerics + underscore only; max 64 chars.
+    if (!/^[A-Za-z_][A-Za-z0-9_]{0,63}$/.test(rawName)) continue;
+    const type = safeEnum(rr.type, ['boolean', 'number', 'text'] as const, 'text');
+    let defaultValue: boolean | number | string;
+    if (type === 'boolean') {
+      defaultValue = safeBoolean(rr.defaultValue, false);
+    } else if (type === 'number') {
+      defaultValue = safeNumber(rr.defaultValue, 0, -1e12, 1e12);
+    } else {
+      defaultValue = typeof rr.defaultValue === 'string' ? rr.defaultValue.slice(0, 5000) : '';
+    }
+    out.push({ id, name: rawName, type, defaultValue });
+  }
+  return out;
+}
