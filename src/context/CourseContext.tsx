@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useReducer, type Dispatch } from 'react';
-import type { CourseState, Slide, SlideElement, ViewMode, PlayerSettings, CourseSettings, SlideAudio, QuizConfig, ResultsConfig, SlideKind } from '@/types/course';
+import type { CourseState, Slide, SlideElement, ViewMode, PlayerSettings, CourseSettings, SlideAudio, QuizConfig, ResultsConfig, SlideKind, CourseVariable } from '@/types/course';
 import { defaultPlayerSettings, defaultCourseSettings } from '@/types/course';
 
 const createSlide = (): Slide => ({
@@ -77,6 +77,8 @@ const initialState: CourseState = {
   quizFeedbackOpen: null,
   quizAttemptsRemaining: {},
   motionPathEditor: null,
+  variables: [],
+  variableValues: {},
 };
 
 type Action =
