@@ -547,6 +547,33 @@ function courseReducer(state: CourseState, action: Action): CourseState {
       return { ...state, motionPathEditor: { elementId: action.elementId } };
     case 'CLOSE_MOTION_PATH_EDITOR':
       return { ...state, motionPathEditor: null };
+    case 'ADD_VARIABLE': {
+      const variables = [...state.variables, action.variable];
+      return {
+        ...state,
+        variables,
+        variableValues: { ...state.variableValues, [action.variable.id]: action.variable.defaultValue },
+      };
+    }
+    case 'UPDATE_VARIABLE': {
+      const variables = state.variables.map((v) => (v.id === action.id ? { ...v, ...action.updates } : v));
+      const updated = variables.find((v) => v.id === action.id);
+      // If type or defaultValue changed, refresh stored value to match new default to avoid type mismatches.
+      const nextValues = { ...state.variableValues };
+      if (updated && (action.updates.type != null || action.updates.defaultValue != null)) {
+        nextValues[action.id] = updated.defaultValue;
+      }
+      return { ...state, variables, variableValues: nextValues };
+    }
+    case 'DELETE_VARIABLE': {
+      const variables = state.variables.filter((v) => v.id !== action.id);
+      const { [action.id]: _, ...rest } = state.variableValues;
+      return { ...state, variables, variableValues: rest };
+    }
+    case 'SET_VARIABLE_VALUE':
+      return { ...state, variableValues: { ...state.variableValues, [action.id]: action.value } };
+    case 'RESET_VARIABLE_VALUES':
+      return { ...state, variableValues: computeVariableValues(state.variables) };
     default:
       return state;
   }
