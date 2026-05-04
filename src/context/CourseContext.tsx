@@ -352,6 +352,8 @@ function courseReducer(state: CourseState, action: Action): CourseState {
         activeElementId: null,
         selectedElementIds: [],
         previewMode: false,
+        variables: Array.isArray(action.variables) ? action.variables : [],
+        variableValues: computeVariableValues(Array.isArray(action.variables) ? action.variables : []),
       };
     }
     case 'SET_PREVIEW_MODE':
@@ -368,6 +370,8 @@ function courseReducer(state: CourseState, action: Action): CourseState {
         quizAnswers: {},
         quizFeedbackOpen: null,
         quizAttemptsRemaining: {},
+        // Reset live variable values to their defaults at the start of every preview session.
+        variableValues: computeVariableValues(state.variables),
       };
     case 'PREVIEW_NEXT':
       return { ...state, activeSlideIndex: Math.min(state.activeSlideIndex + 1, state.slides.length - 1) };
