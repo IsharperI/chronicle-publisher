@@ -771,6 +771,8 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
       try{for(var k in savedPlayheads)delete savedPlayheads[k]}catch(e){}
       try{for(var v in visited)delete visited[v]}catch(e){}
       try{LMS.setLocation(0)}catch(e){}
+      // Reset all variables to their declared defaults at course restart.
+      try{for(var vi=0;vi<variableDefs.length;vi++){variableValues[variableDefs[vi].id]=variableDefs[vi].defaultValue}}catch(e){}
       goTo(0);
     } else if(t.action==="exitCourse"){
       try{if(LMS.finish)LMS.finish()}catch(e){}
@@ -808,6 +810,8 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
       }
     } else if(t.action==="openUrl"){
       if(t.url){try{window.open(t.url,"_blank","noopener,noreferrer")}catch(e){}}
+    } else if(t.action==="adjustVariable"){
+      adjustVariable(t);
     }
   }
   var triggerRaf=null;
