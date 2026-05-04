@@ -377,10 +377,12 @@ export function Ribbon() {
 
             <RibbonGroup label="Settings">
               <RibbonButton icon={Settings} label="Player" onClick={() => setPlayerSettingsOpen(true)} />
+              <RibbonButton icon={Variable} label="Variables" onClick={() => setVariablesOpen(true)} />
             </RibbonGroup>
           </>
         )}
         <PlayerSettingsModal open={playerSettingsOpen} onOpenChange={setPlayerSettingsOpen} />
+        <VariableManagerOverlay open={variablesOpen} onOpenChange={setVariablesOpen} />
 
         {activeTab === 'Insert' && (
           <>
