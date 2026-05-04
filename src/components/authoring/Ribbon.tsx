@@ -34,13 +34,14 @@ export function Ribbon() {
   const [publishOpen, setPublishOpen] = useState(false);
   const [quizThemesOpen, setQuizThemesOpen] = useState(false);
   const [questionBankOpen, setQuestionBankOpen] = useState(false);
+  const [variablesOpen, setVariablesOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const audioInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
 
   const saveProject = () => {
-    const json = JSON.stringify({ slides: state.slides, masterSlides: state.masterSlides, playerSettings: state.playerSettings, courseSettings: state.courseSettings }, null, 2);
+    const json = JSON.stringify({ slides: state.slides, masterSlides: state.masterSlides, playerSettings: state.playerSettings, courseSettings: state.courseSettings, variables: state.variables }, null, 2);
     const blob = new Blob([json], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -74,12 +75,14 @@ export function Ribbon() {
           const masterSlides = sanitizeSlides(data.masterSlides);
           const playerSettings = sanitizePlayerSettings(data.playerSettings);
           const courseSettings = sanitizeCourseSettings(data.courseSettings);
+          const variables = sanitizeVariables(data.variables);
           dispatch({
             type: 'LOAD_COURSE',
             slides,
             masterSlides,
             playerSettings,
             courseSettings,
+            variables,
           });
         }
       } catch {
