@@ -130,7 +130,12 @@ type Action =
   | { type: 'RESET_QUIZ_SLIDE_PROGRESS'; slideId: string }
   | { type: 'MOVE_SLIDE'; from: number; to: number }
   | { type: 'OPEN_MOTION_PATH_EDITOR'; elementId: string }
-  | { type: 'CLOSE_MOTION_PATH_EDITOR' };
+  | { type: 'CLOSE_MOTION_PATH_EDITOR' }
+  | { type: 'ADD_VARIABLE'; variable: CourseVariable }
+  | { type: 'UPDATE_VARIABLE'; id: string; updates: Partial<CourseVariable> }
+  | { type: 'DELETE_VARIABLE'; id: string }
+  | { type: 'SET_VARIABLE_VALUE'; id: string; value: boolean | number | string }
+  | { type: 'RESET_VARIABLE_VALUES' };
 
 function getActiveSlides(state: CourseState): Slide[] {
   return state.viewMode === 'master' ? state.masterSlides : state.slides;
