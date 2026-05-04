@@ -1045,6 +1045,7 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
             <SelectItem value="jumpToTime">Jump to Time</SelectItem>
             <SelectItem value="emphasizeElement">Emphasize Element</SelectItem>
             <SelectItem value="openUrl">Open URL</SelectItem>
+            <SelectItem value="adjustVariable">Adjust Variable</SelectItem>
           </SelectContent>
         </Select>
         {isSlideAction && (
@@ -1123,6 +1124,61 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
             onChange={(e) => setNewUrl(e.target.value)}
             className="h-7 text-xs"
           />
+        )}
+        {isAdjustVariable && (
+          <>
+            <Select
+              value={newVarId}
+              onValueChange={(v) => {
+                setNewVarId(v);
+                setNewVarOp('');
+                setNewVarValue('');
+              }}
+            >
+              <SelectTrigger className="h-7 text-xs bg-white text-slate-800 rounded-md">
+                <SelectValue placeholder={variables.length ? 'Select variable…' : 'No variables defined'} />
+              </SelectTrigger>
+              <SelectContent>
+                {variables.map((v) => (
+                  <SelectItem key={v.id} value={v.id}>
+                    {v.name} ({v.type === 'boolean' ? 'True/False' : v.type === 'number' ? 'Number' : 'Text'})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {selectedVar && (
+              <Select value={newVarOp} onValueChange={(v) => { setNewVarOp(v); setNewVarValue(''); }}>
+                <SelectTrigger className="h-7 text-xs bg-white text-slate-800 rounded-md">
+                  <SelectValue placeholder="Select operator…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {operatorOptions.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            {selectedVar && opNeedsValue(newVarOp) && (
+              selectedVar.type === 'number' ? (
+                <Input
+                  type="number"
+                  step="any"
+                  placeholder="Value"
+                  value={newVarValue}
+                  onChange={(e) => setNewVarValue(e.target.value)}
+                  className="h-7 text-xs"
+                />
+              ) : (
+                <Input
+                  type="text"
+                  placeholder="Value"
+                  value={newVarValue}
+                  onChange={(e) => setNewVarValue(e.target.value)}
+                  className="h-7 text-xs"
+                />
+              )
+            )}
+          </>
         )}
         <Button variant="outline" size="sm" className="w-full h-7 text-xs" onClick={addTrigger}><Plus className="h-3 w-3 mr-1" />Add Trigger</Button>
       </div>
