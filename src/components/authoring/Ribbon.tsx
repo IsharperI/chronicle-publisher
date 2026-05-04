@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Save, Upload, Play, X, Type, ImageIcon, Square, Eye, Settings, Music, Video as VideoIcon, AlignLeft, AlignCenter, AlignRight, AlignStartVertical, AlignCenterVertical, AlignEndVertical, AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter, Ban, Sparkles, ArrowUpFromLine, ArrowLeftFromLine, ZoomIn, CopyCheck, MousePointerClick, Target, CheckSquare, ChevronDown, Table as TableIcon, HelpCircle, Trophy, Layers, FolderOpen, Map as MapIcon, Spline, Palette, Library } from 'lucide-react';
+import { Save, Upload, Play, X, Type, ImageIcon, Square, Eye, Settings, Music, Video as VideoIcon, AlignLeft, AlignCenter, AlignRight, AlignStartVertical, AlignCenterVertical, AlignEndVertical, AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter, Ban, Sparkles, ArrowUpFromLine, ArrowLeftFromLine, ZoomIn, CopyCheck, MousePointerClick, Target, CheckSquare, ChevronDown, Table as TableIcon, HelpCircle, Trophy, Layers, FolderOpen, Map as MapIcon, Spline, Palette, Library, Variable } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { MediaLibraryOverlay } from './MediaLibraryOverlay';
 import { StoryViewOverlay } from './StoryViewOverlay';
@@ -15,10 +15,11 @@ import { cn } from '@/lib/utils';
 import type { TextElement, ImageElement, ShapeElement, VideoElement, SlideAudio, SlideTransitionType, HotspotElement, CheckboxElement, SlideElement, TableElement, AnimationIn, AnimationOut } from '@/types/course';
 import { Separator } from '@/components/ui/separator';
 import { PlayerSettingsModal } from './PlayerSettingsModal';
-import { sanitizeSlides, sanitizePlayerSettings, sanitizeCourseSettings } from '@/lib/sanitize';
+import { sanitizeSlides, sanitizePlayerSettings, sanitizeCourseSettings, sanitizeVariables } from '@/lib/sanitize';
 
 import { StorySizeControl, ThemeColorsControl } from './DesignControls';
 import { QuizThemesOverlay, QuestionBankOverlay } from './QuizOverlays';
+import { VariableManagerOverlay } from './VariableManagerOverlay';
 
 const TABS = ['Home', 'Insert', 'Design', 'Transitions', 'Animations', 'View', 'Quiz'] as const;
 type RibbonTab = typeof TABS[number];
