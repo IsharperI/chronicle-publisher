@@ -21,6 +21,26 @@ export interface Trigger {
   emphasis?: 'pulse' | 'shake' | 'bounce' | 'flash';
   /** For 'openUrl' action: the URL to open in a new tab. */
   url?: string;
+  /** For 'adjustVariable' action: id of the target variable. */
+  variableId?: string;
+  /**
+   * For 'adjustVariable' action: operator depending on variable type.
+   * Boolean: 'setTrue' | 'setFalse' | 'toggle'
+   * Number:  'setNumber' | 'add' | 'subtract' | 'multiply' | 'divide'
+   * Text:    'setText' | 'append'
+   */
+  variableOperator?: string;
+  /** For 'adjustVariable' action: literal value used by the operator. */
+  variableValue?: string | number | boolean;
+}
+
+/** A course-level variable persisted across slides during a learner's session. */
+export interface CourseVariable {
+  id: string;
+  /** Unique identifier — no spaces. e.g. "hasSeenIntro". */
+  name: string;
+  type: 'boolean' | 'number' | 'text';
+  defaultValue: boolean | number | string;
 }
 
 export interface BaseElement {
