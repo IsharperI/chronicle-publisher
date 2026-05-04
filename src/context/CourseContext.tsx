@@ -93,7 +93,7 @@ type Action =
   | { type: 'CLEAR_SELECTION' }
   | { type: 'ALIGN_ELEMENTS'; mode: 'canvas' | 'selection'; alignment: 'left' | 'center' | 'right' | 'top' | 'middle' | 'bottom' }
   | { type: 'DISTRIBUTE_ELEMENTS'; axis: 'horizontal' | 'vertical' }
-  | { type: 'LOAD_COURSE'; slides: Slide[]; masterSlides?: Slide[]; playerSettings?: Partial<PlayerSettings>; courseSettings?: Partial<CourseSettings> }
+  | { type: 'LOAD_COURSE'; slides: Slide[]; masterSlides?: Slide[]; playerSettings?: Partial<PlayerSettings>; courseSettings?: Partial<CourseSettings>; variables?: CourseVariable[] }
   | { type: 'SET_PREVIEW_MODE'; enabled: boolean }
   | { type: 'PREVIEW_NEXT' }
   | { type: 'PREVIEW_PREV' }
