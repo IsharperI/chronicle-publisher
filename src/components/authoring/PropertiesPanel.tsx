@@ -782,6 +782,7 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
   const slides = state.slides;
   const activeSlide = slides[state.activeSlideIndex];
   const triggers = element.triggers ?? [];
+  const variables = state.variables;
   const [newEvent, setNewEvent] = useState('onClick');
   const [newAction, setNewAction] = useState('jumpToSlide');
   const [newTarget, setNewTarget] = useState('');
@@ -790,6 +791,9 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
   const [newJumpTime, setNewJumpTime] = useState<string>('0');
   const [newEmphasis, setNewEmphasis] = useState<'pulse' | 'shake' | 'bounce' | 'flash'>('pulse');
   const [newUrl, setNewUrl] = useState<string>('');
+  const [newVarId, setNewVarId] = useState<string>('');
+  const [newVarOp, setNewVarOp] = useState<string>('');
+  const [newVarValue, setNewVarValue] = useState<string>('');
   const isSlideAction = newAction === 'jumpToSlide';
   const isElementAction = newAction === 'showElement' || newAction === 'hideElement';
   const isMediaAction = newAction === 'playMedia' || newAction === 'pauseMedia' || newAction === 'stopMedia';
@@ -797,7 +801,36 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
   const isJumpToTime = newAction === 'jumpToTime';
   const isEmphasize = newAction === 'emphasizeElement';
   const isOpenUrl = newAction === 'openUrl';
+  const isAdjustVariable = newAction === 'adjustVariable';
   const isMediaEvent = newEvent === 'mediaStart' || newEvent === 'mediaEnd' || newEvent === 'mediaPause';
+
+  // Operator options per variable type.
+  const selectedVar = variables.find((v) => v.id === newVarId);
+  const operatorOptions: { value: string; label: string }[] = (() => {
+    if (!selectedVar) return [];
+    if (selectedVar.type === 'boolean') {
+      return [
+        { value: 'setTrue', label: 'Set to True' },
+        { value: 'setFalse', label: 'Set to False' },
+        { value: 'toggle', label: 'Toggle' },
+      ];
+    }
+    if (selectedVar.type === 'number') {
+      return [
+        { value: 'setNumber', label: 'Set to' },
+        { value: 'add', label: 'Add' },
+        { value: 'subtract', label: 'Subtract' },
+        { value: 'multiply', label: 'Multiply' },
+        { value: 'divide', label: 'Divide' },
+      ];
+    }
+    return [
+      { value: 'setText', label: 'Set to' },
+      { value: 'append', label: 'Append' },
+    ];
+  })();
+  const opNeedsValue = (op: string) =>
+    op !== '' && op !== 'setTrue' && op !== 'setFalse' && op !== 'toggle';
 
   const slideLabel = (id: string) => {
     const idx = slides.findIndex((s) => s.id === id);
