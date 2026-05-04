@@ -145,6 +145,12 @@ function updateActiveSlides(state: CourseState, slides: Slide[]): Partial<Course
   return state.viewMode === 'master' ? { masterSlides: slides } : { slides };
 }
 
+function computeVariableValues(vars: CourseVariable[]): Record<string, boolean | number | string> {
+  const out: Record<string, boolean | number | string> = {};
+  for (const v of vars) out[v.id] = v.defaultValue;
+  return out;
+}
+
 function courseReducer(state: CourseState, action: Action): CourseState {
   switch (action.type) {
     case 'ADD_SLIDE': {
