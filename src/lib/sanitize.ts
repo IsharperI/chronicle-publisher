@@ -168,6 +168,21 @@ function sanitizeTrigger(t: any): Trigger {
   } else if (typeof t?.variableValue === 'boolean') {
     out.variableValue = t.variableValue;
   }
+  if (Array.isArray(t?.conditions)) {
+    const condOps = ['equals', 'notEquals', 'greaterThan', 'lessThan', 'greaterThanOrEqual', 'lessThanOrEqual'];
+    const conds = t.conditions.slice(0, 20).map((c: any) => {
+      if (!c || typeof c !== 'object') return null;
+      if (typeof c.variableId !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(c.variableId)) return null;
+      if (typeof c.operator !== 'string' || condOps.indexOf(c.operator) < 0) return null;
+      let value: string | number | boolean;
+      if (typeof c.value === 'string') value = c.value.slice(0, 5_000);
+      else if (typeof c.value === 'number' && Number.isFinite(c.value)) value = c.value;
+      else if (typeof c.value === 'boolean') value = c.value;
+      else value = '';
+      return { variableId: c.variableId, operator: c.operator, value };
+    }).filter(Boolean);
+    if (conds.length) out.conditions = conds as any;
+  }
   return out;
 }
 

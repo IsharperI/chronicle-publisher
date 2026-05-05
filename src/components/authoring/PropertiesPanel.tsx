@@ -935,6 +935,53 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
     onUpdate({ triggers: triggers.filter((_, i) => i !== idx) } as any);
   };
 
+  const updateTrigger = (idx: number, patch: Partial<Trigger>) => {
+    const next = triggers.map((t, i) => (i === idx ? { ...t, ...patch } : t));
+    onUpdate({ triggers: next } as any);
+  };
+
+  const condOperatorsFor = (type: 'boolean' | 'number' | 'text') => {
+    if (type === 'number') {
+      return [
+        { value: 'equals', label: '=' },
+        { value: 'notEquals', label: '≠' },
+        { value: 'greaterThan', label: '>' },
+        { value: 'lessThan', label: '<' },
+        { value: 'greaterThanOrEqual', label: '≥' },
+        { value: 'lessThanOrEqual', label: '≤' },
+      ];
+    }
+    return [
+      { value: 'equals', label: 'equals' },
+      { value: 'notEquals', label: 'not equals' },
+    ];
+  };
+
+  const addCondition = (idx: number) => {
+    const t = triggers[idx];
+    const firstVar = variables[0];
+    if (!firstVar) return;
+    const newCond = {
+      variableId: firstVar.id,
+      operator: 'equals',
+      value: firstVar.type === 'boolean' ? true : firstVar.type === 'number' ? 0 : '',
+    } as any;
+    const conds = [...((t.conditions as any[]) || []), newCond];
+    updateTrigger(idx, { conditions: conds } as any);
+  };
+
+  const updateCondition = (tIdx: number, cIdx: number, patch: any) => {
+    const t = triggers[tIdx];
+    const conds = ((t.conditions as any[]) || []).map((c, i) => (i === cIdx ? { ...c, ...patch } : c));
+    updateTrigger(tIdx, { conditions: conds } as any);
+  };
+
+  const removeCondition = (tIdx: number, cIdx: number) => {
+    const t = triggers[tIdx];
+    const conds = ((t.conditions as any[]) || []).filter((_, i) => i !== cIdx);
+    updateTrigger(tIdx, { conditions: conds } as any);
+  };
+
   return (
     <div className="space-y-2">
       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Triggers</p>
@@ -981,15 +1028,103 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
           actionLabel = `Adjust ${v?.name || t.variableId || 'variable'}: ${opLabel}`;
         }
         else actionLabel = `${t.action} (${t.targetId.slice(0, 8)})`;
+        const conds: any[] = (t as any).conditions || [];
         return (
-          <div key={i} className="flex items-center gap-2 bg-white border border-slate-200 rounded-md shadow-sm p-2">
-            <div className="flex-1 min-w-0 space-y-0.5">
-              <p className="text-xs text-slate-800 truncate"><span className="font-semibold">Action:</span> {actionLabel}</p>
-              <p className="text-[11px] text-slate-500 truncate"><span className="font-semibold">When:</span> {eventLabel}</p>
+          <div key={i} className="bg-white border border-slate-200 rounded-md shadow-sm p-2 space-y-2">
+            <div className="flex items-center gap-2">
+              <div className="flex-1 min-w-0 space-y-0.5">
+                <p className="text-xs text-slate-800 truncate"><span className="font-semibold">Action:</span> {actionLabel}</p>
+                <p className="text-[11px] text-slate-500 truncate"><span className="font-semibold">When:</span> {eventLabel}</p>
+              </div>
+              <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-slate-500 hover:text-destructive" onClick={() => removeTrigger(i)} aria-label="Remove trigger">
+                <Trash2 className="h-4 w-4" />
+              </Button>
             </div>
-            <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-slate-500 hover:text-destructive" onClick={() => removeTrigger(i)} aria-label="Remove trigger">
-              <Trash2 className="h-4 w-4" />
-            </Button>
+            <div className="border-t border-slate-200 pt-2 space-y-1.5">
+              <p className="text-[11px] font-semibold text-slate-600">Only fire when:</p>
+              {conds.length === 0 && (
+                <p className="text-[11px] text-slate-400 italic">Always fires (no conditions)</p>
+              )}
+              {conds.map((c, ci) => {
+                const cVar = variables.find((v) => v.id === c.variableId);
+                const ops = cVar ? condOperatorsFor(cVar.type) : [];
+                return (
+                  <div key={ci} className="flex items-center gap-1">
+                    <Select
+                      value={c.variableId}
+                      onValueChange={(val) => {
+                        const nv = variables.find((x) => x.id === val);
+                        const defaultVal = nv?.type === 'boolean' ? true : nv?.type === 'number' ? 0 : '';
+                        updateCondition(i, ci, { variableId: val, operator: 'equals', value: defaultVal });
+                      }}
+                    >
+                      <SelectTrigger className="h-7 text-[11px] flex-1 min-w-0 bg-white text-slate-800"><SelectValue placeholder="Variable" /></SelectTrigger>
+                      <SelectContent>
+                        {variables.map((v) => (
+                          <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select
+                      value={c.operator}
+                      onValueChange={(val) => updateCondition(i, ci, { operator: val })}
+                    >
+                      <SelectTrigger className="h-7 text-[11px] w-16 bg-white text-slate-800"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {ops.map((o) => (
+                          <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {cVar?.type === 'boolean' ? (
+                      <Select
+                        value={String(Boolean(c.value))}
+                        onValueChange={(val) => updateCondition(i, ci, { value: val === 'true' })}
+                      >
+                        <SelectTrigger className="h-7 text-[11px] w-20 bg-white text-slate-800"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="true">True</SelectItem>
+                          <SelectItem value="false">False</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <Input
+                        type={cVar?.type === 'number' ? 'number' : 'text'}
+                        step="any"
+                        value={String(c.value ?? '')}
+                        onChange={(e) => {
+                          const raw = e.target.value;
+                          const val = cVar?.type === 'number'
+                            ? (raw === '' ? 0 : (parseFloat(raw) || 0))
+                            : raw;
+                          updateCondition(i, ci, { value: val });
+                        }}
+                        className="h-7 text-[11px] flex-1 min-w-0"
+                      />
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 shrink-0 text-slate-500 hover:text-destructive"
+                      onClick={() => removeCondition(i, ci)}
+                      aria-label="Remove condition"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
+                );
+              })}
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full h-6 text-[11px]"
+                disabled={variables.length === 0}
+                onClick={() => addCondition(i)}
+              >
+                <Plus className="h-3 w-3 mr-1" />
+                {variables.length === 0 ? 'No variables defined' : 'Add Condition'}
+              </Button>
+            </div>
           </div>
         );
       })}

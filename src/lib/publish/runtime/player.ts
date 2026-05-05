@@ -753,8 +753,43 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
     }
     return null;
   }
+  function evaluateConditions(t){
+    var conds=t&&t.conditions;
+    if(!conds||!conds.length)return true;
+    for(var ci=0;ci<conds.length;ci++){
+      var c=conds[ci];if(!c)continue;
+      var def=null;
+      for(var di=0;di<variableDefs.length;di++){if(variableDefs[di].id===c.variableId){def=variableDefs[di];break}}
+      if(!def)return false;
+      var cur=(c.variableId in variableValues)?variableValues[c.variableId]:def.defaultValue;
+      var op=c.operator;var pass=false;
+      if(def.type==="number"){
+        var an=(typeof cur==="number")?cur:(parseFloat(cur)||0);
+        var bn=(typeof c.value==="number")?c.value:(parseFloat(c.value)||0);
+        if(op==="equals")pass=an===bn;
+        else if(op==="notEquals")pass=an!==bn;
+        else if(op==="greaterThan")pass=an>bn;
+        else if(op==="lessThan")pass=an<bn;
+        else if(op==="greaterThanOrEqual")pass=an>=bn;
+        else if(op==="lessThanOrEqual")pass=an<=bn;
+      } else if(def.type==="boolean"){
+        var ab=!!cur;
+        var bb=(typeof c.value==="boolean")?c.value:(c.value===true||c.value==="true");
+        if(op==="equals")pass=ab===bb;
+        else if(op==="notEquals")pass=ab!==bb;
+      } else {
+        var as=(cur==null)?"":String(cur);
+        var bs=(c.value==null)?"":String(c.value);
+        if(op==="equals")pass=as===bs;
+        else if(op==="notEquals")pass=as!==bs;
+      }
+      if(!pass)return false;
+    }
+    return true;
+  }
   function runTriggerAction(t){
     if(!t)return;
+    if(!evaluateConditions(t))return;
     if(t.action==="jumpToSlide"){
       for(var i=0;i<slides.length;i++){if(slides[i].id===t.targetId){goTo(i);return}}
     } else if(t.action==="hideElement"){
