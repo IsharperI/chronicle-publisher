@@ -794,6 +794,7 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
   const [newVarId, setNewVarId] = useState<string>('');
   const [newVarOp, setNewVarOp] = useState<string>('');
   const [newVarValue, setNewVarValue] = useState<string>('');
+  const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
   const isSlideAction = newAction === 'jumpToSlide';
   const isElementAction = newAction === 'showElement' || newAction === 'hideElement';
   const isMediaAction = newAction === 'playMedia' || newAction === 'pauseMedia' || newAction === 'stopMedia';
@@ -986,60 +987,77 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
     <div className="space-y-2">
       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Triggers</p>
       {triggers.map((t, i) => {
-        let eventLabel: string;
-        if (t.event === 'onClick') eventLabel = 'User clicks';
-        else if (t.event === 'onHover') eventLabel = 'User hovers';
-        else if (t.event === 'timelineStart') eventLabel = 'Timeline starts';
-        else if (t.event === 'timelineEnd') eventLabel = 'Timeline ends';
-        else if (t.event === 'atTime') eventLabel = `At ${typeof t.time === 'number' ? t.time : 0}s`;
-        else if (t.event === 'mediaStart') eventLabel = `${mediaLabel(t.mediaId)} starts`;
-        else if (t.event === 'mediaEnd') eventLabel = `${mediaLabel(t.mediaId)} ends`;
-        else if (t.event === 'mediaPause') eventLabel = `${mediaLabel(t.mediaId)} pauses`;
-        else eventLabel = t.event;
-        let actionLabel: string;
-        if (t.action === 'jumpToSlide') actionLabel = `Jump to ${slideLabel(t.targetId)}`;
-        else if (t.action === 'hideElement') actionLabel = `Hide ${elementLabel(t.targetId)}`;
-        else if (t.action === 'showElement') actionLabel = `Show ${elementLabel(t.targetId)}`;
-        else if (t.action === 'playMedia') actionLabel = `Play ${mediaLabel(t.targetId)}`;
-        else if (t.action === 'pauseMedia') actionLabel = `Pause ${mediaLabel(t.targetId)}`;
-        else if (t.action === 'stopMedia') actionLabel = `Stop ${mediaLabel(t.targetId)}`;
-        else if (t.action === 'restartCourse') actionLabel = 'Restart Course';
-        else if (t.action === 'exitCourse') actionLabel = 'Exit Course';
-        else if (t.action === 'completeCourse') actionLabel = 'Complete Course';
-        else if (t.action === 'jumpToTime') actionLabel = `Jump to ${typeof t.time === 'number' ? t.time : 0}s`;
-        else if (t.action === 'emphasizeElement') actionLabel = `Emphasize ${elementLabel(t.targetId)} (${t.emphasis || 'pulse'})`;
-        else if (t.action === 'openUrl') actionLabel = `Open URL: ${(t.url || '').slice(0, 30)}`;
+        let eventPhrase: string;
+        if (t.event === 'onClick') eventPhrase = 'when user clicks this object';
+        else if (t.event === 'onHover') eventPhrase = 'when user hovers this object';
+        else if (t.event === 'timelineStart') eventPhrase = 'when timeline starts';
+        else if (t.event === 'timelineEnd') eventPhrase = 'when timeline ends';
+        else if (t.event === 'atTime') eventPhrase = `at ${typeof t.time === 'number' ? t.time : 0}s`;
+        else if (t.event === 'mediaStart') eventPhrase = `when ${mediaLabel(t.mediaId)} starts`;
+        else if (t.event === 'mediaEnd') eventPhrase = `when ${mediaLabel(t.mediaId)} ends`;
+        else if (t.event === 'mediaPause') eventPhrase = `when ${mediaLabel(t.mediaId)} pauses`;
+        else eventPhrase = t.event;
+        let actionPhrase: string;
+        if (t.action === 'jumpToSlide') actionPhrase = `Jump to ${slideLabel(t.targetId)}`;
+        else if (t.action === 'hideElement') actionPhrase = `Hide Element '${elementLabel(t.targetId)}'`;
+        else if (t.action === 'showElement') actionPhrase = `Show Element '${elementLabel(t.targetId)}'`;
+        else if (t.action === 'playMedia') actionPhrase = `Play Media '${mediaLabel(t.targetId)}'`;
+        else if (t.action === 'pauseMedia') actionPhrase = `Pause Media '${mediaLabel(t.targetId)}'`;
+        else if (t.action === 'stopMedia') actionPhrase = `Stop Media '${mediaLabel(t.targetId)}'`;
+        else if (t.action === 'restartCourse') actionPhrase = 'Restart Course';
+        else if (t.action === 'exitCourse') actionPhrase = 'Exit Course';
+        else if (t.action === 'completeCourse') actionPhrase = 'Complete Course';
+        else if (t.action === 'jumpToTime') actionPhrase = `Jump to ${typeof t.time === 'number' ? t.time : 0}s`;
+        else if (t.action === 'emphasizeElement') actionPhrase = `Emphasize Element '${elementLabel(t.targetId)}' (${t.emphasis || 'pulse'})`;
+        else if (t.action === 'openUrl') actionPhrase = `Open URL ${(t.url || '').slice(0, 40)}`;
         else if (t.action === 'adjustVariable') {
           const v = variables.find((x) => x.id === t.variableId);
           const opLabel = (() => {
             switch (t.variableOperator) {
-              case 'setTrue': return 'set to True';
-              case 'setFalse': return 'set to False';
-              case 'toggle': return 'toggle';
-              case 'setNumber': case 'setText': return `set to ${JSON.stringify(t.variableValue ?? '')}`;
-              case 'add': return `+ ${t.variableValue ?? 0}`;
-              case 'subtract': return `- ${t.variableValue ?? 0}`;
-              case 'multiply': return `× ${t.variableValue ?? 0}`;
-              case 'divide': return `÷ ${t.variableValue ?? 0}`;
-              case 'append': return `append ${JSON.stringify(t.variableValue ?? '')}`;
+              case 'setTrue': return 'Set True';
+              case 'setFalse': return 'Set False';
+              case 'toggle': return 'Toggle';
+              case 'setNumber': case 'setText': return `Set to ${t.variableValue ?? ''}`;
+              case 'add': return `Add ${t.variableValue ?? 0}`;
+              case 'subtract': return `Subtract ${t.variableValue ?? 0}`;
+              case 'multiply': return `Multiply ${t.variableValue ?? 0}`;
+              case 'divide': return `Divide ${t.variableValue ?? 0}`;
+              case 'append': return `Append ${t.variableValue ?? ''}`;
               default: return t.variableOperator || '';
             }
           })();
-          actionLabel = `Adjust ${v?.name || t.variableId || 'variable'}: ${opLabel}`;
+          actionPhrase = `Adjust Variable '${v?.name || t.variableId || 'variable'}' ${opLabel}`;
         }
-        else actionLabel = `${t.action} (${t.targetId.slice(0, 8)})`;
+        else actionPhrase = `${t.action}`;
+        const summary = t.event === 'atTime'
+          ? `At ${typeof t.time === 'number' ? t.time : 0}s — ${actionPhrase}`
+          : `${actionPhrase} — ${eventPhrase}`;
         const conds: any[] = (t as any).conditions || [];
+        const isExpanded = expandedIdx === i;
         return (
           <div key={i} className="bg-white border border-slate-200 rounded-md shadow-sm p-2 space-y-2">
             <div className="flex items-center gap-2">
-              <div className="flex-1 min-w-0 space-y-0.5">
-                <p className="text-xs text-slate-800 truncate"><span className="font-semibold">Action:</span> {actionLabel}</p>
-                <p className="text-[11px] text-slate-500 truncate"><span className="font-semibold">When:</span> {eventLabel}</p>
-              </div>
+              <button
+                type="button"
+                onClick={() => setExpandedIdx(isExpanded ? null : i)}
+                className="flex-1 min-w-0 text-left text-xs text-slate-800 hover:text-slate-900 truncate"
+                aria-expanded={isExpanded}
+              >
+                {summary}
+                {conds.length > 0 && (
+                  <span className="ml-1 text-[10px] text-slate-500">({conds.length} cond.)</span>
+                )}
+              </button>
               <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-slate-500 hover:text-destructive" onClick={() => removeTrigger(i)} aria-label="Remove trigger">
                 <Trash2 className="h-4 w-4" />
               </Button>
             </div>
+            {isExpanded && (<>
+            <div className="text-[11px] text-slate-500 space-y-0.5 border-t border-slate-100 pt-2">
+              <p><span className="font-semibold">Action:</span> {actionPhrase}</p>
+              <p><span className="font-semibold">When:</span> {t.event === 'atTime' ? `At ${typeof t.time === 'number' ? t.time : 0}s` : eventPhrase.replace(/^when /, '')}</p>
+            </div></>)}
+            {isExpanded && (
             <div className="border-t border-slate-200 pt-2 space-y-1.5">
               <p className="text-[11px] font-semibold text-slate-600">Only fire when:</p>
               {conds.length === 0 && (
@@ -1125,6 +1143,7 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
                 {variables.length === 0 ? 'No variables defined' : 'Add Condition'}
               </Button>
             </div>
+            )}
           </div>
         );
       })}
