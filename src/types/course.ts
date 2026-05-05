@@ -32,6 +32,23 @@ export interface Trigger {
   variableOperator?: string;
   /** For 'adjustVariable' action: literal value used by the operator. */
   variableValue?: string | number | boolean;
+  /**
+   * Optional conditions that must ALL evaluate true (AND) for the trigger to
+   * fire. Empty/undefined means the trigger always fires.
+   */
+  conditions?: TriggerCondition[];
+}
+
+/** A single condition gating a trigger. Compares a course variable against a value. */
+export interface TriggerCondition {
+  variableId: string;
+  /**
+   * Comparison operator.
+   * Boolean / Text: 'equals' | 'notEquals'
+   * Number:        'equals' | 'notEquals' | 'greaterThan' | 'lessThan' | 'greaterThanOrEqual' | 'lessThanOrEqual'
+   */
+  operator: string;
+  value: string | number | boolean;
 }
 
 /** A course-level variable persisted across slides during a learner's session. */
