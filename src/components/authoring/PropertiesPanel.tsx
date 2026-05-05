@@ -1143,6 +1143,7 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
                 {variables.length === 0 ? 'No variables defined' : 'Add Condition'}
               </Button>
             </div>
+            )}
           </div>
         );
       })}
