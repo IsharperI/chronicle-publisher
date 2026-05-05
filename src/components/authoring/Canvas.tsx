@@ -290,7 +290,45 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
   const isPreview = state.previewMode;
 
   // Shared trigger-action runner used by all event sources (timeline, click, hover, media).
-  const runTriggerAction = useCallback((t: { action: string; targetId: string }) => {
+  const runTriggerAction = useCallback((t: { action: string; targetId: string; conditions?: any[] }) => {
+    // Evaluate conditions (AND). If any fail, skip firing.
+    const conds = (t as any).conditions;
+    if (Array.isArray(conds) && conds.length) {
+      const pass = conds.every((c: any) => {
+        if (!c || typeof c !== 'object') return true;
+        const def = state.variables.find((v) => v.id === c.variableId);
+        if (!def) return false;
+        const cur = state.variableValues[c.variableId];
+        const a: any = cur === undefined ? def.defaultValue : cur;
+        const b: any = c.value;
+        if (def.type === 'number') {
+          const an = Number(a) || 0;
+          const bn = Number(b) || 0;
+          switch (c.operator) {
+            case 'equals': return an === bn;
+            case 'notEquals': return an !== bn;
+            case 'greaterThan': return an > bn;
+            case 'lessThan': return an < bn;
+            case 'greaterThanOrEqual': return an >= bn;
+            case 'lessThanOrEqual': return an <= bn;
+            default: return false;
+          }
+        } else if (def.type === 'boolean') {
+          const ab = Boolean(a);
+          const bb = typeof b === 'boolean' ? b : (b === 'true' || b === true);
+          if (c.operator === 'equals') return ab === bb;
+          if (c.operator === 'notEquals') return ab !== bb;
+          return false;
+        } else {
+          const as = String(a ?? '');
+          const bs = String(b ?? '');
+          if (c.operator === 'equals') return as === bs;
+          if (c.operator === 'notEquals') return as !== bs;
+          return false;
+        }
+      });
+      if (!pass) return;
+    }
     if (t.action === 'jumpToSlide') {
       const idx = state.slides.findIndex((s) => s.id === t.targetId);
       if (idx >= 0) {
