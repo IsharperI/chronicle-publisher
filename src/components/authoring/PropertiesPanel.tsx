@@ -935,6 +935,53 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
     onUpdate({ triggers: triggers.filter((_, i) => i !== idx) } as any);
   };
 
+  const updateTrigger = (idx: number, patch: Partial<Trigger>) => {
+    const next = triggers.map((t, i) => (i === idx ? { ...t, ...patch } : t));
+    onUpdate({ triggers: next } as any);
+  };
+
+  const condOperatorsFor = (type: 'boolean' | 'number' | 'text') => {
+    if (type === 'number') {
+      return [
+        { value: 'equals', label: '=' },
+        { value: 'notEquals', label: '≠' },
+        { value: 'greaterThan', label: '>' },
+        { value: 'lessThan', label: '<' },
+        { value: 'greaterThanOrEqual', label: '≥' },
+        { value: 'lessThanOrEqual', label: '≤' },
+      ];
+    }
+    return [
+      { value: 'equals', label: 'equals' },
+      { value: 'notEquals', label: 'not equals' },
+    ];
+  };
+
+  const addCondition = (idx: number) => {
+    const t = triggers[idx];
+    const firstVar = variables[0];
+    if (!firstVar) return;
+    const newCond = {
+      variableId: firstVar.id,
+      operator: 'equals',
+      value: firstVar.type === 'boolean' ? true : firstVar.type === 'number' ? 0 : '',
+    } as any;
+    const conds = [...((t.conditions as any[]) || []), newCond];
+    updateTrigger(idx, { conditions: conds } as any);
+  };
+
+  const updateCondition = (tIdx: number, cIdx: number, patch: any) => {
+    const t = triggers[tIdx];
+    const conds = ((t.conditions as any[]) || []).map((c, i) => (i === cIdx ? { ...c, ...patch } : c));
+    updateTrigger(tIdx, { conditions: conds } as any);
+  };
+
+  const removeCondition = (tIdx: number, cIdx: number) => {
+    const t = triggers[tIdx];
+    const conds = ((t.conditions as any[]) || []).filter((_, i) => i !== cIdx);
+    updateTrigger(tIdx, { conditions: conds } as any);
+  };
+
   return (
     <div className="space-y-2">
       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Triggers</p>
