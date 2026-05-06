@@ -1,5 +1,39 @@
 export type ElementType = 'text' | 'image' | 'shape' | 'video' | 'hotspot' | 'checkbox' | 'table';
-export type ShapeType = 'rectangle' | 'circle' | 'triangle';
+export type ShapeType =
+  | 'rectangle'
+  | 'circle'
+  | 'triangle'
+  | 'rounded-rectangle'
+  | 'right-triangle'
+  | 'diamond'
+  | 'pentagon'
+  | 'hexagon'
+  | 'octagon'
+  | 'parallelogram'
+  | 'trapezoid'
+  | 'cross'
+  | 'l-shape'
+  | 'arrow-right'
+  | 'arrow-left'
+  | 'arrow-up'
+  | 'arrow-down'
+  | 'arrow-left-right'
+  | 'arrow-up-down'
+  | 'chevron-right'
+  | 'chevron-left'
+  | 'bent-arrow-right'
+  | 'bent-arrow-left'
+  | 'circular-arrow'
+  | 'callout-rectangle'
+  | 'callout-rounded'
+  | 'callout-oval'
+  | 'thought-bubble'
+  | 'star-4point'
+  | 'star-5point'
+  | 'star-6point'
+  | 'star-8point'
+  | 'burst-4'
+  | 'burst-8';
 export type AnimationIn = 'none' | 'fade' | 'fly-in-left' | 'fly-in-right';
 export type AnimationOut = 'none' | 'fade' | 'fly-out-left' | 'fly-out-right';
 export type ViewMode = 'main' | 'master';
