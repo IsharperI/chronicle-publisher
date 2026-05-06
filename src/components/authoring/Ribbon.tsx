@@ -126,11 +126,11 @@ export function Ribbon() {
     e.target.value = '';
   };
 
-  const addShape = () => {
+  const addShape = (shapeType: ShapeElement['shapeType'] = 'rectangle') => {
     const el: ShapeElement = {
       id: crypto.randomUUID(), type: 'shape',
       x: 0, y: 0, width: 400, height: 300,
-      shapeType: 'rectangle', fillColor: '#3b82f6', borderColor: '#1e40af', borderWidth: 2,
+      shapeType, fillColor: '#3b82f6', borderColor: '#1e40af', borderWidth: 2,
       startTime: 0, duration: 5000, triggers: [],
       animationIn: 'none', animationOut: 'none',
       entranceDuration: 500, exitDuration: 500,
