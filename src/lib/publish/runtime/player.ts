@@ -1,6 +1,7 @@
 import type { CourseState } from '@/types/course';
 import { safeColor, safeFontFamily, safeNumber, safeImageSrc, safeEnum } from '../../sanitize';
 import { themeVarCssText } from '../../themeVars';
+import { SHAPE_SVG } from '../../shapes';
 import type { PublishOptions } from '../types';
 
 /**
