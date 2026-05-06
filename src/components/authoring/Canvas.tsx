@@ -138,6 +138,7 @@ function ElementRenderer({ element, isPreview }: { element: SlideElement; isPrev
           <ShapeText se={se} isPreview={isPreview} />
         </div>
       );
+    }
     if (isExtendedShapeType(se.shapeType) && se.shapeType !== 'rounded-rectangle') {
       const svgInner = resolveShapeSvg(se.shapeType, fill, border, se.borderWidth);
       return (
@@ -152,13 +153,14 @@ function ElementRenderer({ element, isPreview }: { element: SlideElement; isPrev
         </div>
       );
     }
+    return (
       <div
         {...hoverProps}
         style={{
           position: 'relative',
           width: '100%', height: '100%', backgroundColor: fill,
           border: `${se.borderWidth}px solid ${border}`,
-          borderRadius: se.borderRadius != null ? se.borderRadius : 4,
+          borderRadius: se.shapeType === 'rounded-rectangle' ? (se.borderRadius != null ? se.borderRadius : 16) : (se.borderRadius != null ? se.borderRadius : 4),
           boxShadow: se.boxShadow,
           transition: isPreview ? 'background-color 0.2s, border-color 0.2s' : undefined,
           cursor: isPreview && (se.hoverFillColor || se.hoverBorderColor) ? 'pointer' : undefined,
