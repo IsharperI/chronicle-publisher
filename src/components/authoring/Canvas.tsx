@@ -160,7 +160,7 @@ function ElementRenderer({ element, isPreview }: { element: SlideElement; isPrev
           position: 'relative',
           width: '100%', height: '100%', backgroundColor: fill,
           border: `${se.borderWidth}px solid ${border}`,
-          borderRadius: se.shapeType === 'rounded-rectangle' ? (se.borderRadius != null ? se.borderRadius : 16) : (se.borderRadius != null ? se.borderRadius : 4),
+          borderRadius: se.borderRadius != null ? se.borderRadius : 4,
           boxShadow: se.boxShadow,
           transition: isPreview ? 'background-color 0.2s, border-color 0.2s' : undefined,
           cursor: isPreview && (se.hoverFillColor || se.hoverBorderColor) ? 'pointer' : undefined,
