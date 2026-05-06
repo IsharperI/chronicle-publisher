@@ -139,7 +139,7 @@ function ElementRenderer({ element, isPreview }: { element: SlideElement; isPrev
         </div>
       );
     }
-    if (isExtendedShapeType(se.shapeType) && se.shapeType !== 'rounded-rectangle') {
+    if (isExtendedShapeType(se.shapeType)) {
       const svgInner = resolveShapeSvg(se.shapeType, fill, border, se.borderWidth);
       return (
         <div {...hoverProps} style={{ position: 'relative', width: '100%', height: '100%' }}>
