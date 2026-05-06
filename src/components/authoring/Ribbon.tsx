@@ -20,6 +20,7 @@ import { sanitizeSlides, sanitizePlayerSettings, sanitizeCourseSettings, sanitiz
 import { StorySizeControl, ThemeColorsControl } from './DesignControls';
 import { QuizThemesOverlay, QuestionBankOverlay } from './QuizOverlays';
 import { VariableManagerOverlay } from './VariableManagerOverlay';
+import { ShapePicker } from './ShapePicker';
 
 const TABS = ['Home', 'Insert', 'Design', 'Transitions', 'Animations', 'View', 'Quiz'] as const;
 type RibbonTab = typeof TABS[number];
@@ -390,7 +391,7 @@ export function Ribbon() {
               <RibbonButton icon={Type} label="Text" onClick={addText} />
               <RibbonButton icon={ImageIcon} label="Image" onClick={() => imageInputRef.current?.click()} />
               <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageFile} />
-              <RibbonButton icon={Square} label="Shape" onClick={addShape} />
+              <ShapePicker onPick={(t) => addShape(t)} />
             </RibbonGroup>
             <Separator orientation="vertical" className="h-12 mx-2" />
             <RibbonGroup label="Media">
