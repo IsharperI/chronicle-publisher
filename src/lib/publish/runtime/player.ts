@@ -158,8 +158,10 @@ window.__PUBLISH_OPTS={completion:${completionConfig},reportStatus:${reportStatu
 
 /** The slide-rendering runtime. Renders every element type and slide kind. */
 function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
+  const shapeSvgJson = JSON.stringify(SHAPE_SVG);
   return `
 (function(){
+  var EXT_SHAPE_SVG=${shapeSvgJson};
   var LMS=window.__LMS||{setLocation:function(){},setStatus:function(){},setScore:function(){},finish:function(){}};
   var PUB=window.__PUBLISH_OPTS||{completion:{mode:"percent",percent:100},reportStatus:"passed-incomplete"};
   var data=window.COURSE_DATA;
