@@ -123,8 +123,14 @@ function ElementRenderer({ element, isPreview }: { element: SlideElement; isPrev
     if (se.shapeType === 'triangle') {
       return (
         <div {...hoverProps} style={{ position: 'relative', width: '100%', height: '100%' }}>
-          <svg viewBox="0 0 100 100" preserveAspectRatio="none" style={{ width: '100%', height: '100%', display: 'block' }}>
-            <polygon points="50,5 95,95 5,95" fill={fill} stroke={border} strokeWidth={se.borderWidth * 2}
+          <svg viewBox="0 0 100 100" preserveAspectRatio="none" style={{ width: '100%', height: '100%', display: 'block', overflow: 'visible' }}>
+            <polygon
+              points="50,0 100,100 0,100"
+              fill={fill}
+              stroke={border}
+              strokeWidth={se.borderWidth}
+              strokeLinejoin="miter"
+              vectorEffect="non-scaling-stroke"
               style={{ transition: isPreview ? 'fill 0.2s, stroke 0.2s' : undefined }}
             />
           </svg>
@@ -922,17 +928,19 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
 }
 
 const handleStyle: React.CSSProperties = {
-  width: 10, height: 10,
-  background: 'hsl(var(--primary))',
-  border: '1px solid hsl(var(--primary-foreground))',
+  width: 8, height: 8,
+  background: '#ffffff',
+  border: '1px solid hsl(var(--primary))',
   borderRadius: 1,
+  boxSizing: 'border-box',
 };
 
 const cornerStyle: React.CSSProperties = {
-  width: 10, height: 10,
-  background: 'hsl(var(--primary))',
-  border: '1px solid hsl(var(--primary-foreground))',
-  borderRadius: 2,
+  width: 8, height: 8,
+  background: '#ffffff',
+  border: '1px solid hsl(var(--primary))',
+  borderRadius: 1,
+  boxSizing: 'border-box',
 };
 
 // ============================================================================
