@@ -2,6 +2,7 @@ import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import { Rnd } from 'react-rnd';
 import { useCourse } from '@/context/CourseContext';
 import type { SlideElement, TextElement, ShapeElement, AnimationIn, AnimationOut, TableElement, Slide, QuizConfig, QuizChoice, QuizMatchPair, QuizSortItem } from '@/types/course';
+import { isExtendedShapeType, resolveShapeSvg } from '@/lib/shapes';
 import { resolveQuizStyle, type ResolvedQuizStyle } from '@/lib/quizTemplates';
 import { themeVarStyle } from '@/lib/themeVars';
 import { MotionPathLayer } from './MotionPathLayer';
@@ -137,8 +138,20 @@ function ElementRenderer({ element, isPreview }: { element: SlideElement; isPrev
           <ShapeText se={se} isPreview={isPreview} />
         </div>
       );
+    if (isExtendedShapeType(se.shapeType) && se.shapeType !== 'rounded-rectangle') {
+      const svgInner = resolveShapeSvg(se.shapeType, fill, border, se.borderWidth);
+      return (
+        <div {...hoverProps} style={{ position: 'relative', width: '100%', height: '100%' }}>
+          <svg
+            viewBox="0 0 100 100"
+            preserveAspectRatio="none"
+            style={{ width: '100%', height: '100%', display: 'block', overflow: 'visible', transition: isPreview ? 'fill 0.2s, stroke 0.2s' : undefined }}
+            dangerouslySetInnerHTML={{ __html: svgInner }}
+          />
+          <ShapeText se={se} isPreview={isPreview} />
+        </div>
+      );
     }
-    return (
       <div
         {...hoverProps}
         style={{
