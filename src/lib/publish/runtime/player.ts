@@ -359,6 +359,23 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
           d.addEventListener("mouseenter",function(){if(el.hoverFillColor)poly.setAttribute("fill",el.hoverFillColor);if(el.hoverBorderColor)poly.setAttribute("stroke",el.hoverBorderColor);d.style.cursor="pointer"});
           d.addEventListener("mouseleave",function(){poly.setAttribute("fill",fillColor);poly.setAttribute("stroke",borderColor)});
         }
+      } else if(st!=="rectangle"&&st!=="circle"&&EXT_SHAPE_SVG[st]){
+        var inner=EXT_SHAPE_SVG[st]
+          .replace(/\\{fill\\}/g,fillColor)
+          .replace(/\\{stroke\\}/g,borderColor)
+          .replace(/\\{strokeWidth\\}/g,String(borderWidth));
+        d.innerHTML='<svg viewBox="0 0 100 100" preserveAspectRatio="none" style="width:100%;height:100%;display:block;overflow:visible">'+inner+'</svg>';
+        if(el.hoverFillColor||el.hoverBorderColor){
+          d.addEventListener("mouseenter",function(){
+            var hf=el.hoverFillColor||fillColor,hb=el.hoverBorderColor||borderColor;
+            var hi=EXT_SHAPE_SVG[st].replace(/\\{fill\\}/g,hf).replace(/\\{stroke\\}/g,hb).replace(/\\{strokeWidth\\}/g,String(borderWidth));
+            d.innerHTML='<svg viewBox="0 0 100 100" preserveAspectRatio="none" style="width:100%;height:100%;display:block;overflow:visible">'+hi+'</svg>';
+            d.style.cursor="pointer";
+          });
+          d.addEventListener("mouseleave",function(){
+            d.innerHTML='<svg viewBox="0 0 100 100" preserveAspectRatio="none" style="width:100%;height:100%;display:block;overflow:visible">'+inner+'</svg>';
+          });
+        }
       } else {
         d.style.backgroundColor=fillColor;
         d.style.border=borderWidth+"px solid "+borderColor;
