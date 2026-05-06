@@ -120,7 +120,16 @@ import type {
 
 const ANIM_IN = ['none', 'fade', 'fly-in-left', 'fly-in-right'] as const;
 const ANIM_OUT = ['none', 'fade', 'fly-out-left', 'fly-out-right'] as const;
-const SHAPE_TYPES = ['rectangle', 'circle', 'triangle'] as const;
+const SHAPE_TYPES = [
+  'rectangle', 'circle', 'triangle',
+  'rounded-rectangle', 'right-triangle', 'diamond', 'pentagon', 'hexagon',
+  'octagon', 'parallelogram', 'trapezoid', 'cross', 'l-shape',
+  'arrow-right', 'arrow-left', 'arrow-up', 'arrow-down',
+  'arrow-left-right', 'arrow-up-down', 'chevron-right', 'chevron-left',
+  'bent-arrow-right', 'bent-arrow-left', 'circular-arrow',
+  'callout-rectangle', 'callout-rounded', 'callout-oval', 'thought-bubble',
+  'star-4point', 'star-5point', 'star-6point', 'star-8point', 'burst-4', 'burst-8',
+] as const;
 const NAV_MODES = ['free', 'restricted'] as const;
 const BG_MODES = ['stretch', 'fit', 'tile'] as const;
 

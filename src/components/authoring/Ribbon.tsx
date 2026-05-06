@@ -20,6 +20,7 @@ import { sanitizeSlides, sanitizePlayerSettings, sanitizeCourseSettings, sanitiz
 import { StorySizeControl, ThemeColorsControl } from './DesignControls';
 import { QuizThemesOverlay, QuestionBankOverlay } from './QuizOverlays';
 import { VariableManagerOverlay } from './VariableManagerOverlay';
+import { ShapePicker } from './ShapePicker';
 
 const TABS = ['Home', 'Insert', 'Design', 'Transitions', 'Animations', 'View', 'Quiz'] as const;
 type RibbonTab = typeof TABS[number];
@@ -126,11 +127,11 @@ export function Ribbon() {
     e.target.value = '';
   };
 
-  const addShape = () => {
+  const addShape = (shapeType: ShapeElement['shapeType'] = 'rectangle') => {
     const el: ShapeElement = {
       id: crypto.randomUUID(), type: 'shape',
       x: 0, y: 0, width: 400, height: 300,
-      shapeType: 'rectangle', fillColor: '#3b82f6', borderColor: '#1e40af', borderWidth: 2,
+      shapeType, fillColor: '#3b82f6', borderColor: '#1e40af', borderWidth: 2,
       startTime: 0, duration: 5000, triggers: [],
       animationIn: 'none', animationOut: 'none',
       entranceDuration: 500, exitDuration: 500,
@@ -390,7 +391,7 @@ export function Ribbon() {
               <RibbonButton icon={Type} label="Text" onClick={addText} />
               <RibbonButton icon={ImageIcon} label="Image" onClick={() => imageInputRef.current?.click()} />
               <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageFile} />
-              <RibbonButton icon={Square} label="Shape" onClick={addShape} />
+              <ShapePicker onPick={(t) => addShape(t)} />
             </RibbonGroup>
             <Separator orientation="vertical" className="h-12 mx-2" />
             <RibbonGroup label="Media">
