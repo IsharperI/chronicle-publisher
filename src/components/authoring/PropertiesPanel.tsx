@@ -3,7 +3,7 @@ import { useCourse } from '@/context/CourseContext';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Trash2, Upload, Plus, X, Sparkles, Loader2, Music } from 'lucide-react';
@@ -11,6 +11,7 @@ import type { SlideElement, TextElement, ImageElement, ShapeElement, VideoElemen
 import { Switch } from '@/components/ui/switch';
 import { themeVarRef, themeVarIndex, resolveColor } from '@/lib/themeVars';
 import { transcribeAudio } from '@/lib/transcribe';
+import { SHAPE_CATEGORIES } from '@/lib/shapes';
 
 function NumField({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
   return (
@@ -580,9 +581,14 @@ export function PropertiesPanel() {
                   <Select value={(activeElement as ShapeElement).shapeType} onValueChange={(v) => update({ shapeType: v as ShapeType } as Partial<ShapeElement>)}>
                     <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="rectangle">Rectangle</SelectItem>
-                      <SelectItem value="circle">Circle</SelectItem>
-                      <SelectItem value="triangle">Triangle</SelectItem>
+                      {SHAPE_CATEGORIES.map((cat) => (
+                        <SelectGroup key={cat.label}>
+                          <SelectLabel>{cat.label}</SelectLabel>
+                          {cat.shapes.map((s) => (
+                            <SelectItem key={s.type} value={s.type}>{s.label}</SelectItem>
+                          ))}
+                        </SelectGroup>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
