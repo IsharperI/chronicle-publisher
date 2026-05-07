@@ -3,7 +3,7 @@ import { useCourse } from '@/context/CourseContext';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Trash2, Upload, Plus, X, Sparkles, Loader2, Music } from 'lucide-react';
@@ -11,6 +11,7 @@ import type { SlideElement, TextElement, ImageElement, ShapeElement, VideoElemen
 import { Switch } from '@/components/ui/switch';
 import { themeVarRef, themeVarIndex, resolveColor } from '@/lib/themeVars';
 import { transcribeAudio } from '@/lib/transcribe';
+import { SHAPE_CATEGORIES } from '@/lib/shapes';
 
 function NumField({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
   return (
