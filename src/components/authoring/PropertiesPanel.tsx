@@ -581,9 +581,14 @@ export function PropertiesPanel() {
                   <Select value={(activeElement as ShapeElement).shapeType} onValueChange={(v) => update({ shapeType: v as ShapeType } as Partial<ShapeElement>)}>
                     <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="rectangle">Rectangle</SelectItem>
-                      <SelectItem value="circle">Circle</SelectItem>
-                      <SelectItem value="triangle">Triangle</SelectItem>
+                      {SHAPE_CATEGORIES.map((cat) => (
+                        <SelectGroup key={cat.label}>
+                          <SelectLabel>{cat.label}</SelectLabel>
+                          {cat.shapes.map((s) => (
+                            <SelectItem key={s.type} value={s.type}>{s.label}</SelectItem>
+                          ))}
+                        </SelectGroup>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
