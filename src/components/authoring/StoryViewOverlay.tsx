@@ -529,11 +529,13 @@ export function StoryViewOverlay({ open, onClose }: { open: boolean; onClose: ()
               {edges.map((e, i) => {
                 const { d } = edgePath(e, offsetByEdge.get(i) ?? 0);
                 if (!d) return null;
+                const isBranch = e.kind === 'branch';
                 return (
                   <path
                     key={`edge-${i}`}
                     d={d} fill="none"
                     stroke="hsl(220 10% 35%)" strokeWidth={1.5}
+                    strokeDasharray={isBranch ? '6 4' : undefined}
                     markerEnd="url(#flowArrow)"
                   />
                 );
