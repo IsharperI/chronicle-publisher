@@ -529,11 +529,13 @@ export function StoryViewOverlay({ open, onClose }: { open: boolean; onClose: ()
               {edges.map((e, i) => {
                 const { d } = edgePath(e, offsetByEdge.get(i) ?? 0);
                 if (!d) return null;
+                const isBranch = e.kind === 'branch';
                 return (
                   <path
                     key={`edge-${i}`}
                     d={d} fill="none"
                     stroke="hsl(220 10% 35%)" strokeWidth={1.5}
+                    strokeDasharray={isBranch ? '6 4' : undefined}
                     markerEnd="url(#flowArrow)"
                   />
                 );
@@ -564,6 +566,20 @@ export function StoryViewOverlay({ open, onClose }: { open: boolean; onClose: ()
                       fontSize={10} fill="hsl(var(--muted-foreground))"
                     >{text}</text>
                   </g>
+                );
+              })}
+
+              {/* Re-render the "?" glyph for quiz circles on top so it's never covered */}
+              {nodes.filter((n) => n.shape === 'circle').map((n) => {
+                const cx = n.x + n.w / 2;
+                const cy = n.y + n.h / 2;
+                return (
+                  <text
+                    key={`q-${n.slide.id}`}
+                    x={cx} y={cy} textAnchor="middle" dominantBaseline="central"
+                    fontSize={28} fontWeight={700} fill="hsl(270 70% 40%)"
+                    pointerEvents="none"
+                  >?</text>
                 );
               })}
             </svg>
