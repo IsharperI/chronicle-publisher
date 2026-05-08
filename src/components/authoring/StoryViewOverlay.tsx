@@ -568,6 +568,20 @@ export function StoryViewOverlay({ open, onClose }: { open: boolean; onClose: ()
                   </g>
                 );
               })}
+
+              {/* Re-render the "?" glyph for quiz circles on top so it's never covered */}
+              {nodes.filter((n) => n.shape === 'circle').map((n) => {
+                const cx = n.x + n.w / 2;
+                const cy = n.y + n.h / 2;
+                return (
+                  <text
+                    key={`q-${n.slide.id}`}
+                    x={cx} y={cy} textAnchor="middle" dominantBaseline="central"
+                    fontSize={28} fontWeight={700} fill="hsl(270 70% 40%)"
+                    pointerEvents="none"
+                  >?</text>
+                );
+              })}
             </svg>
           </div>
         )}
