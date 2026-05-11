@@ -1416,6 +1416,7 @@ function QuizEditor({ slide, index, allSlides }: { slide: Slide; index: number; 
       <AttemptsEditor quiz={quiz} update={update} />
       <QuizRevisitEditor quiz={quiz} update={update} />
       <SkipEditor quiz={quiz} update={update} otherSlides={otherSlides} />
+      <TimerEditor quiz={quiz} update={update} />
     </div>
   );
 }
