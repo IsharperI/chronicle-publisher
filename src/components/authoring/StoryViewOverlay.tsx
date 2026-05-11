@@ -184,13 +184,8 @@ export function StoryViewOverlay({ open, onClose }: { open: boolean; onClose: ()
     for (let m = 0; m < mainOrder.length - 1; m++) {
       const fromIdx = mainOrder[m];
       const toIdx = mainOrder[m + 1];
-      const fromHasJumps = jumpsBySlide[fromIdx].length > 0;
-      if (fromHasJumps) {
-        // Only draw sequential when one of its jumps is exactly toIdx — otherwise
-        // the diamond branches replace sequential flow.
-        const explicit = jumpsBySlide[fromIdx].some((j) => j.toIndex === toIdx);
-        if (!explicit) continue;
-      }
+      // Always draw a sequential arrow between consecutive main-flow slides.
+      // Visual distinction (solid vs dashed branches) keeps the diagram readable.
       edges.push({ fromIndex: fromIdx, toIndex: toIdx, kind: 'sequential', exit: 'bottom' });
     }
 
@@ -307,7 +302,15 @@ export function StoryViewOverlay({ open, onClose }: { open: boolean; onClose: ()
     const a = anchorOnNode(from, e.exit);
     // Choose target entry side based on geometry relative to exit direction.
     let toSide: 'top' | 'bottom' | 'left' | 'right';
-    if (e.exit === 'bottom') toSide = to.y >= from.y + from.h ? 'top' : (to.x > from.x ? 'left' : 'right');
+    if (e.exit === 'bottom') {
+      if (to.y + to.h < from.y) {
+        // Back-arrow to a slide above: enter from the side based on horizontal position.
+        const centerX = from.x + from.w / 2;
+        toSide = to.x + to.w / 2 < centerX ? 'right' : 'left';
+      } else {
+        toSide = to.y >= from.y + from.h ? 'top' : (to.x > from.x ? 'left' : 'right');
+      }
+    }
     else if (e.exit === 'top') toSide = to.y + to.h <= from.y ? 'bottom' : (to.x > from.x ? 'left' : 'right');
     else if (e.exit === 'right') toSide = to.x >= from.x + from.w ? 'left' : (to.y > from.y ? 'top' : 'bottom');
     else toSide = to.x + to.w <= from.x ? 'right' : (to.y > from.y ? 'top' : 'bottom');
