@@ -949,6 +949,7 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
   function render(){
     stopMotionTracks();
     stopTriggerLoop();
+    stopQuizTimer();
     stage.innerHTML="";
     if(current<0||current>=slides.length)return;
     var slide=slides[current];
