@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState, useEffect, WheelEvent, MouseEvent } from 'react';
 import { useCourse } from '@/context/CourseContext';
 import { Button } from '@/components/ui/button';
-import { X, ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
+import { X, Maximize2 } from 'lucide-react';
 import type { Slide, SlideElement } from '@/types/course';
 
 type NodeShape = 'rect' | 'diamond' | 'circle' | 'results';
