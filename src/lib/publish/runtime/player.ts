@@ -494,6 +494,7 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
   var perQuestionTimerSeconds={};
   var quizTimerInterval=null;
   function stopQuizTimer(){if(quizTimerInterval){clearInterval(quizTimerInterval);quizTimerInterval=null}}
+  var lastQuizSlideId=null;
   function fmtMSS(s){s=Math.max(0,Math.floor(s));var m=Math.floor(s/60);var r=s%60;return m+":"+(r<10?"0"+r:r)}
 
   function checkCorrect(slide){
