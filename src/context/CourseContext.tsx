@@ -76,6 +76,8 @@ const initialState: CourseState = {
   quizAnswers: {},
   quizFeedbackOpen: null,
   quizAttemptsRemaining: {},
+  courseQuizTimerRemaining: null,
+  perQuestionTimerRemaining: {},
   motionPathEditor: null,
   variables: [],
   variableValues: {},
@@ -128,6 +130,8 @@ type Action =
   | { type: 'INIT_QUIZ_ATTEMPTS'; slideId: string; attempts: number }
   | { type: 'CONSUME_QUIZ_ATTEMPT'; slideId: string }
   | { type: 'RESET_QUIZ_SLIDE_PROGRESS'; slideId: string }
+  | { type: 'SET_COURSE_QUIZ_TIMER'; seconds: number | null }
+  | { type: 'SET_PER_QUESTION_TIMER'; slideId: string; seconds: number }
   | { type: 'MOVE_SLIDE'; from: number; to: number }
   | { type: 'OPEN_MOTION_PATH_EDITOR'; elementId: string }
   | { type: 'CLOSE_MOTION_PATH_EDITOR' }
@@ -513,7 +517,11 @@ function courseReducer(state: CourseState, action: Action): CourseState {
     case 'CLOSE_QUIZ_FEEDBACK':
       return { ...state, quizFeedbackOpen: null };
     case 'RESET_QUIZ_PROGRESS':
-      return { ...state, quizAnswers: {}, quizResults: {}, quizFeedbackOpen: null, quizAttemptsRemaining: {} };
+      return { ...state, quizAnswers: {}, quizResults: {}, quizFeedbackOpen: null, quizAttemptsRemaining: {}, courseQuizTimerRemaining: null, perQuestionTimerRemaining: {} };
+    case 'SET_COURSE_QUIZ_TIMER':
+      return { ...state, courseQuizTimerRemaining: action.seconds };
+    case 'SET_PER_QUESTION_TIMER':
+      return { ...state, perQuestionTimerRemaining: { ...state.perQuestionTimerRemaining, [action.slideId]: action.seconds } };
     case 'INIT_QUIZ_ATTEMPTS':
       // Only set if not already initialized for this slide.
       if (state.quizAttemptsRemaining[action.slideId] != null) return state;

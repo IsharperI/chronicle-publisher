@@ -1416,6 +1416,7 @@ function QuizEditor({ slide, index, allSlides }: { slide: Slide; index: number; 
       <AttemptsEditor quiz={quiz} update={update} />
       <QuizRevisitEditor quiz={quiz} update={update} />
       <SkipEditor quiz={quiz} update={update} otherSlides={otherSlides} />
+      <TimerEditor quiz={quiz} update={update} />
     </div>
   );
 }
@@ -1451,6 +1452,61 @@ function SkipEditor({ quiz, update, otherSlides }: { quiz: QuizConfig; update: (
             Skipped questions are not scored.
           </p>
         </div>
+      )}
+    </div>
+  );
+}
+
+function TimerEditor({ quiz, update }: { quiz: QuizConfig; update: (u: Partial<QuizConfig>) => void }) {
+  const timer = quiz.timer ?? { enabled: false, mode: 'per-question' as const, minutes: 1, seconds: 0, showToLearner: true };
+  const enabled = !!timer.enabled;
+  const setTimer = (patch: Partial<NonNullable<QuizConfig['timer']>>) => {
+    update({ timer: { ...timer, ...patch } });
+  };
+  return (
+    <div className="pt-2 border-t space-y-2">
+      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Timer</p>
+      <div className="flex items-center justify-between">
+        <Label className="text-xs cursor-pointer" htmlFor="quiz-timer-enabled">Enable timer</Label>
+        <Switch id="quiz-timer-enabled" checked={enabled} onCheckedChange={(v) => setTimer({ enabled: v })} />
+      </div>
+      {enabled && (
+        <>
+          <div className="space-y-1">
+            <Label className="text-xs">Timer mode</Label>
+            <Select value={timer.mode} onValueChange={(v) => setTimer({ mode: v as 'per-question' | 'course' })}>
+              <SelectTrigger className="h-8 text-xs bg-white text-slate-800"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="per-question">Per-question</SelectItem>
+                <SelectItem value="course">Course timer</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-[10px] text-muted-foreground">
+              {timer.mode === 'per-question'
+                ? 'Countdown applies to this slide only and resets each visit.'
+                : 'Single shared countdown across all course-timer quiz slides.'}
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1">
+              <Label className="text-xs">Minutes</Label>
+              <Input type="number" min={0} max={120} value={timer.minutes}
+                onChange={(e) => { const n = Number(e.target.value); if (Number.isNaN(n)) return; setTimer({ minutes: Math.max(0, Math.min(120, Math.round(n))) }); }}
+                className="h-8 text-xs" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Seconds</Label>
+              <Input type="number" min={0} max={59} value={timer.seconds}
+                onChange={(e) => { const n = Number(e.target.value); if (Number.isNaN(n)) return; setTimer({ seconds: Math.max(0, Math.min(59, Math.round(n))) }); }}
+                className="h-8 text-xs" />
+            </div>
+          </div>
+          <div className="flex items-center justify-between">
+            <Label className="text-xs cursor-pointer" htmlFor="quiz-timer-show">Show timer to learner</Label>
+            <Switch id="quiz-timer-show" checked={timer.showToLearner !== false} onCheckedChange={(v) => setTimer({ showToLearner: v })} />
+          </div>
+          <p className="text-[10px] text-muted-foreground">When time runs out, the question locks and is marked incorrect.</p>
+        </>
       )}
     </div>
   );

@@ -296,6 +296,25 @@ export interface QuizConfig {
   allowSkip?: boolean;
   /** Target slide id to navigate to when learner clicks Skip. */
   skipTargetSlideId?: string;
+  /** Optional countdown timer for this quiz slide. */
+  timer?: QuizTimerConfig;
+}
+
+/** Countdown timer applied to a quiz slide. */
+export interface QuizTimerConfig {
+  /** Master toggle. When false, timer does not apply. */
+  enabled: boolean;
+  /**
+   * 'per-question': countdown applies to this slide only and starts on entry.
+   * 'course': single shared countdown across all course-timer quiz slides.
+   */
+  mode: 'per-question' | 'course';
+  /** Author-configured minutes (0+). */
+  minutes: number;
+  /** Author-configured seconds (0–59). */
+  seconds: number;
+  /** When true, countdown is rendered to the learner; otherwise silent. */
+  showToLearner: boolean;
 }
 
 /**
@@ -478,6 +497,10 @@ export interface CourseState {
   quizFeedbackOpen: { slideId: string; correct: boolean } | null;
   /** Runtime (preview/player): attempts remaining per quiz slide. */
   quizAttemptsRemaining: Record<string, number>;
+  /** Runtime: shared course-timer remaining seconds (null = uninitialized). */
+  courseQuizTimerRemaining: number | null;
+  /** Runtime: per-slide remaining seconds for per-question quiz timers. */
+  perQuestionTimerRemaining: Record<string, number>;
   /** Editor-only: when set, canvas enters motion-path drawing mode for the given element. */
   motionPathEditor: { elementId: string } | null;
 }

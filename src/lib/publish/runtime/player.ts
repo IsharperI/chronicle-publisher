@@ -490,6 +490,12 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
   function clearTransitionTimer(){if(transitionTimer){clearTimeout(transitionTimer);transitionTimer=null}}
 
   var quizState={};
+  var courseQuizTimerSeconds=null;
+  var perQuestionTimerSeconds={};
+  var quizTimerInterval=null;
+  function stopQuizTimer(){if(quizTimerInterval){clearInterval(quizTimerInterval);quizTimerInterval=null}}
+  var lastQuizSlideId=null;
+  function fmtMSS(s){s=Math.max(0,Math.floor(s));var m=Math.floor(s/60);var r=s%60;return m+":"+(r<10?"0"+r:r)}
 
   function checkCorrect(slide){
     var q=slide.quiz||{};var st=quizState[slide.id];if(!st)return false;
@@ -536,11 +542,61 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
     var page=document.createElement("div");
     page.style.cssText="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:32px;font-family:"+fontFam+";color:"+textColor+";background:"+pageBg+";overflow:auto";
     var card=document.createElement("div");
-    card.style.cssText="background:"+cardBg+";border-radius:"+cardR+"px;padding:32px;max-width:80%;width:720px;box-shadow:0 10px 30px rgba(0,0,0,0.1)";
+    card.style.cssText="background:"+cardBg+";border-radius:"+cardR+"px;padding:32px;max-width:80%;width:720px;box-shadow:0 10px 30px rgba(0,0,0,0.1);position:relative";
     var heading=document.createElement("div");
     heading.style.cssText="font-size:"+qFs+"px;font-weight:600;margin-bottom:24px;line-height:1.3";
     heading.textContent=q.question||"Question";
     card.appendChild(heading);
+
+    // ===== Timer setup =====
+    var tcfg=q.timer||null;
+    var tEnabled=!!(tcfg&&tcfg.enabled);
+    var tTotal=tEnabled?Math.max(0,((tcfg.minutes||0)*60)+(tcfg.seconds||0)):0;
+    var tMode=tcfg?(tcfg.mode||"per-question"):"per-question";
+    var tShow=tEnabled&&(tcfg.showToLearner!==false);
+    var timerEl=null;
+    if(tEnabled&&tTotal>0){
+      // Initialize remaining seconds only on a new slide entry; preserve across re-renders.
+      var newEntry=(lastQuizSlideId!==slide.id);
+      if(tMode==="per-question"){
+        if(newEntry||perQuestionTimerSeconds[slide.id]==null)perQuestionTimerSeconds[slide.id]=tTotal;
+      } else {
+        if(courseQuizTimerSeconds==null)courseQuizTimerSeconds=tTotal;
+      }
+      if(tShow){
+        timerEl=document.createElement("div");
+        timerEl.style.cssText="position:absolute;top:16px;right:16px;font-family:ui-monospace,Menlo,monospace;font-weight:700;font-size:18px;padding:6px 12px;border-radius:8px;background:rgba(15,23,42,0.06);color:"+textColor;
+        card.appendChild(timerEl);
+      }
+      function getRem(){return tMode==="per-question"?(perQuestionTimerSeconds[slide.id]|0):(courseQuizTimerSeconds|0)}
+      function paintTimer(){
+        if(!timerEl)return;
+        var r=getRem();
+        timerEl.textContent=fmtMSS(r);
+        if(r<=10){timerEl.style.background="#fee2e2";timerEl.style.color="#b91c1c";timerEl.style.border="1px solid #fca5a5"}
+        else{timerEl.style.background="rgba(15,23,42,0.06)";timerEl.style.color=textColor;timerEl.style.border="1px solid transparent"}
+      }
+      paintTimer();
+      if(!st.submitted){
+        stopQuizTimer();
+        quizTimerInterval=setInterval(function(){
+          if(st.submitted){stopQuizTimer();return}
+          var r=getRem()-1;if(r<0)r=0;
+          if(tMode==="per-question")perQuestionTimerSeconds[slide.id]=r;
+          else courseQuizTimerSeconds=r;
+          paintTimer();
+          if(r<=0){
+            stopQuizTimer();
+            st.correct=false;st.submitted=true;
+            st.attemptsLeft=0;
+            if(PUB.completion&&PUB.completion.mode==="quiz"){
+              if(!PUB.completion.quizSlideId||PUB.completion.quizSlideId===slide.id){reportCompletion()}
+            }
+            render();
+          }
+        },1000);
+      }
+    }
 
     var st=quizState[slide.id]||(quizState[slide.id]={submitted:false,correct:false,answer:null,attemptsLeft:(q.attempts||1)});
     var qType=q.questionType||"multiple-choice";
@@ -657,6 +713,7 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
     card.appendChild(btnRow);
     page.appendChild(card);
     stage.appendChild(page);
+    lastQuizSlideId=slide.id;
   }
 
   function renderResultsSlide(slide){
@@ -944,6 +1001,7 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
   function render(){
     stopMotionTracks();
     stopTriggerLoop();
+    stopQuizTimer();
     stage.innerHTML="";
     if(current<0||current>=slides.length)return;
     var slide=slides[current];

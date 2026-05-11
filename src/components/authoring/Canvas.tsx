@@ -962,6 +962,13 @@ const cornerStyle: React.CSSProperties = {
 // Quiz Slide Overlay
 // ============================================================================
 
+function formatMSS(totalSeconds: number): string {
+  const s = Math.max(0, Math.floor(totalSeconds));
+  const m = Math.floor(s / 60);
+  const r = s % 60;
+  return `${m}:${r.toString().padStart(2, '0')}`;
+}
+
 function gradeQuiz(quiz: QuizConfig, answer: unknown): boolean {
   if (quiz.questionType === 'multiple-choice') {
     const selected = new Set(Array.isArray(answer) ? (answer as string[]) : []);
@@ -1029,6 +1036,61 @@ function QuizSlideOverlay({ slide, isPreview }: { slide: Slide; isPreview: boole
   const isLocked = !!result?.submitted;
   const interactive = isPreview && !isLocked;
   const revealCorrect = isLocked && !result?.correct && exhaustedBehavior === 'reveal';
+
+  // ===== Quiz timer =====
+  const timerCfg = quiz.timer;
+  const timerEnabled = !!timerCfg?.enabled;
+  const timerMode = timerCfg?.mode ?? 'per-question';
+  const timerTotalSeconds = timerEnabled ? Math.max(0, (timerCfg!.minutes || 0) * 60 + (timerCfg!.seconds || 0)) : 0;
+  const showTimer = timerEnabled && timerCfg!.showToLearner !== false;
+
+  const courseTimerSeconds = state.courseQuizTimerRemaining;
+  const perQuestionSeconds = state.perQuestionTimerRemaining?.[slide.id];
+
+  // Initialize timer on slide entry.
+  const timerInitRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!isPreview || !timerEnabled || timerTotalSeconds <= 0) return;
+    if (timerMode === 'per-question') {
+      if (timerInitRef.current !== slide.id) {
+        dispatch({ type: 'SET_PER_QUESTION_TIMER', slideId: slide.id, seconds: timerTotalSeconds });
+        timerInitRef.current = slide.id;
+      }
+    } else {
+      if (state.courseQuizTimerRemaining == null) {
+        dispatch({ type: 'SET_COURSE_QUIZ_TIMER', seconds: timerTotalSeconds });
+      }
+      timerInitRef.current = slide.id;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isPreview, slide.id, timerEnabled, timerMode, timerTotalSeconds]);
+
+  // Tick once per second while unlocked.
+  useEffect(() => {
+    if (!isPreview || !timerEnabled || timerTotalSeconds <= 0 || isLocked) return;
+    const id = window.setInterval(() => {
+      if (timerMode === 'per-question') {
+        const cur = (state.perQuestionTimerRemaining?.[slide.id] ?? timerTotalSeconds) - 1;
+        const next = Math.max(0, cur);
+        dispatch({ type: 'SET_PER_QUESTION_TIMER', slideId: slide.id, seconds: next });
+        if (next <= 0) dispatch({ type: 'SUBMIT_QUIZ', slideId: slide.id, correct: false });
+      } else {
+        const cur = (state.courseQuizTimerRemaining ?? timerTotalSeconds) - 1;
+        const next = Math.max(0, cur);
+        dispatch({ type: 'SET_COURSE_QUIZ_TIMER', seconds: next });
+        if (next <= 0) dispatch({ type: 'SUBMIT_QUIZ', slideId: slide.id, correct: false });
+      }
+    }, 1000);
+    return () => window.clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isPreview, timerEnabled, timerMode, timerTotalSeconds, isLocked, slide.id, state.perQuestionTimerRemaining?.[slide.id], state.courseQuizTimerRemaining]);
+
+  const displayedSeconds = !timerEnabled
+    ? null
+    : timerMode === 'course'
+      ? (courseTimerSeconds ?? timerTotalSeconds)
+      : (perQuestionSeconds ?? timerTotalSeconds);
+
 
   // Whether to suppress the inline retry banner — set when the learner clicks
   // "Try Again" to dismiss the previous incorrect feedback. Cleared when the
@@ -1127,9 +1189,30 @@ function QuizSlideOverlay({ slide, isPreview }: { slide: Slide; isPreview: boole
           maxWidth: 760,
           maxHeight: '100%',
           overflow: 'auto',
+          position: 'relative',
         }}
       >
-        <h2 style={{ fontSize: ts.questionFontSize, fontWeight: 700, marginBottom: 20, lineHeight: 1.2 }}>
+        {showTimer && displayedSeconds != null && (
+          <div
+            style={{
+              position: 'absolute',
+              top: 16,
+              right: 16,
+              fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+              fontWeight: 700,
+              fontSize: 18,
+              padding: '6px 12px',
+              borderRadius: 8,
+              background: displayedSeconds <= 10 ? '#fee2e2' : 'rgba(15,23,42,0.06)',
+              color: displayedSeconds <= 10 ? '#b91c1c' : ts.textColor,
+              border: displayedSeconds <= 10 ? '1px solid #fca5a5' : '1px solid transparent',
+            }}
+            aria-label="Time remaining"
+          >
+            {formatMSS(displayedSeconds)}
+          </div>
+        )}
+        <h2 style={{ fontSize: ts.questionFontSize, fontWeight: 700, marginBottom: 20, lineHeight: 1.2, paddingRight: showTimer ? 80 : 0 }}>
           {quiz.question || 'Untitled question'}
         </h2>
 
