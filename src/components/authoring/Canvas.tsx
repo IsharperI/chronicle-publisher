@@ -1182,9 +1182,30 @@ function QuizSlideOverlay({ slide, isPreview }: { slide: Slide; isPreview: boole
           maxWidth: 760,
           maxHeight: '100%',
           overflow: 'auto',
+          position: 'relative',
         }}
       >
-        <h2 style={{ fontSize: ts.questionFontSize, fontWeight: 700, marginBottom: 20, lineHeight: 1.2 }}>
+        {showTimer && displayedSeconds != null && (
+          <div
+            style={{
+              position: 'absolute',
+              top: 16,
+              right: 16,
+              fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+              fontWeight: 700,
+              fontSize: 18,
+              padding: '6px 12px',
+              borderRadius: 8,
+              background: displayedSeconds <= 10 ? '#fee2e2' : 'rgba(15,23,42,0.06)',
+              color: displayedSeconds <= 10 ? '#b91c1c' : ts.textColor,
+              border: displayedSeconds <= 10 ? '1px solid #fca5a5' : '1px solid transparent',
+            }}
+            aria-label="Time remaining"
+          >
+            {formatMSS(displayedSeconds)}
+          </div>
+        )}
+        <h2 style={{ fontSize: ts.questionFontSize, fontWeight: 700, marginBottom: 20, lineHeight: 1.2, paddingRight: showTimer ? 80 : 0 }}>
           {quiz.question || 'Untitled question'}
         </h2>
 
