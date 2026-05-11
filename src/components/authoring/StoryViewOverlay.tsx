@@ -184,13 +184,8 @@ export function StoryViewOverlay({ open, onClose }: { open: boolean; onClose: ()
     for (let m = 0; m < mainOrder.length - 1; m++) {
       const fromIdx = mainOrder[m];
       const toIdx = mainOrder[m + 1];
-      const fromHasJumps = jumpsBySlide[fromIdx].length > 0;
-      if (fromHasJumps) {
-        // Only draw sequential when one of its jumps is exactly toIdx — otherwise
-        // the diamond branches replace sequential flow.
-        const explicit = jumpsBySlide[fromIdx].some((j) => j.toIndex === toIdx);
-        if (!explicit) continue;
-      }
+      // Always draw a sequential arrow between consecutive main-flow slides.
+      // Visual distinction (solid vs dashed branches) keeps the diagram readable.
       edges.push({ fromIndex: fromIdx, toIndex: toIdx, kind: 'sequential', exit: 'bottom' });
     }
 
