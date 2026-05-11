@@ -476,20 +476,6 @@ export function StoryViewOverlay({ open, onClose }: { open: boolean; onClose: ()
           · {state.slides.length} slides · read-only
         </span>
         <div className="flex-1" />
-        <div className="flex items-center gap-1 mr-4">
-          <Button variant="ghost" size="icon" onClick={() => zoomBy(0.9)} aria-label="Zoom out">
-            <ZoomOut className="h-4 w-4" />
-          </Button>
-          <span className="text-xs tabular-nums w-12 text-center text-muted-foreground">
-            {Math.round(zoom * 100)}%
-          </span>
-          <Button variant="ghost" size="icon" onClick={() => zoomBy(1.1)} aria-label="Zoom in">
-            <ZoomIn className="h-4 w-4" />
-          </Button>
-          <Button variant="ghost" size="icon" onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }} aria-label="Reset view">
-            <Maximize2 className="h-4 w-4" />
-          </Button>
-        </div>
         <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close course tree">
           <X className="h-5 w-5" />
         </Button>
@@ -623,6 +609,9 @@ export function StoryViewOverlay({ open, onClose }: { open: boolean; onClose: ()
           </Button>
           <Button variant="ghost" size="sm" className="h-8 px-2 text-xs" onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }}>
             Reset
+          </Button>
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }} aria-label="Reset view">
+            <Maximize2 className="h-4 w-4" />
           </Button>
         </div>
       </div>
