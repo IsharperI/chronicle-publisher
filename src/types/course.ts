@@ -497,6 +497,10 @@ export interface CourseState {
   quizFeedbackOpen: { slideId: string; correct: boolean } | null;
   /** Runtime (preview/player): attempts remaining per quiz slide. */
   quizAttemptsRemaining: Record<string, number>;
+  /** Runtime: shared course-timer remaining seconds (null = uninitialized). */
+  courseQuizTimerRemaining: number | null;
+  /** Runtime: per-slide remaining seconds for per-question quiz timers. */
+  perQuestionTimerRemaining: Record<string, number>;
   /** Editor-only: when set, canvas enters motion-path drawing mode for the given element. */
   motionPathEditor: { elementId: string } | null;
 }
