@@ -517,7 +517,11 @@ function courseReducer(state: CourseState, action: Action): CourseState {
     case 'CLOSE_QUIZ_FEEDBACK':
       return { ...state, quizFeedbackOpen: null };
     case 'RESET_QUIZ_PROGRESS':
-      return { ...state, quizAnswers: {}, quizResults: {}, quizFeedbackOpen: null, quizAttemptsRemaining: {} };
+      return { ...state, quizAnswers: {}, quizResults: {}, quizFeedbackOpen: null, quizAttemptsRemaining: {}, courseQuizTimerRemaining: null, perQuestionTimerRemaining: {} };
+    case 'SET_COURSE_QUIZ_TIMER':
+      return { ...state, courseQuizTimerRemaining: action.seconds };
+    case 'SET_PER_QUESTION_TIMER':
+      return { ...state, perQuestionTimerRemaining: { ...state.perQuestionTimerRemaining, [action.slideId]: action.seconds } };
     case 'INIT_QUIZ_ATTEMPTS':
       // Only set if not already initialized for this slide.
       if (state.quizAttemptsRemaining[action.slideId] != null) return state;
