@@ -76,6 +76,8 @@ const initialState: CourseState = {
   quizAnswers: {},
   quizFeedbackOpen: null,
   quizAttemptsRemaining: {},
+  courseQuizTimerRemaining: null,
+  perQuestionTimerRemaining: {},
   motionPathEditor: null,
   variables: [],
   variableValues: {},
