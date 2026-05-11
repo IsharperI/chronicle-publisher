@@ -556,9 +556,13 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
     var tShow=tEnabled&&(tcfg.showToLearner!==false);
     var timerEl=null;
     if(tEnabled&&tTotal>0){
-      // Initialize remaining seconds for this slide entry.
-      if(tMode==="per-question"){perQuestionTimerSeconds[slide.id]=tTotal}
-      else{if(courseQuizTimerSeconds==null)courseQuizTimerSeconds=tTotal}
+      // Initialize remaining seconds only on a new slide entry; preserve across re-renders.
+      var newEntry=(lastQuizSlideId!==slide.id);
+      if(tMode==="per-question"){
+        if(newEntry||perQuestionTimerSeconds[slide.id]==null)perQuestionTimerSeconds[slide.id]=tTotal;
+      } else {
+        if(courseQuizTimerSeconds==null)courseQuizTimerSeconds=tTotal;
+      }
       if(tShow){
         timerEl=document.createElement("div");
         timerEl.style.cssText="position:absolute;top:16px;right:16px;font-family:ui-monospace,Menlo,monospace;font-weight:700;font-size:18px;padding:6px 12px;border-radius:8px;background:rgba(15,23,42,0.06);color:"+textColor;
