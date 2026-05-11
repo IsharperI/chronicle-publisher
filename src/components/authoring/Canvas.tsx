@@ -962,6 +962,13 @@ const cornerStyle: React.CSSProperties = {
 // Quiz Slide Overlay
 // ============================================================================
 
+function formatMSS(totalSeconds: number): string {
+  const s = Math.max(0, Math.floor(totalSeconds));
+  const m = Math.floor(s / 60);
+  const r = s % 60;
+  return `${m}:${r.toString().padStart(2, '0')}`;
+}
+
 function gradeQuiz(quiz: QuizConfig, answer: unknown): boolean {
   if (quiz.questionType === 'multiple-choice') {
     const selected = new Set(Array.isArray(answer) ? (answer as string[]) : []);
