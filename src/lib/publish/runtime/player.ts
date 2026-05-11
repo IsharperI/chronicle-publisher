@@ -713,6 +713,7 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
     card.appendChild(btnRow);
     page.appendChild(card);
     stage.appendChild(page);
+    lastQuizSlideId=slide.id;
   }
 
   function renderResultsSlide(slide){
