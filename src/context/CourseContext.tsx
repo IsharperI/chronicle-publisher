@@ -130,6 +130,8 @@ type Action =
   | { type: 'INIT_QUIZ_ATTEMPTS'; slideId: string; attempts: number }
   | { type: 'CONSUME_QUIZ_ATTEMPT'; slideId: string }
   | { type: 'RESET_QUIZ_SLIDE_PROGRESS'; slideId: string }
+  | { type: 'SET_COURSE_QUIZ_TIMER'; seconds: number | null }
+  | { type: 'SET_PER_QUESTION_TIMER'; slideId: string; seconds: number }
   | { type: 'MOVE_SLIDE'; from: number; to: number }
   | { type: 'OPEN_MOTION_PATH_EDITOR'; elementId: string }
   | { type: 'CLOSE_MOTION_PATH_EDITOR' }
