@@ -7,6 +7,13 @@ import type { PlayerSettings } from '@/types/course';
 
 type SidebarTab = 'menu' | 'notes';
 
+function formatMSS(total: number): string {
+  const t = Math.max(0, Math.floor(total));
+  const m = Math.floor(t / 60);
+  const s = t % 60;
+  return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
 interface PlayerShellProps {
   /** Optional override of playerSettings (e.g. for live preview in settings modal). Defaults to global state. */
   playerSettings?: PlayerSettings;
@@ -96,6 +103,86 @@ export function PlayerShell({ playerSettings, interactive = true }: PlayerShellP
     });
   }, [slide?.id]);
   const currentTab = tabsAvailable.includes(activeTab) ? activeTab : (tabsAvailable[0] ?? 'menu');
+
+  // ===== Quiz timer countdown logic =====
+  const courseTimerCfg = ps.courseTimer;
+  const courseTimerEnabled = !!courseTimerCfg?.enabled;
+  const courseTimerTotal = courseTimerEnabled
+    ? Math.max(0, (courseTimerCfg!.minutes || 0) * 60 + (courseTimerCfg!.seconds || 0))
+    : 0;
+  const isQuizSlide = !!slide?.quiz;
+  const slideQuizTimerCfg = slide?.quiz?.timer;
+  const perQEnabled = !courseTimerEnabled && !!slideQuizTimerCfg?.enabled;
+  const perQTotal = perQEnabled
+    ? Math.max(0, (slideQuizTimerCfg!.minutes || 0) * 60 + (slideQuizTimerCfg!.seconds || 0))
+    : 0;
+  const slideId = slide?.id;
+  const isQuizLocked = !!slideId && !!state.quizResults?.[slideId]?.submitted;
+  const courseRemaining = state.courseQuizTimerRemaining;
+
+  // Init course timer on first visit to a quiz slide.
+  useEffect(() => {
+    if (!interactive) return;
+    if (!courseTimerEnabled) return;
+    if (!isQuizSlide) return;
+    if (courseRemaining == null && courseTimerTotal > 0) {
+      dispatch({ type: 'SET_COURSE_QUIZ_TIMER', seconds: courseTimerTotal });
+    }
+  }, [interactive, courseTimerEnabled, isQuizSlide, courseTimerTotal, courseRemaining, dispatch]);
+
+  // If course timer already expired, mark current quiz as incorrect on entry.
+  useEffect(() => {
+    if (!interactive) return;
+    if (!courseTimerEnabled) return;
+    if (!isQuizSlide || !slideId || isQuizLocked) return;
+    if (courseRemaining === 0) {
+      dispatch({ type: 'SUBMIT_QUIZ', slideId, correct: false });
+    }
+  }, [interactive, courseTimerEnabled, isQuizSlide, slideId, isQuizLocked, courseRemaining, dispatch]);
+
+  // Init per-question timer for the current slide.
+  useEffect(() => {
+    if (!interactive) return;
+    if (!perQEnabled || !slideId || perQTotal <= 0) return;
+    if (state.perQuestionTimerRemaining?.[slideId] == null) {
+      dispatch({ type: 'SET_PER_QUESTION_TIMER', slideId, seconds: perQTotal });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [interactive, perQEnabled, perQTotal, slideId]);
+
+  // Single ticker — drives both per-question and course timers as appropriate.
+  useEffect(() => {
+    if (!interactive || !slideId) return;
+    const tickPerQ = perQEnabled && !isQuizLocked && perQTotal > 0;
+    const tickCourse = courseTimerEnabled && isQuizSlide && !isQuizLocked && courseTimerTotal > 0;
+    if (!tickPerQ && !tickCourse) return;
+    const id = window.setInterval(() => {
+      if (tickCourse) {
+        const cur = state.courseQuizTimerRemaining;
+        if (cur != null && cur > 0) {
+          const next = Math.max(0, cur - 1);
+          dispatch({ type: 'SET_COURSE_QUIZ_TIMER', seconds: next });
+          if (next <= 0) dispatch({ type: 'SUBMIT_QUIZ', slideId, correct: false });
+        }
+      }
+      if (tickPerQ) {
+        const cur = state.perQuestionTimerRemaining?.[slideId] ?? perQTotal;
+        const next = Math.max(0, cur - 1);
+        dispatch({ type: 'SET_PER_QUESTION_TIMER', slideId, seconds: next });
+        if (next <= 0) dispatch({ type: 'SUBMIT_QUIZ', slideId, correct: false });
+      }
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [interactive, slideId, perQEnabled, perQTotal, courseTimerEnabled, courseTimerTotal, isQuizSlide, isQuizLocked, state.courseQuizTimerRemaining, state.perQuestionTimerRemaining, dispatch]);
+
+  const showCourseTimer =
+    courseTimerEnabled &&
+    isQuizSlide &&
+    courseTimerCfg!.showToLearner !== false &&
+    courseRemaining != null;
+  const courseTimerDisplay = showCourseTimer ? formatMSS(courseRemaining!) : null;
+  const courseTimerCritical = showCourseTimer && (courseRemaining as number) <= 10;
+
 
   const bgStyle: React.CSSProperties = { backgroundColor: ps.backgroundColor };
   if (ps.backgroundImage) {
@@ -221,6 +308,21 @@ export function PlayerShell({ playerSettings, interactive = true }: PlayerShellP
           />
         </div>
         {ps.sidebarPosition === 'right' && sidebar}
+        {courseTimerDisplay && (
+          <div
+            className="absolute top-3 right-3 z-50 px-3 py-1.5 rounded-md text-sm tabular-nums shadow"
+            style={{
+              background: courseTimerCritical ? '#fee2e2' : 'rgba(15,23,42,0.7)',
+              color: courseTimerCritical ? '#b91c1c' : '#fff',
+              fontWeight: courseTimerCritical ? 700 : 500,
+              border: courseTimerCritical ? '1px solid #fca5a5' : '1px solid rgba(255,255,255,0.1)',
+              fontFamily: ps.fontFamily,
+            }}
+            aria-live="polite"
+          >
+            ⏱ {courseTimerDisplay}
+          </div>
+        )}
         <QuizFeedbackOverlay onContinue={() => navigateToIndex(state.activeSlideIndex + 1)} />
       </div>
 

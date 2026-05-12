@@ -189,6 +189,51 @@ export function PlayerSettingsModal({ open, onOpenChange }: { open: boolean; onO
                   : 'Learner can navigate freely.'}
               </p>
             </div>
+
+            <div className="space-y-2 pt-3 border-t">
+              <Label className="text-xs font-semibold uppercase tracking-wider">Course Quiz Timer</Label>
+              <div className="flex items-center justify-between">
+                <Label className="text-xs cursor-pointer" htmlFor="course-timer-enabled">Enable course timer</Label>
+                <Switch
+                  id="course-timer-enabled"
+                  checked={!!ps.courseTimer?.enabled}
+                  onCheckedChange={(v) => update({ courseTimer: { ...(ps.courseTimer ?? { minutes: 10, seconds: 0, showToLearner: true }), enabled: v } })}
+                />
+              </div>
+              {ps.courseTimer?.enabled && (
+                <>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Minutes</Label>
+                      <Input
+                        type="number" min={0} max={240}
+                        value={ps.courseTimer?.minutes ?? 0}
+                        onChange={(e) => { const n = Number(e.target.value); if (Number.isNaN(n)) return; update({ courseTimer: { ...(ps.courseTimer!), minutes: Math.max(0, Math.min(240, Math.round(n))) } }); }}
+                        className="h-8 text-xs"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Seconds</Label>
+                      <Input
+                        type="number" min={0} max={59}
+                        value={ps.courseTimer?.seconds ?? 0}
+                        onChange={(e) => { const n = Number(e.target.value); if (Number.isNaN(n)) return; update({ courseTimer: { ...(ps.courseTimer!), seconds: Math.max(0, Math.min(59, Math.round(n))) } }); }}
+                        className="h-8 text-xs"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs cursor-pointer" htmlFor="course-timer-show">Show timer to learner</Label>
+                    <Switch
+                      id="course-timer-show"
+                      checked={ps.courseTimer?.showToLearner !== false}
+                      onCheckedChange={(v) => update({ courseTimer: { ...(ps.courseTimer!), showToLearner: v } })}
+                    />
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">Single countdown across all quiz slides. Pauses on non-quiz slides. Disables per-question timers.</p>
+                </>
+              )}
+            </div>
           </div>
         </div>
       </DialogContent>
