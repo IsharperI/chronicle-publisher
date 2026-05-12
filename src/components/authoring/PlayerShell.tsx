@@ -120,15 +120,14 @@ export function PlayerShell({ playerSettings, interactive = true }: PlayerShellP
   const isQuizLocked = !!slideId && !!state.quizResults?.[slideId]?.submitted;
   const courseRemaining = state.courseQuizTimerRemaining;
 
-  // Init course timer on first visit to a quiz slide.
+  // Init course timer on first slide visit (any slide type).
   useEffect(() => {
     if (!interactive) return;
     if (!courseTimerEnabled) return;
-    if (!isQuizSlide) return;
     if (courseRemaining == null && courseTimerTotal > 0) {
       dispatch({ type: 'SET_COURSE_QUIZ_TIMER', seconds: courseTimerTotal });
     }
-  }, [interactive, courseTimerEnabled, isQuizSlide, courseTimerTotal, courseRemaining, dispatch]);
+  }, [interactive, courseTimerEnabled, courseTimerTotal, courseRemaining, dispatch]);
 
   // If course timer already expired, mark current quiz as incorrect on entry.
   useEffect(() => {
@@ -154,7 +153,7 @@ export function PlayerShell({ playerSettings, interactive = true }: PlayerShellP
   useEffect(() => {
     if (!interactive || !slideId) return;
     const tickPerQ = perQEnabled && !isQuizLocked && perQTotal > 0;
-    const tickCourse = courseTimerEnabled && isQuizSlide && !isQuizLocked && courseTimerTotal > 0;
+    const tickCourse = courseTimerEnabled && courseTimerTotal > 0 && (state.courseQuizTimerRemaining ?? 0) > 0;
     if (!tickPerQ && !tickCourse) return;
     const id = window.setInterval(() => {
       if (tickCourse) {
@@ -162,7 +161,9 @@ export function PlayerShell({ playerSettings, interactive = true }: PlayerShellP
         if (cur != null && cur > 0) {
           const next = Math.max(0, cur - 1);
           dispatch({ type: 'SET_COURSE_QUIZ_TIMER', seconds: next });
-          if (next <= 0) dispatch({ type: 'SUBMIT_QUIZ', slideId, correct: false });
+          if (next <= 0 && isQuizSlide && !isQuizLocked) {
+            dispatch({ type: 'SUBMIT_QUIZ', slideId, correct: false });
+          }
         }
       }
       if (tickPerQ) {
@@ -177,7 +178,6 @@ export function PlayerShell({ playerSettings, interactive = true }: PlayerShellP
 
   const showCourseTimer =
     courseTimerEnabled &&
-    isQuizSlide &&
     courseTimerCfg!.showToLearner !== false &&
     courseRemaining != null;
   const courseTimerDisplay = showCourseTimer ? formatMSS(courseRemaining!) : null;
