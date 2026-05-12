@@ -308,6 +308,21 @@ export function PlayerShell({ playerSettings, interactive = true }: PlayerShellP
           />
         </div>
         {ps.sidebarPosition === 'right' && sidebar}
+        {courseTimerDisplay && (
+          <div
+            className="absolute top-3 right-3 z-50 px-3 py-1.5 rounded-md text-sm tabular-nums shadow"
+            style={{
+              background: courseTimerCritical ? '#fee2e2' : 'rgba(15,23,42,0.7)',
+              color: courseTimerCritical ? '#b91c1c' : '#fff',
+              fontWeight: courseTimerCritical ? 700 : 500,
+              border: courseTimerCritical ? '1px solid #fca5a5' : '1px solid rgba(255,255,255,0.1)',
+              fontFamily: ps.fontFamily,
+            }}
+            aria-live="polite"
+          >
+            ⏱ {courseTimerDisplay}
+          </div>
+        )}
         <QuizFeedbackOverlay onContinue={() => navigateToIndex(state.activeSlideIndex + 1)} />
       </div>
 
