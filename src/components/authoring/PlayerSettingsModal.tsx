@@ -189,8 +189,6 @@ export function PlayerSettingsModal({ open, onOpenChange }: { open: boolean; onO
                   : 'Learner can navigate freely.'}
               </p>
             </div>
-          </div>
-            </div>
 
             <div className="space-y-2 pt-3 border-t">
               <Label className="text-xs font-semibold uppercase tracking-wider">Course Quiz Timer</Label>
@@ -199,7 +197,7 @@ export function PlayerSettingsModal({ open, onOpenChange }: { open: boolean; onO
                 <Switch
                   id="course-timer-enabled"
                   checked={!!ps.courseTimer?.enabled}
-                  onCheckedChange={(v) => update({ courseTimer: { ...(ps.courseTimer ?? { minutes: 10, seconds: 0, showToLearner: true }), enabled: v } as any })}
+                  onCheckedChange={(v) => update({ courseTimer: { ...(ps.courseTimer ?? { minutes: 10, seconds: 0, showToLearner: true }), enabled: v } })}
                 />
               </div>
               {ps.courseTimer?.enabled && (
@@ -236,7 +234,12 @@ export function PlayerSettingsModal({ open, onOpenChange }: { open: boolean; onO
                 </>
               )}
             </div>
+          </div>
+        </div>
       </DialogContent>
+    </Dialog>
+  );
+}
     </Dialog>
   );
 }
