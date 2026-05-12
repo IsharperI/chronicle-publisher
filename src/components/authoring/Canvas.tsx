@@ -1047,43 +1047,9 @@ function QuizSlideOverlay({ slide, isPreview }: { slide: Slide; isPreview: boole
   const courseTimerSeconds = state.courseQuizTimerRemaining;
   const perQuestionSeconds = state.perQuestionTimerRemaining?.[slide.id];
 
-  // Initialize timer on slide entry.
-  const timerInitRef = useRef<string | null>(null);
-  useEffect(() => {
-    if (!isPreview || !timerEnabled || timerTotalSeconds <= 0) return;
-    if (timerMode === 'per-question') {
-      if (timerInitRef.current !== slide.id) {
-        dispatch({ type: 'SET_PER_QUESTION_TIMER', slideId: slide.id, seconds: timerTotalSeconds });
-        timerInitRef.current = slide.id;
-      }
-    } else {
-      if (state.courseQuizTimerRemaining == null) {
-        dispatch({ type: 'SET_COURSE_QUIZ_TIMER', seconds: timerTotalSeconds });
-      }
-      timerInitRef.current = slide.id;
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isPreview, slide.id, timerEnabled, timerMode, timerTotalSeconds]);
+  // Timer countdown logic is owned by PlayerShell. Canvas only displays the
+  // remaining seconds from state.
 
-  // Tick once per second while unlocked.
-  useEffect(() => {
-    if (!isPreview || !timerEnabled || timerTotalSeconds <= 0 || isLocked) return;
-    const id = window.setInterval(() => {
-      if (timerMode === 'per-question') {
-        const cur = (state.perQuestionTimerRemaining?.[slide.id] ?? timerTotalSeconds) - 1;
-        const next = Math.max(0, cur);
-        dispatch({ type: 'SET_PER_QUESTION_TIMER', slideId: slide.id, seconds: next });
-        if (next <= 0) dispatch({ type: 'SUBMIT_QUIZ', slideId: slide.id, correct: false });
-      } else {
-        const cur = (state.courseQuizTimerRemaining ?? timerTotalSeconds) - 1;
-        const next = Math.max(0, cur);
-        dispatch({ type: 'SET_COURSE_QUIZ_TIMER', seconds: next });
-        if (next <= 0) dispatch({ type: 'SUBMIT_QUIZ', slideId: slide.id, correct: false });
-      }
-    }, 1000);
-    return () => window.clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isPreview, timerEnabled, timerMode, timerTotalSeconds, isLocked, slide.id, state.perQuestionTimerRemaining?.[slide.id], state.courseQuizTimerRemaining]);
 
   const displayedSeconds = !timerEnabled
     ? null
