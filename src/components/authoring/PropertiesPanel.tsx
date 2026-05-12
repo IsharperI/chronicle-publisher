@@ -1458,35 +1458,25 @@ function SkipEditor({ quiz, update, otherSlides }: { quiz: QuizConfig; update: (
 }
 
 function TimerEditor({ quiz, update }: { quiz: QuizConfig; update: (u: Partial<QuizConfig>) => void }) {
+  const { state } = useCourse();
+  const courseTimerActive = !!state.playerSettings.courseTimer?.enabled;
   const timer = quiz.timer ?? { enabled: false, mode: 'per-question' as const, minutes: 1, seconds: 0, showToLearner: true };
   const enabled = !!timer.enabled;
   const setTimer = (patch: Partial<NonNullable<QuizConfig['timer']>>) => {
-    update({ timer: { ...timer, ...patch } });
+    update({ timer: { ...timer, mode: 'per-question', ...patch } });
   };
   return (
-    <div className="pt-2 border-t space-y-2">
-      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Timer</p>
+    <div className={`pt-2 border-t space-y-2 ${courseTimerActive ? 'opacity-60 pointer-events-none' : ''}`}>
+      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Timer (Per-question)</p>
+      {courseTimerActive && (
+        <p className="text-[10px] text-muted-foreground italic">Disabled — course timer is active in Player Settings</p>
+      )}
       <div className="flex items-center justify-between">
         <Label className="text-xs cursor-pointer" htmlFor="quiz-timer-enabled">Enable timer</Label>
-        <Switch id="quiz-timer-enabled" checked={enabled} onCheckedChange={(v) => setTimer({ enabled: v })} />
+        <Switch id="quiz-timer-enabled" checked={enabled && !courseTimerActive} disabled={courseTimerActive} onCheckedChange={(v) => setTimer({ enabled: v })} />
       </div>
-      {enabled && (
+      {enabled && !courseTimerActive && (
         <>
-          <div className="space-y-1">
-            <Label className="text-xs">Timer mode</Label>
-            <Select value={timer.mode} onValueChange={(v) => setTimer({ mode: v as 'per-question' | 'course' })}>
-              <SelectTrigger className="h-8 text-xs bg-white text-slate-800"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="per-question">Per-question</SelectItem>
-                <SelectItem value="course">Course timer</SelectItem>
-              </SelectContent>
-            </Select>
-            <p className="text-[10px] text-muted-foreground">
-              {timer.mode === 'per-question'
-                ? 'Countdown applies to this slide only and resets each visit.'
-                : 'Single shared countdown across all course-timer quiz slides.'}
-            </p>
-          </div>
           <div className="grid grid-cols-2 gap-2">
             <div className="space-y-1">
               <Label className="text-xs">Minutes</Label>
