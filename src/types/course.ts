@@ -420,6 +420,16 @@ export interface PlayerSettings {
   sidebarPosition: SidebarPosition;
   playerTabs: PlayerTabs;
   playerControls: PlayerControls;
+  /** Optional course-wide quiz timer applied across all quiz slides. */
+  courseTimer?: CourseTimerConfig;
+}
+
+/** Course-wide quiz timer configuration set in Player Settings. */
+export interface CourseTimerConfig {
+  enabled: boolean;
+  minutes: number;
+  seconds: number;
+  showToLearner: boolean;
 }
 
 export const defaultPlayerSettings: PlayerSettings = {
@@ -435,6 +445,7 @@ export const defaultPlayerSettings: PlayerSettings = {
   sidebarPosition: 'left',
   playerTabs: { showMenu: true, showNotes: true },
   playerControls: { showPlayPause: true, showCaptions: true },
+  courseTimer: { enabled: false, minutes: 10, seconds: 0, showToLearner: true },
 };
 
 export interface CanvasDimensions {
