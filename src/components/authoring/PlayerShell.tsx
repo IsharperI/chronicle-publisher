@@ -7,6 +7,13 @@ import type { PlayerSettings } from '@/types/course';
 
 type SidebarTab = 'menu' | 'notes';
 
+function formatMSS(total: number): string {
+  const t = Math.max(0, Math.floor(total));
+  const m = Math.floor(t / 60);
+  const s = t % 60;
+  return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
 interface PlayerShellProps {
   /** Optional override of playerSettings (e.g. for live preview in settings modal). Defaults to global state. */
   playerSettings?: PlayerSettings;
