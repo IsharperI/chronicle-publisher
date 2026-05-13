@@ -558,25 +558,29 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
     fireTimelineTriggers(startTime, startTime, false, false);
 
     const tick = (now: number) => {
-      const dt = now - last;
-      last = now;
-      const prev = previewAccumRef.current;
-      previewAccumRef.current += dt;
-      const next = Math.min(slideDur, previewAccumRef.current);
-      dispatch({ type: 'SET_PLAYHEAD', time: next });
-      const reachedEnd = next >= slideDur;
-      fireTimelineTriggers(prev, next, false, reachedEnd);
-      if (reachedEnd) {
-        cancelAnimationFrame(raf);
-        // Persist final position before any auto-advance.
-        savedPlayheadsRef.current.set(activeSlide.id, next);
-        if (advance === 'auto' && !isLastSlide) {
-          if (onPreviewNextRef.current) onPreviewNextRef.current();
-          else dispatch({ type: 'PREVIEW_NEXT' });
-        } else {
-          dispatch({ type: 'SET_PLAYING', playing: false });
+      if (isPlayingRef.current) {
+        const dt = now - last;
+        last = now;
+        const prev = previewAccumRef.current;
+        previewAccumRef.current += dt;
+        const next = Math.min(slideDur, previewAccumRef.current);
+        dispatch({ type: 'SET_PLAYHEAD', time: next });
+        const reachedEnd = next >= slideDur;
+        fireTimelineTriggers(prev, next, false, reachedEnd);
+        if (reachedEnd) {
+          cancelAnimationFrame(raf);
+          // Persist final position before any auto-advance.
+          savedPlayheadsRef.current.set(activeSlide.id, next);
+          if (advance === 'auto' && !isLastSlide) {
+            if (onPreviewNextRef.current) onPreviewNextRef.current();
+            else dispatch({ type: 'PREVIEW_NEXT' });
+          } else {
+            dispatch({ type: 'SET_PLAYING', playing: false });
+          }
+          return;
         }
-        return;
+      } else {
+        last = now;
       }
       raf = requestAnimationFrame(tick);
     };
