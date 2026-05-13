@@ -1014,6 +1014,8 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
         else if (t.action === 'restartCourse') actionPhrase = 'Restart Course';
         else if (t.action === 'exitCourse') actionPhrase = 'Exit Course';
         else if (t.action === 'completeCourse') actionPhrase = 'Complete Course';
+        else if (t.action === 'pauseTimeline') actionPhrase = 'Pause Timeline';
+        else if (t.action === 'resumeTimeline') actionPhrase = 'Resume Timeline';
         else if (t.action === 'jumpToTime') actionPhrase = `Jump to ${typeof t.time === 'number' ? t.time : 0}s`;
         else if (t.action === 'emphasizeElement') actionPhrase = `Emphasize Element '${elementLabel(t.targetId)}' (${t.emphasis || 'pulse'})`;
         else if (t.action === 'openUrl') actionPhrase = `Open URL ${(t.url || '').slice(0, 40)}`;
