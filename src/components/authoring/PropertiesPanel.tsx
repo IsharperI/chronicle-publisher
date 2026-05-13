@@ -886,7 +886,7 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
     if (isAdjustVariable) {
       if (!newVarId || !newVarOp) return;
       if (opNeedsValue(newVarOp) && newVarValue === '' && selectedVar?.type !== 'text') return;
-    } else if (isCourseAction || isJumpToTime || isOpenUrl) {
+    } else if (isCourseAction || isJumpToTime || isOpenUrl || isTimelineAction) {
       // No element/slide/media target needed.
     } else if (isEmphasize) {
       if (!newTarget) return;
