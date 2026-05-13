@@ -41,6 +41,7 @@ export type ViewMode = 'main' | 'master';
 export interface Trigger {
   /** 'onClick' | 'onHover' | 'timelineStart' | 'timelineEnd' | 'atTime' | 'mediaStart' | 'mediaEnd' | 'mediaPause' */
   event: string;
+  /** 'jumpToSlide' | 'showElement' | 'hideElement' | 'playMedia' | 'pauseMedia' | 'stopMedia' | 'restartCourse' | 'exitCourse' | 'completeCourse' | 'jumpToTime' | 'emphasizeElement' | 'openUrl' | 'adjustVariable' | 'pauseTimeline' | 'resumeTimeline' */
   action: string;
   targetId: string;
   /** For 'atTime' events: time in seconds from slide start when the trigger fires. */
