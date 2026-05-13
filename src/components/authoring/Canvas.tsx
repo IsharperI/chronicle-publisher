@@ -303,10 +303,12 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const audioRefs = useRef<Map<string, HTMLAudioElement>>(new Map());
   const previewAccumRef = useRef(0);
+  const isPlayingRef = useRef(state.isPlaying);
   const ccEnabled = state.ccEnabled;
   // Stabilize onPreviewNext via ref so it doesn't re-trigger the preview play effect on every render.
   const onPreviewNextRef = useRef(onPreviewNext);
   useEffect(() => { onPreviewNextRef.current = onPreviewNext; }, [onPreviewNext]);
+  useEffect(() => { isPlayingRef.current = state.isPlaying; }, [state.isPlaying]);
 
   const isPreview = state.previewMode;
 
@@ -444,6 +446,10 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
         else if (op === 'append') next = cur + v;
       }
       dispatch({ type: 'SET_VARIABLE_VALUE', id: varId, value: next });
+    } else if (t.action === 'pauseTimeline') {
+      dispatch({ type: 'SET_PLAYING', playing: false });
+    } else if (t.action === 'resumeTimeline') {
+      dispatch({ type: 'SET_PLAYING', playing: true });
     }
   }, [state.slides, state.activeSlideIndex, state.variables, state.variableValues, dispatch]);
 
@@ -556,25 +562,29 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
     fireTimelineTriggers(startTime, startTime, false, false);
 
     const tick = (now: number) => {
-      const dt = now - last;
-      last = now;
-      const prev = previewAccumRef.current;
-      previewAccumRef.current += dt;
-      const next = Math.min(slideDur, previewAccumRef.current);
-      dispatch({ type: 'SET_PLAYHEAD', time: next });
-      const reachedEnd = next >= slideDur;
-      fireTimelineTriggers(prev, next, false, reachedEnd);
-      if (reachedEnd) {
-        cancelAnimationFrame(raf);
-        // Persist final position before any auto-advance.
-        savedPlayheadsRef.current.set(activeSlide.id, next);
-        if (advance === 'auto' && !isLastSlide) {
-          if (onPreviewNextRef.current) onPreviewNextRef.current();
-          else dispatch({ type: 'PREVIEW_NEXT' });
-        } else {
-          dispatch({ type: 'SET_PLAYING', playing: false });
+      if (isPlayingRef.current) {
+        const dt = now - last;
+        last = now;
+        const prev = previewAccumRef.current;
+        previewAccumRef.current += dt;
+        const next = Math.min(slideDur, previewAccumRef.current);
+        dispatch({ type: 'SET_PLAYHEAD', time: next });
+        const reachedEnd = next >= slideDur;
+        fireTimelineTriggers(prev, next, false, reachedEnd);
+        if (reachedEnd) {
+          cancelAnimationFrame(raf);
+          // Persist final position before any auto-advance.
+          savedPlayheadsRef.current.set(activeSlide.id, next);
+          if (advance === 'auto' && !isLastSlide) {
+            if (onPreviewNextRef.current) onPreviewNextRef.current();
+            else dispatch({ type: 'PREVIEW_NEXT' });
+          } else {
+            dispatch({ type: 'SET_PLAYING', playing: false });
+          }
+          return;
         }
-        return;
+      } else {
+        last = now;
       }
       raf = requestAnimationFrame(tick);
     };

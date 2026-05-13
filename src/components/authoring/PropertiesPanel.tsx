@@ -805,6 +805,7 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
   const isElementAction = newAction === 'showElement' || newAction === 'hideElement';
   const isMediaAction = newAction === 'playMedia' || newAction === 'pauseMedia' || newAction === 'stopMedia';
   const isCourseAction = newAction === 'restartCourse' || newAction === 'exitCourse' || newAction === 'completeCourse';
+  const isTimelineAction = newAction === 'pauseTimeline' || newAction === 'resumeTimeline';
   const isJumpToTime = newAction === 'jumpToTime';
   const isEmphasize = newAction === 'emphasizeElement';
   const isOpenUrl = newAction === 'openUrl';
@@ -885,7 +886,7 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
     if (isAdjustVariable) {
       if (!newVarId || !newVarOp) return;
       if (opNeedsValue(newVarOp) && newVarValue === '' && selectedVar?.type !== 'text') return;
-    } else if (isCourseAction || isJumpToTime || isOpenUrl) {
+    } else if (isCourseAction || isJumpToTime || isOpenUrl || isTimelineAction) {
       // No element/slide/media target needed.
     } else if (isEmphasize) {
       if (!newTarget) return;
@@ -898,7 +899,7 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
       const trimmed = newUrl.trim();
       if (!trimmed) return;
     }
-    const targetId = (isCourseAction || isJumpToTime || isOpenUrl || isAdjustVariable) ? '' : newTarget;
+    const targetId = (isCourseAction || isJumpToTime || isOpenUrl || isAdjustVariable || isTimelineAction) ? '' : newTarget;
     const t: Trigger = { event: newEvent, action: newAction, targetId };
     if (newEvent === 'atTime') {
       const parsed = parseFloat(newTime);
@@ -1013,6 +1014,8 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
         else if (t.action === 'restartCourse') actionPhrase = 'Restart Course';
         else if (t.action === 'exitCourse') actionPhrase = 'Exit Course';
         else if (t.action === 'completeCourse') actionPhrase = 'Complete Course';
+        else if (t.action === 'pauseTimeline') actionPhrase = 'Pause Timeline';
+        else if (t.action === 'resumeTimeline') actionPhrase = 'Resume Timeline';
         else if (t.action === 'jumpToTime') actionPhrase = `Jump to ${typeof t.time === 'number' ? t.time : 0}s`;
         else if (t.action === 'emphasizeElement') actionPhrase = `Emphasize Element '${elementLabel(t.targetId)}' (${t.emphasis || 'pulse'})`;
         else if (t.action === 'openUrl') actionPhrase = `Open URL ${(t.url || '').slice(0, 40)}`;
@@ -1204,6 +1207,8 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
             <SelectItem value="completeCourse">Complete Course</SelectItem>
             <SelectItem value="jumpToTime">Jump to Time</SelectItem>
             <SelectItem value="emphasizeElement">Emphasize Element</SelectItem>
+            <SelectItem value="pauseTimeline">Pause Timeline</SelectItem>
+            <SelectItem value="resumeTimeline">Resume Timeline</SelectItem>
             <SelectItem value="openUrl">Open URL</SelectItem>
             <SelectItem value="adjustVariable">Adjust Variable</SelectItem>
           </SelectContent>
