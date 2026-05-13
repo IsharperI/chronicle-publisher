@@ -303,6 +303,7 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const audioRefs = useRef<Map<string, HTMLAudioElement>>(new Map());
   const previewAccumRef = useRef(0);
+  const isPlayingRef = useRef(state.isPlaying);
   const ccEnabled = state.ccEnabled;
   // Stabilize onPreviewNext via ref so it doesn't re-trigger the preview play effect on every render.
   const onPreviewNextRef = useRef(onPreviewNext);
