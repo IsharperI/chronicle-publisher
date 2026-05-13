@@ -446,6 +446,10 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
         else if (op === 'append') next = cur + v;
       }
       dispatch({ type: 'SET_VARIABLE_VALUE', id: varId, value: next });
+    } else if (t.action === 'pauseTimeline') {
+      dispatch({ type: 'SET_PLAYING', playing: false });
+    } else if (t.action === 'resumeTimeline') {
+      dispatch({ type: 'SET_PLAYING', playing: true });
     }
   }, [state.slides, state.activeSlideIndex, state.variables, state.variableValues, dispatch]);
 
