@@ -1207,6 +1207,8 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
             <SelectItem value="completeCourse">Complete Course</SelectItem>
             <SelectItem value="jumpToTime">Jump to Time</SelectItem>
             <SelectItem value="emphasizeElement">Emphasize Element</SelectItem>
+            <SelectItem value="pauseTimeline">Pause Timeline</SelectItem>
+            <SelectItem value="resumeTimeline">Resume Timeline</SelectItem>
             <SelectItem value="openUrl">Open URL</SelectItem>
             <SelectItem value="adjustVariable">Adjust Variable</SelectItem>
           </SelectContent>
