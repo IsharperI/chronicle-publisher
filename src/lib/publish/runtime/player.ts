@@ -924,6 +924,10 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
       if(t.url){try{window.open(t.url,"_blank","noopener,noreferrer")}catch(e){}}
     } else if(t.action==="adjustVariable"){
       adjustVariable(t);
+    } else if(t.action==="pauseTimeline"){
+      setPlaying(false);
+    } else if(t.action==="resumeTimeline"){
+      setPlaying(true);
     }
   }
   var triggerRaf=null;
