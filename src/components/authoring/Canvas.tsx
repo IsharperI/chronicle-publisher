@@ -308,6 +308,7 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
   // Stabilize onPreviewNext via ref so it doesn't re-trigger the preview play effect on every render.
   const onPreviewNextRef = useRef(onPreviewNext);
   useEffect(() => { onPreviewNextRef.current = onPreviewNext; }, [onPreviewNext]);
+  useEffect(() => { isPlayingRef.current = state.isPlaying; }, [state.isPlaying]);
 
   const isPreview = state.previewMode;
 
