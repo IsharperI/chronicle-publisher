@@ -899,7 +899,7 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
       const trimmed = newUrl.trim();
       if (!trimmed) return;
     }
-    const targetId = (isCourseAction || isJumpToTime || isOpenUrl || isAdjustVariable) ? '' : newTarget;
+    const targetId = (isCourseAction || isJumpToTime || isOpenUrl || isAdjustVariable || isTimelineAction) ? '' : newTarget;
     const t: Trigger = { event: newEvent, action: newAction, targetId };
     if (newEvent === 'atTime') {
       const parsed = parseFloat(newTime);
