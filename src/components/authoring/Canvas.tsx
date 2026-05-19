@@ -952,6 +952,60 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
         {activeSlide?.slideType === 'results' && activeSlide.results && (
           <ResultsSlideOverlay slide={activeSlide} isPreview={isPreview} />
         )}
+
+        {/* Lightbox slide overlay */}
+        {lightboxSlideId && (() => {
+          const lbSlide = state.slides.find((s) => s.id === lightboxSlideId);
+          if (!lbSlide) return null;
+          const closeLightbox = () => {
+            setLightboxSlideId(null);
+            dispatch({ type: 'SET_PLAYING', playing: true });
+          };
+          const panelW = CANVAS_W * 0.8;
+          const panelH = CANVAS_H * 0.8;
+          return (
+            <div
+              style={{
+                position: 'absolute', inset: 0, zIndex: 50,
+                background: 'rgba(0,0,0,0.6)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}
+              onClick={(e) => { if (e.target === e.currentTarget) closeLightbox(); }}
+            >
+              <div
+                style={{
+                  position: 'relative', width: panelW, height: panelH,
+                  background: '#ffffff', borderRadius: 8, overflow: 'hidden',
+                  boxShadow: '0 12px 48px rgba(0,0,0,0.5)',
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <button
+                  type="button"
+                  onClick={closeLightbox}
+                  style={{
+                    position: 'absolute', top: 8, right: 8, zIndex: 2,
+                    width: 32, height: 32, borderRadius: 16, border: 'none',
+                    background: 'rgba(0,0,0,0.6)', color: '#fff',
+                    fontSize: 20, lineHeight: 1, cursor: 'pointer',
+                  }}
+                  aria-label="Close lightbox"
+                >×</button>
+                <div style={{ position: 'absolute', inset: 0, transform: 'scale(0.8)', transformOrigin: 'top left', width: CANVAS_W, height: CANVAS_H }}>
+                  {(lbSlide.elements ?? []).map((el) => (
+                    <div
+                      key={el.id}
+                      data-el-id={el.id}
+                      style={{ position: 'absolute', left: el.x, top: el.y, width: el.width, height: el.height }}
+                    >
+                      <ElementRenderer element={el} isPreview />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
       </div>
 
     </div>
