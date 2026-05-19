@@ -943,9 +943,7 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
     var sl=null;
     for(var i=0;i<slides.length;i++){if(slides[i].id===slideId){sl=slides[i];break}}
     if(!sl)return;
-    setPlaying(false);
     closeLightbox();
-    // closeLightbox flipped playing — re-pause for the lightbox.
     setPlaying(false);
     var wrapper=document.getElementById("stage-wrapper");
     if(!wrapper)return;
