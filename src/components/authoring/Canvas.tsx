@@ -310,6 +310,8 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
   const onPreviewNextRef = useRef(onPreviewNext);
   useEffect(() => { onPreviewNextRef.current = onPreviewNext; }, [onPreviewNext]);
   useEffect(() => { isPlayingRef.current = state.isPlaying; }, [state.isPlaying]);
+  useEffect(() => { setLightboxSlideId(null); }, [state.activeSlideIndex]);
+
 
   const isPreview = state.previewMode;
 
