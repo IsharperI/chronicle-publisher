@@ -451,6 +451,11 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
       dispatch({ type: 'SET_PLAYING', playing: false });
     } else if (t.action === 'resumeTimeline') {
       dispatch({ type: 'SET_PLAYING', playing: true });
+    } else if (t.action === 'lightboxSlide') {
+      const exists = state.slides.some((s) => s.id === t.targetId);
+      if (!exists) return;
+      dispatch({ type: 'SET_PLAYING', playing: false });
+      setLightboxSlideId(t.targetId);
     }
   }, [state.slides, state.activeSlideIndex, state.variables, state.variableValues, dispatch]);
 
