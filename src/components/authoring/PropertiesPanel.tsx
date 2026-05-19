@@ -1006,6 +1006,7 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
         else eventPhrase = t.event;
         let actionPhrase: string;
         if (t.action === 'jumpToSlide') actionPhrase = `Jump to ${slideLabel(t.targetId)}`;
+        else if (t.action === 'lightboxSlide') actionPhrase = `Lightbox ${slideLabel(t.targetId)}`;
         else if (t.action === 'hideElement') actionPhrase = `Hide Element '${elementLabel(t.targetId)}'`;
         else if (t.action === 'showElement') actionPhrase = `Show Element '${elementLabel(t.targetId)}'`;
         else if (t.action === 'playMedia') actionPhrase = `Play Media '${mediaLabel(t.targetId)}'`;
