@@ -928,8 +928,61 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
       setPlaying(false);
     } else if(t.action==="resumeTimeline"){
       setPlaying(true);
+    } else if(t.action==="lightboxSlide"){
+      openLightbox(t.targetId);
     }
   }
+  function closeLightbox(){
+    var ov=document.getElementById("lightbox-overlay");
+    if(!ov)return;
+    try{if(ov._fit)window.removeEventListener("resize",ov._fit)}catch(e){}
+    if(ov.parentNode)ov.parentNode.removeChild(ov);
+    setPlaying(true);
+  }
+  function openLightbox(slideId){
+    var sl=null;
+    for(var i=0;i<slides.length;i++){if(slides[i].id===slideId){sl=slides[i];break}}
+    if(!sl)return;
+    setPlaying(false);
+    closeLightbox();
+    // closeLightbox flipped playing — re-pause for the lightbox.
+    setPlaying(false);
+    var wrapper=document.getElementById("stage-wrapper");
+    if(!wrapper)return;
+    var overlay=document.createElement("div");
+    overlay.id="lightbox-overlay";
+    overlay.style.cssText="position:absolute;inset:0;background:rgba(0,0,0,0.6);z-index:60;display:flex;align-items:center;justify-content:center;";
+    overlay.addEventListener("click",function(e){if(e.target===overlay)closeLightbox()});
+    var panel=document.createElement("div");
+    panel.style.cssText="position:relative;width:80%;height:80%;background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 12px 48px rgba(0,0,0,.5);";
+    var closeBtn=document.createElement("button");
+    closeBtn.type="button";
+    closeBtn.innerHTML="&times;";
+    closeBtn.setAttribute("aria-label","Close lightbox");
+    closeBtn.style.cssText="position:absolute;top:8px;right:8px;z-index:2;width:32px;height:32px;border:none;border-radius:16px;background:rgba(0,0,0,0.6);color:#fff;font-size:20px;line-height:1;cursor:pointer;padding:0;";
+    closeBtn.onclick=function(){closeLightbox()};
+    panel.appendChild(closeBtn);
+    var inner=document.createElement("div");
+    inner.id="lightbox-stage";
+    inner.style.cssText="position:absolute;top:0;left:0;width:"+${dims.width}+"px;height:"+${dims.height}+"px;transform-origin:top left;background:#fff;";
+    var ms=getMasterElements(sl);
+    ms.forEach(function(el){inner.appendChild(renderElement(el))});
+    (sl.elements||[]).forEach(function(el){inner.appendChild(renderElement(el))});
+    panel.appendChild(inner);
+    overlay.appendChild(panel);
+    wrapper.appendChild(overlay);
+    function fit(){
+      var pw=panel.clientWidth,ph=panel.clientHeight;
+      var s=Math.min(pw/${dims.width},ph/${dims.height});
+      if(!isFinite(s)||s<=0)s=1;
+      inner.style.transform="scale("+s+")";
+      var iw=${dims.width}*s,ih=${dims.height}*s;
+      inner.style.left=((pw-iw)/2)+"px";
+      inner.style.top=((ph-ih)/2)+"px";
+    }
+    fit();
+    overlay._fit=fit;
+    window.addEventListener("resize",fit);
   var triggerRaf=null;
   var timelineTriggers=[];
   var triggerLastPh=0;
