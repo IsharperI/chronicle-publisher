@@ -983,6 +983,7 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
     fit();
     overlay._fit=fit;
     window.addEventListener("resize",fit);
+  }
   var triggerRaf=null;
   var timelineTriggers=[];
   var triggerLastPh=0;
