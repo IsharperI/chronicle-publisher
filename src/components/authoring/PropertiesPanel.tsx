@@ -801,7 +801,7 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
   const [newVarOp, setNewVarOp] = useState<string>('');
   const [newVarValue, setNewVarValue] = useState<string>('');
   const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
-  const isSlideAction = newAction === 'jumpToSlide';
+  const isSlideAction = newAction === 'jumpToSlide' || newAction === 'lightboxSlide';
   const isElementAction = newAction === 'showElement' || newAction === 'hideElement';
   const isMediaAction = newAction === 'playMedia' || newAction === 'pauseMedia' || newAction === 'stopMedia';
   const isCourseAction = newAction === 'restartCourse' || newAction === 'exitCourse' || newAction === 'completeCourse';
