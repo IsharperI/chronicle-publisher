@@ -301,6 +301,7 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0.5);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [lightboxSlideId, setLightboxSlideId] = useState<string | null>(null);
   const audioRefs = useRef<Map<string, HTMLAudioElement>>(new Map());
   const previewAccumRef = useRef(0);
   const isPlayingRef = useRef(state.isPlaying);
