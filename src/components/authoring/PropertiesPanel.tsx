@@ -801,7 +801,7 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
   const [newVarOp, setNewVarOp] = useState<string>('');
   const [newVarValue, setNewVarValue] = useState<string>('');
   const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
-  const isSlideAction = newAction === 'jumpToSlide';
+  const isSlideAction = newAction === 'jumpToSlide' || newAction === 'lightboxSlide';
   const isElementAction = newAction === 'showElement' || newAction === 'hideElement';
   const isMediaAction = newAction === 'playMedia' || newAction === 'pauseMedia' || newAction === 'stopMedia';
   const isCourseAction = newAction === 'restartCourse' || newAction === 'exitCourse' || newAction === 'completeCourse';
@@ -1006,6 +1006,7 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
         else eventPhrase = t.event;
         let actionPhrase: string;
         if (t.action === 'jumpToSlide') actionPhrase = `Jump to ${slideLabel(t.targetId)}`;
+        else if (t.action === 'lightboxSlide') actionPhrase = `Lightbox ${slideLabel(t.targetId)}`;
         else if (t.action === 'hideElement') actionPhrase = `Hide Element '${elementLabel(t.targetId)}'`;
         else if (t.action === 'showElement') actionPhrase = `Show Element '${elementLabel(t.targetId)}'`;
         else if (t.action === 'playMedia') actionPhrase = `Play Media '${mediaLabel(t.targetId)}'`;
@@ -1210,6 +1211,7 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
             <SelectItem value="pauseTimeline">Pause Timeline</SelectItem>
             <SelectItem value="resumeTimeline">Resume Timeline</SelectItem>
             <SelectItem value="openUrl">Open URL</SelectItem>
+            <SelectItem value="lightboxSlide">Lightbox Slide</SelectItem>
             <SelectItem value="adjustVariable">Adjust Variable</SelectItem>
           </SelectContent>
         </Select>
