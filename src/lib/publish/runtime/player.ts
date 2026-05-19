@@ -1061,6 +1061,8 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
     stopTriggerLoop();
     stopQuizTimer();
     stage.innerHTML="";
+    var _lbox=document.getElementById("lightbox-overlay");
+    if(_lbox&&_lbox.parentNode){try{if(_lbox._fit)window.removeEventListener("resize",_lbox._fit)}catch(e){}_lbox.parentNode.removeChild(_lbox)}
     if(current<0||current>=slides.length)return;
     var slide=slides[current];
     visited[slide.id]=true;
