@@ -519,6 +519,10 @@ export function PropertiesPanel() {
                 : 'Slide Properties'}
             </p>
 
+            <SlideLayersSection />
+
+
+
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Slide Title</Label>
               <Input
