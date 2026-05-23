@@ -361,6 +361,23 @@ export interface ResultsConfig {
   failMessage: string;
 }
 
+/**
+ * A stacking layer inside a slide. Every slide always contains at least one
+ * layer — the Base Layer — which holds the slide's original elements.
+ * Layers are stored bottom-to-top: index 0 is the lowest (Base), the last
+ * index is the topmost rendered layer.
+ */
+export interface SlideLayer {
+  id: string;
+  name: string;
+  /** Visible in editor and preview. */
+  visible: boolean;
+  /** Locked layers render but elements cannot be selected/edited. */
+  locked: boolean;
+  /** Elements belonging to this layer. */
+  elements: SlideElement[];
+}
+
 /** How the slide advances when its internal timeline reaches the end. */
 export type SlideAdvanceMode = 'manual' | 'auto';
 /** What happens when the user navigates back to a previously visited slide. */
