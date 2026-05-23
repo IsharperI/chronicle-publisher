@@ -401,16 +401,35 @@ function courseReducer(state: CourseState, action: Action): CourseState {
         exitDuration: 500,
         ...e,
       } as SlideElement);
-      const backfillSlide = (s: Slide): Slide => ({
-        ...s,
-        duration: s.duration ?? 5000,
-        elements: (s.elements ?? []).map(backfillEl),
-      });
+      const backfillSlide = (s: Slide): Slide => {
+        const elements = (s.elements ?? []).map(backfillEl);
+        // Migrate: if no layers exist, create a Base Layer containing all elements.
+        // Otherwise, backfill elements inside existing layers (keeping ids).
+        let layers: SlideLayer[];
+        if (s.layers && s.layers.length > 0) {
+          layers = s.layers.map((l) => ({
+            ...l,
+            visible: l.visible !== false,
+            locked: l.locked === true,
+            elements: (l.elements ?? []).map(backfillEl),
+          }));
+        } else {
+          layers = [createBaseLayer(elements)];
+        }
+        return rebuildElements({
+          ...s,
+          duration: s.duration ?? 5000,
+          elements,
+          layers,
+        });
+      };
       const loadedThemeColors = action.courseSettings?.themeColors;
+      const loadedSlides = action.slides.map(backfillSlide);
+      const loadedMasters = (action.masterSlides ?? []).map(backfillSlide);
       return {
         ...initialState,
-        slides: action.slides.map(backfillSlide),
-        masterSlides: (action.masterSlides ?? []).map(backfillSlide),
+        slides: loadedSlides,
+        masterSlides: loadedMasters,
         playerSettings: action.playerSettings ? { ...defaultPlayerSettings, ...action.playerSettings } : { ...defaultPlayerSettings },
         courseSettings: {
           ...defaultCourseSettings,
@@ -428,6 +447,7 @@ function courseReducer(state: CourseState, action: Action): CourseState {
         previewMode: false,
         variables: Array.isArray(action.variables) ? action.variables : [],
         variableValues: computeVariableValues(Array.isArray(action.variables) ? action.variables : []),
+        activeLayerId: slideFirstLayerId(loadedSlides[0]),
       };
     }
     case 'SET_PREVIEW_MODE':
