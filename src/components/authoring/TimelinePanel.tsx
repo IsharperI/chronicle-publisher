@@ -513,9 +513,21 @@ export function TimelinePanel() {
                   ))}
                 </div>
                 <div ref={trackAreaRef} style={{ minWidth: trackWidth }} onClick={(e) => e.stopPropagation()}>
-                  {elements.map((el) => (
-                    <TimelineTrack key={el.id} element={el} timelineWidth={trackWidth} slideDuration={slideDuration} />
-                  ))}
+                  {displayGroups.map((group) => {
+                    const collapsed = collapsedLayers.has(group.id);
+                    return (
+                      <div key={`tracks-${group.id}`}>
+                        {/* Spacer matching the label-column header row height */}
+                        <div className="h-6 border-b bg-muted/40" />
+                        {!collapsed && group.elements.map((el) => (
+                          <TimelineTrack key={el.id} element={el} timelineWidth={trackWidth} slideDuration={slideDuration} />
+                        ))}
+                        {!collapsed && group.elements.length === 0 && (
+                          <div className="h-[18px]" />
+                        )}
+                      </div>
+                    );
+                  })}
                   {(activeSlide?.audio ?? []).map((a) => {
                     const widthPx = Math.max(8, Math.min(slideDuration, a.duration * 1000) / slideDuration * trackWidth);
                     const selected = state.activeAudioId === a.id;
