@@ -701,7 +701,25 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
     if (!isPreview && e.target === e.currentTarget) dispatch({ type: 'CLEAR_SELECTION' });
   };
 
-  const editElements = activeSlide?.elements ?? [];
+  // Layer-aware element rendering. Build a flat list (bottom→top) and a
+  // per-element metadata map so the editor can decide which elements are
+  // interactive vs static.
+  const layers = activeSlide?.layers ?? [];
+  const elementLayerMeta = useMemo(() => {
+    const map = new Map<string, { layerId: string; layerLocked: boolean; layerVisible: boolean }>();
+    for (const l of layers) {
+      for (const el of l.elements) {
+        map.set(el.id, { layerId: l.id, layerLocked: l.locked, layerVisible: l.visible });
+      }
+    }
+    return map;
+  }, [layers]);
+  // Visible elements only (hidden layers' elements are dropped entirely).
+  const editElements = useMemo(() => {
+    if (layers.length === 0) return activeSlide?.elements ?? [];
+    return layers.flatMap((l) => (l.visible ? l.elements : []));
+  }, [layers, activeSlide]);
+  const activeLayerId = state.activeLayerId;
 
   // Active caption text from any audio track on the current slide whose
   // window contains the playhead (in seconds).
