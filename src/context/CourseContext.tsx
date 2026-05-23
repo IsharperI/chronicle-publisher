@@ -103,8 +103,9 @@ const createResultsSlide = (): Slide => ({
   results: defaultResultsConfig(),
 });
 
+const firstSlide = createSlide();
 const initialState: CourseState = {
-  slides: [createSlide()],
+  slides: [firstSlide],
   masterSlides: [],
   activeSlideIndex: 0,
   activeElementId: null,
@@ -132,6 +133,7 @@ const initialState: CourseState = {
   motionPathEditor: null,
   variables: [],
   variableValues: {},
+  activeLayerId: firstSlide.layers?.[0]?.id ?? null,
 };
 
 type Action =
