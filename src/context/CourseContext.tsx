@@ -492,22 +492,24 @@ function courseReducer(state: CourseState, action: Action): CourseState {
         isPlaying: false,
       };
     case 'ADD_MASTER_SLIDE': {
-      const newMasters = [...state.masterSlides, createSlide()];
-      return { ...state, masterSlides: newMasters, viewMode: 'master', activeSlideIndex: newMasters.length - 1, activeElementId: null, selectedElementIds: [] };
+      const s = createSlide();
+      const newMasters = [...state.masterSlides, s];
+      return { ...state, masterSlides: newMasters, viewMode: 'master', activeSlideIndex: newMasters.length - 1, activeElementId: null, selectedElementIds: [], activeLayerId: slideFirstLayerId(s) };
     }
     case 'DELETE_MASTER_SLIDE': {
       if (state.masterSlides.length <= 0) return state;
       const newMasters = state.masterSlides.filter((_, i) => i !== action.index);
-      // Remove masterId references from slides pointing to deleted master
       const deletedId = state.masterSlides[action.index]?.id;
       const updatedSlides = deletedId
         ? state.slides.map(s => s.masterId === deletedId ? { ...s, masterId: undefined } : s)
         : state.slides;
       const newIndex = Math.min(state.activeSlideIndex, Math.max(0, newMasters.length - 1));
-      return { ...state, masterSlides: newMasters, slides: updatedSlides, activeSlideIndex: newIndex, activeElementId: null, selectedElementIds: [] };
+      return { ...state, masterSlides: newMasters, slides: updatedSlides, activeSlideIndex: newIndex, activeElementId: null, selectedElementIds: [], activeLayerId: slideFirstLayerId(state.viewMode === 'master' ? newMasters[newIndex] : updatedSlides[newIndex]) };
     }
-    case 'SET_ACTIVE_MASTER_SLIDE':
-      return { ...state, viewMode: 'master', activeSlideIndex: action.index, activeElementId: null, selectedElementIds: [], activeAudioId: null, playheadTime: 0, isPlaying: false };
+    case 'SET_ACTIVE_MASTER_SLIDE': {
+      const target = state.masterSlides[action.index];
+      return { ...state, viewMode: 'master', activeSlideIndex: action.index, activeElementId: null, selectedElementIds: [], activeAudioId: null, playheadTime: 0, isPlaying: false, activeLayerId: slideFirstLayerId(target) };
+    }
     case 'UPDATE_PLAYER_SETTINGS':
       return { ...state, playerSettings: { ...state.playerSettings, ...action.updates } };
     case 'UPDATE_COURSE_SETTINGS':
