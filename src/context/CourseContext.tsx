@@ -349,12 +349,12 @@ function courseReducer(state: CourseState, action: Action): CourseState {
         return {};
       };
 
-      const updatedElements = slide.elements.map((el) => {
-        if (!ids.includes(el.id)) return el;
-        return { ...el, ...computeXY(el) } as SlideElement;
-      });
-      const updatedSlides = slides.map((s, i) => i === state.activeSlideIndex ? { ...s, elements: updatedElements } : s);
-      return { ...state, ...updateActiveSlides(state, updatedSlides) };
+      const updated = withUpdatedActiveSlide(state, (s) =>
+        mapElementsInSlide(s, (el) =>
+          ids.includes(el.id) ? ({ ...el, ...computeXY(el) } as SlideElement) : el
+        )
+      );
+      return { ...state, ...updated };
     }
     case 'DISTRIBUTE_ELEMENTS': {
       const ids = state.selectedElementIds;
