@@ -192,7 +192,14 @@ type Action =
   | { type: 'UPDATE_VARIABLE'; id: string; updates: Partial<CourseVariable> }
   | { type: 'DELETE_VARIABLE'; id: string }
   | { type: 'SET_VARIABLE_VALUE'; id: string; value: boolean | number | string }
-  | { type: 'RESET_VARIABLE_VALUES' };
+  | { type: 'RESET_VARIABLE_VALUES' }
+  | { type: 'ADD_LAYER'; name?: string }
+  | { type: 'DELETE_LAYER'; layerId: string }
+  | { type: 'RENAME_LAYER'; layerId: string; name: string }
+  | { type: 'TOGGLE_LAYER_VISIBILITY'; layerId: string }
+  | { type: 'TOGGLE_LAYER_LOCK'; layerId: string }
+  | { type: 'SET_ACTIVE_LAYER'; layerId: string }
+  | { type: 'REORDER_LAYERS'; layerId: string; direction: 'up' | 'down' };
 
 function getActiveSlides(state: CourseState): Slide[] {
   return state.viewMode === 'master' ? state.masterSlides : state.slides;
