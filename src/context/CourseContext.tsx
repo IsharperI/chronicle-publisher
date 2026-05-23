@@ -571,15 +571,16 @@ function courseReducer(state: CourseState, action: Action): CourseState {
       return { ...state, ...updateActiveSlides(state, slides) };
     }
     case 'ADD_QUIZ_SLIDE': {
-      // Quiz slides only exist in main timeline.
       if (state.viewMode === 'master') return state;
-      const newSlides = [...state.slides, createQuizSlide()];
-      return { ...state, slides: newSlides, activeSlideIndex: newSlides.length - 1, activeElementId: null, selectedElementIds: [] };
+      const s = createQuizSlide();
+      const newSlides = [...state.slides, s];
+      return { ...state, slides: newSlides, activeSlideIndex: newSlides.length - 1, activeElementId: null, selectedElementIds: [], activeLayerId: slideFirstLayerId(s) };
     }
     case 'ADD_RESULTS_SLIDE': {
       if (state.viewMode === 'master') return state;
-      const newSlides = [...state.slides, createResultsSlide()];
-      return { ...state, slides: newSlides, activeSlideIndex: newSlides.length - 1, activeElementId: null, selectedElementIds: [] };
+      const s = createResultsSlide();
+      const newSlides = [...state.slides, s];
+      return { ...state, slides: newSlides, activeSlideIndex: newSlides.length - 1, activeElementId: null, selectedElementIds: [], activeLayerId: slideFirstLayerId(s) };
     }
     case 'UPDATE_QUIZ': {
       const slides = state.slides.map((s, i) =>
