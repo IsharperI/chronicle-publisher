@@ -270,8 +270,23 @@ export function TimelinePanel() {
   const activeSlide = state.viewMode === 'master'
     ? state.masterSlides[state.activeSlideIndex]
     : state.slides[state.activeSlideIndex];
+  // Group elements by layer (bottom→top); fall back to flat elements if no layers.
+  const layers = activeSlide?.layers ?? [];
+  const groups = layers.length > 0
+    ? layers.map((l) => ({ id: l.id, name: l.name, elements: l.elements }))
+    : [{ id: '__flat__', name: 'Layer', elements: activeSlide?.elements ?? [] }];
+  // Render top layer first so the timeline reads top-to-bottom like the panel.
+  const displayGroups = [...groups].reverse();
   const elements = activeSlide?.elements ?? [];
   const slideDuration = activeSlide?.duration ?? 5000;
+  const [collapsedLayers, setCollapsedLayers] = useState<Set<string>>(new Set());
+  const toggleLayerCollapsed = (id: string) => {
+    setCollapsedLayers((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
 
   const measureWidth = useCallback((node: HTMLDivElement | null) => {
     if (node) {
