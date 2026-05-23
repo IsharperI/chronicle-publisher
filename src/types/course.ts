@@ -538,4 +538,6 @@ export interface CourseState {
   perQuestionTimerRemaining: Record<string, number>;
   /** Editor-only: when set, canvas enters motion-path drawing mode for the given element. */
   motionPathEditor: { elementId: string } | null;
+  /** Editor-only: id of the layer currently being edited on the active slide. */
+  activeLayerId: string | null;
 }
