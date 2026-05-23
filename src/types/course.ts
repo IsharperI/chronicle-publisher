@@ -408,6 +408,12 @@ export interface Slide {
   results?: ResultsConfig;
   /** Optional visual style overrides applied via a Quiz Template. */
   quizStyle?: QuizStyleOverrides;
+  /**
+   * Stacking layers for this slide. Bottom-to-top order. When omitted (legacy
+   * data), the slide is treated as having a single implicit Base Layer
+   * containing `elements`. The reducer migrates this on load.
+   */
+  layers?: SlideLayer[];
 }
 
 export type NavigationMode = 'free' | 'restricted';
