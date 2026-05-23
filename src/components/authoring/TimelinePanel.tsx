@@ -417,38 +417,56 @@ export function TimelinePanel() {
             <div className="flex h-full overflow-hidden">
               {/* Labels */}
               <div className="w-[180px] shrink-0 border-r overflow-y-auto">
-                {elements.map((el) => (
-                  <div
-                    key={el.id}
-                    className={cn(
-                      'w-full h-7 flex items-center gap-1 px-2 text-xs hover:bg-accent/50 transition-colors',
-                      state.activeElementId === el.id && 'bg-accent text-accent-foreground'
-                    )}
-                  >
-                    <button
-                      onClick={(e) => { e.stopPropagation(); dispatch({ type: 'UPDATE_ELEMENT', id: el.id, updates: { isHidden: !el.isHidden } }); }}
-                      className="opacity-70 hover:opacity-100 shrink-0"
-                      title={el.isHidden ? 'Show' : 'Hide'}
-                    >
-                      {el.isHidden ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
-                    </button>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); dispatch({ type: 'UPDATE_ELEMENT', id: el.id, updates: { isLocked: !el.isLocked } }); }}
-                      className="opacity-70 hover:opacity-100 shrink-0"
-                      title={el.isLocked ? 'Unlock' : 'Lock'}
-                    >
-                      {el.isLocked ? <Lock className="h-3 w-3" /> : <Unlock className="h-3 w-3" />}
-                    </button>
-                    <button
-                      onClick={() => dispatch({ type: 'SET_ACTIVE_ELEMENT', id: el.id })}
-                      className="flex items-center gap-1.5 flex-1 min-w-0 truncate text-left"
-                    >
-                      {typeIcons[el.type]}
-                      <span className="truncate">{getElementLabel(el)}</span>
-                    </button>
-                  </div>
-                ))}
-                {elements.length === 0 && (
+                {displayGroups.map((group) => {
+                  const collapsed = collapsedLayers.has(group.id);
+                  return (
+                    <div key={`labels-${group.id}`}>
+                      <button
+                        type="button"
+                        onClick={() => toggleLayerCollapsed(group.id)}
+                        className="w-full h-6 flex items-center gap-1 px-2 text-[10px] uppercase tracking-wider font-semibold text-muted-foreground bg-muted/40 border-b hover:bg-muted/60"
+                      >
+                        {collapsed ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                        <span className="truncate flex-1 text-left">{group.name}</span>
+                      </button>
+                      {!collapsed && group.elements.map((el) => (
+                        <div
+                          key={el.id}
+                          className={cn(
+                            'w-full h-7 flex items-center gap-1 px-2 text-xs hover:bg-accent/50 transition-colors',
+                            state.activeElementId === el.id && 'bg-accent text-accent-foreground'
+                          )}
+                        >
+                          <button
+                            onClick={(e) => { e.stopPropagation(); dispatch({ type: 'UPDATE_ELEMENT', id: el.id, updates: { isHidden: !el.isHidden } }); }}
+                            className="opacity-70 hover:opacity-100 shrink-0"
+                            title={el.isHidden ? 'Show' : 'Hide'}
+                          >
+                            {el.isHidden ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); dispatch({ type: 'UPDATE_ELEMENT', id: el.id, updates: { isLocked: !el.isLocked } }); }}
+                            className="opacity-70 hover:opacity-100 shrink-0"
+                            title={el.isLocked ? 'Unlock' : 'Lock'}
+                          >
+                            {el.isLocked ? <Lock className="h-3 w-3" /> : <Unlock className="h-3 w-3" />}
+                          </button>
+                          <button
+                            onClick={() => dispatch({ type: 'SET_ACTIVE_ELEMENT', id: el.id })}
+                            className="flex items-center gap-1.5 flex-1 min-w-0 truncate text-left"
+                          >
+                            {typeIcons[el.type]}
+                            <span className="truncate">{getElementLabel(el)}</span>
+                          </button>
+                        </div>
+                      ))}
+                      {!collapsed && group.elements.length === 0 && (
+                        <p className="text-[10px] text-muted-foreground text-center py-1.5">Empty layer</p>
+                      )}
+                    </div>
+                  );
+                })}
+                {elements.length === 0 && layers.length === 0 && (
                   <p className="text-xs text-muted-foreground text-center py-4">No elements</p>
                 )}
                 {(activeSlide?.audio ?? []).map((a) => (
