@@ -270,8 +270,23 @@ export function TimelinePanel() {
   const activeSlide = state.viewMode === 'master'
     ? state.masterSlides[state.activeSlideIndex]
     : state.slides[state.activeSlideIndex];
+  // Group elements by layer (bottom→top); fall back to flat elements if no layers.
+  const layers = activeSlide?.layers ?? [];
+  const groups = layers.length > 0
+    ? layers.map((l) => ({ id: l.id, name: l.name, elements: l.elements }))
+    : [{ id: '__flat__', name: 'Layer', elements: activeSlide?.elements ?? [] }];
+  // Render top layer first so the timeline reads top-to-bottom like the panel.
+  const displayGroups = [...groups].reverse();
   const elements = activeSlide?.elements ?? [];
   const slideDuration = activeSlide?.duration ?? 5000;
+  const [collapsedLayers, setCollapsedLayers] = useState<Set<string>>(new Set());
+  const toggleLayerCollapsed = (id: string) => {
+    setCollapsedLayers((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
 
   const measureWidth = useCallback((node: HTMLDivElement | null) => {
     if (node) {
@@ -402,38 +417,56 @@ export function TimelinePanel() {
             <div className="flex h-full overflow-hidden">
               {/* Labels */}
               <div className="w-[180px] shrink-0 border-r overflow-y-auto">
-                {elements.map((el) => (
-                  <div
-                    key={el.id}
-                    className={cn(
-                      'w-full h-7 flex items-center gap-1 px-2 text-xs hover:bg-accent/50 transition-colors',
-                      state.activeElementId === el.id && 'bg-accent text-accent-foreground'
-                    )}
-                  >
-                    <button
-                      onClick={(e) => { e.stopPropagation(); dispatch({ type: 'UPDATE_ELEMENT', id: el.id, updates: { isHidden: !el.isHidden } }); }}
-                      className="opacity-70 hover:opacity-100 shrink-0"
-                      title={el.isHidden ? 'Show' : 'Hide'}
-                    >
-                      {el.isHidden ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
-                    </button>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); dispatch({ type: 'UPDATE_ELEMENT', id: el.id, updates: { isLocked: !el.isLocked } }); }}
-                      className="opacity-70 hover:opacity-100 shrink-0"
-                      title={el.isLocked ? 'Unlock' : 'Lock'}
-                    >
-                      {el.isLocked ? <Lock className="h-3 w-3" /> : <Unlock className="h-3 w-3" />}
-                    </button>
-                    <button
-                      onClick={() => dispatch({ type: 'SET_ACTIVE_ELEMENT', id: el.id })}
-                      className="flex items-center gap-1.5 flex-1 min-w-0 truncate text-left"
-                    >
-                      {typeIcons[el.type]}
-                      <span className="truncate">{getElementLabel(el)}</span>
-                    </button>
-                  </div>
-                ))}
-                {elements.length === 0 && (
+                {displayGroups.map((group) => {
+                  const collapsed = collapsedLayers.has(group.id);
+                  return (
+                    <div key={`labels-${group.id}`}>
+                      <button
+                        type="button"
+                        onClick={() => toggleLayerCollapsed(group.id)}
+                        className="w-full h-6 flex items-center gap-1 px-2 text-[10px] uppercase tracking-wider font-semibold text-muted-foreground bg-muted/40 border-b hover:bg-muted/60"
+                      >
+                        {collapsed ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                        <span className="truncate flex-1 text-left">{group.name}</span>
+                      </button>
+                      {!collapsed && group.elements.map((el) => (
+                        <div
+                          key={el.id}
+                          className={cn(
+                            'w-full h-7 flex items-center gap-1 px-2 text-xs hover:bg-accent/50 transition-colors',
+                            state.activeElementId === el.id && 'bg-accent text-accent-foreground'
+                          )}
+                        >
+                          <button
+                            onClick={(e) => { e.stopPropagation(); dispatch({ type: 'UPDATE_ELEMENT', id: el.id, updates: { isHidden: !el.isHidden } }); }}
+                            className="opacity-70 hover:opacity-100 shrink-0"
+                            title={el.isHidden ? 'Show' : 'Hide'}
+                          >
+                            {el.isHidden ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); dispatch({ type: 'UPDATE_ELEMENT', id: el.id, updates: { isLocked: !el.isLocked } }); }}
+                            className="opacity-70 hover:opacity-100 shrink-0"
+                            title={el.isLocked ? 'Unlock' : 'Lock'}
+                          >
+                            {el.isLocked ? <Lock className="h-3 w-3" /> : <Unlock className="h-3 w-3" />}
+                          </button>
+                          <button
+                            onClick={() => dispatch({ type: 'SET_ACTIVE_ELEMENT', id: el.id })}
+                            className="flex items-center gap-1.5 flex-1 min-w-0 truncate text-left"
+                          >
+                            {typeIcons[el.type]}
+                            <span className="truncate">{getElementLabel(el)}</span>
+                          </button>
+                        </div>
+                      ))}
+                      {!collapsed && group.elements.length === 0 && (
+                        <p className="text-[10px] text-muted-foreground text-center py-1.5">Empty layer</p>
+                      )}
+                    </div>
+                  );
+                })}
+                {elements.length === 0 && layers.length === 0 && (
                   <p className="text-xs text-muted-foreground text-center py-4">No elements</p>
                 )}
                 {(activeSlide?.audio ?? []).map((a) => (
@@ -480,9 +513,21 @@ export function TimelinePanel() {
                   ))}
                 </div>
                 <div ref={trackAreaRef} style={{ minWidth: trackWidth }} onClick={(e) => e.stopPropagation()}>
-                  {elements.map((el) => (
-                    <TimelineTrack key={el.id} element={el} timelineWidth={trackWidth} slideDuration={slideDuration} />
-                  ))}
+                  {displayGroups.map((group) => {
+                    const collapsed = collapsedLayers.has(group.id);
+                    return (
+                      <div key={`tracks-${group.id}`}>
+                        {/* Spacer matching the label-column header row height */}
+                        <div className="h-6 border-b bg-muted/40" />
+                        {!collapsed && group.elements.map((el) => (
+                          <TimelineTrack key={el.id} element={el} timelineWidth={trackWidth} slideDuration={slideDuration} />
+                        ))}
+                        {!collapsed && group.elements.length === 0 && (
+                          <div className="h-[18px]" />
+                        )}
+                      </div>
+                    );
+                  })}
                   {(activeSlide?.audio ?? []).map((a) => {
                     const widthPx = Math.max(8, Math.min(slideDuration, a.duration * 1000) / slideDuration * trackWidth);
                     const selected = state.activeAudioId === a.id;

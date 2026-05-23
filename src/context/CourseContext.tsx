@@ -1,12 +1,63 @@
 import React, { createContext, useContext, useReducer, type Dispatch } from 'react';
-import type { CourseState, Slide, SlideElement, ViewMode, PlayerSettings, CourseSettings, SlideAudio, QuizConfig, ResultsConfig, SlideKind, CourseVariable } from '@/types/course';
+import type { CourseState, Slide, SlideElement, SlideLayer, ViewMode, PlayerSettings, CourseSettings, SlideAudio, QuizConfig, ResultsConfig, SlideKind, CourseVariable } from '@/types/course';
 import { defaultPlayerSettings, defaultCourseSettings } from '@/types/course';
 
-const createSlide = (): Slide => ({
+const createBaseLayer = (elements: SlideElement[] = []): SlideLayer => ({
   id: crypto.randomUUID(),
-  elements: [],
-  duration: 5000,
+  name: 'Base Layer',
+  visible: true,
+  locked: false,
+  elements,
 });
+
+const createSlide = (): Slide => {
+  const baseLayer = createBaseLayer([]);
+  return {
+    id: crypto.randomUUID(),
+    elements: [],
+    duration: 5000,
+    layers: [baseLayer],
+  };
+};
+
+/** Ensure the slide has a layers array; migrate slide.elements into a Base Layer if not. */
+function ensureLayers(slide: Slide): Slide {
+  if (slide.layers && slide.layers.length > 0) return slide;
+  const baseLayer = createBaseLayer(slide.elements ?? []);
+  return { ...slide, layers: [baseLayer] };
+}
+
+/** Rebuild flat slide.elements from layer stack (bottom→top). */
+function rebuildElements(slide: Slide): Slide {
+  const layers = slide.layers ?? [];
+  if (layers.length === 0) return slide;
+  return { ...slide, elements: layers.flatMap((l) => l.elements) };
+}
+
+/** Apply a mapper to every element across all layers and rebuild flat elements. */
+function mapElementsInSlide(slide: Slide, mapper: (el: SlideElement) => SlideElement): Slide {
+  const s = ensureLayers(slide);
+  const layers = (s.layers ?? []).map((l) => ({ ...l, elements: l.elements.map(mapper) }));
+  return rebuildElements({ ...s, layers });
+}
+
+/** Filter out elements across all layers matching the predicate. */
+function filterElementsInSlide(slide: Slide, keep: (el: SlideElement) => boolean): Slide {
+  const s = ensureLayers(slide);
+  const layers = (s.layers ?? []).map((l) => ({ ...l, elements: l.elements.filter(keep) }));
+  return rebuildElements({ ...s, layers });
+}
+
+/** Append an element to the given layer (or topmost if not found) and rebuild. */
+function addElementToLayer(slide: Slide, layerId: string | null, element: SlideElement): Slide {
+  const s = ensureLayers(slide);
+  const layers = s.layers ?? [];
+  const targetIdx = layerId ? layers.findIndex((l) => l.id === layerId) : -1;
+  const idx = targetIdx >= 0 ? targetIdx : layers.length - 1;
+  const next = layers.map((l, i) => (i === idx ? { ...l, elements: [...l.elements, element] } : l));
+  return rebuildElements({ ...s, layers: next });
+}
+
 
 const defaultQuizConfig = (): QuizConfig => ({
   questionType: 'multiple-choice',
@@ -52,8 +103,9 @@ const createResultsSlide = (): Slide => ({
   results: defaultResultsConfig(),
 });
 
+const firstSlide = createSlide();
 const initialState: CourseState = {
-  slides: [createSlide()],
+  slides: [firstSlide],
   masterSlides: [],
   activeSlideIndex: 0,
   activeElementId: null,
@@ -81,6 +133,7 @@ const initialState: CourseState = {
   motionPathEditor: null,
   variables: [],
   variableValues: {},
+  activeLayerId: firstSlide.layers?.[0]?.id ?? null,
 };
 
 type Action =
@@ -139,7 +192,14 @@ type Action =
   | { type: 'UPDATE_VARIABLE'; id: string; updates: Partial<CourseVariable> }
   | { type: 'DELETE_VARIABLE'; id: string }
   | { type: 'SET_VARIABLE_VALUE'; id: string; value: boolean | number | string }
-  | { type: 'RESET_VARIABLE_VALUES' };
+  | { type: 'RESET_VARIABLE_VALUES' }
+  | { type: 'ADD_LAYER'; name?: string }
+  | { type: 'DELETE_LAYER'; layerId: string }
+  | { type: 'RENAME_LAYER'; layerId: string; name: string }
+  | { type: 'TOGGLE_LAYER_VISIBILITY'; layerId: string }
+  | { type: 'TOGGLE_LAYER_LOCK'; layerId: string }
+  | { type: 'SET_ACTIVE_LAYER'; layerId: string }
+  | { type: 'REORDER_LAYERS'; layerId: string; direction: 'up' | 'down' };
 
 function getActiveSlides(state: CourseState): Slide[] {
   return state.viewMode === 'master' ? state.masterSlides : state.slides;
@@ -155,25 +215,43 @@ function computeVariableValues(vars: CourseVariable[]): Record<string, boolean |
   return out;
 }
 
+function slideFirstLayerId(slide: Slide | undefined): string | null {
+  return slide?.layers?.[0]?.id ?? null;
+}
+
+function withUpdatedActiveSlide(
+  state: CourseState,
+  updater: (slide: Slide) => Slide
+): Partial<CourseState> {
+  const slides = getActiveSlides(state);
+  const next = slides.map((s, i) => (i === state.activeSlideIndex ? updater(ensureLayers(s)) : s));
+  return updateActiveSlides(state, next);
+}
+
 function courseReducer(state: CourseState, action: Action): CourseState {
   switch (action.type) {
     case 'ADD_SLIDE': {
       if (state.viewMode === 'master') {
-        const newMasters = [...state.masterSlides, createSlide()];
-        return { ...state, masterSlides: newMasters, activeSlideIndex: newMasters.length - 1, activeElementId: null, selectedElementIds: [] };
+        const s = createSlide();
+        const newMasters = [...state.masterSlides, s];
+        return { ...state, masterSlides: newMasters, activeSlideIndex: newMasters.length - 1, activeElementId: null, selectedElementIds: [], activeLayerId: slideFirstLayerId(s) };
       }
-      const newSlides = [...state.slides, createSlide()];
-      return { ...state, slides: newSlides, activeSlideIndex: newSlides.length - 1, activeElementId: null, selectedElementIds: [] };
+      const s = createSlide();
+      const newSlides = [...state.slides, s];
+      return { ...state, slides: newSlides, activeSlideIndex: newSlides.length - 1, activeElementId: null, selectedElementIds: [], activeLayerId: slideFirstLayerId(s) };
     }
     case 'DELETE_SLIDE': {
       const slides = getActiveSlides(state);
       if (slides.length <= 1) return state;
       const newSlides = slides.filter((_, i) => i !== action.index);
       const newIndex = Math.min(state.activeSlideIndex, newSlides.length - 1);
-      return { ...state, ...updateActiveSlides(state, newSlides), activeSlideIndex: newIndex, activeElementId: null, selectedElementIds: [] };
+      return { ...state, ...updateActiveSlides(state, newSlides), activeSlideIndex: newIndex, activeElementId: null, selectedElementIds: [], activeLayerId: slideFirstLayerId(newSlides[newIndex]) };
     }
-    case 'SET_ACTIVE_SLIDE':
-      return { ...state, activeSlideIndex: action.index, activeElementId: null, selectedElementIds: [], activeAudioId: null, playheadTime: 0, isPlaying: false };
+    case 'SET_ACTIVE_SLIDE': {
+      const slides = getActiveSlides(state);
+      const target = slides[action.index];
+      return { ...state, activeSlideIndex: action.index, activeElementId: null, selectedElementIds: [], activeAudioId: null, playheadTime: 0, isPlaying: false, activeLayerId: slideFirstLayerId(target) };
+    }
     case 'MOVE_SLIDE': {
       const slides = getActiveSlides(state);
       const { from, to } = action;
@@ -185,36 +263,27 @@ function courseReducer(state: CourseState, action: Action): CourseState {
       return { ...state, ...updateActiveSlides(state, next), activeSlideIndex: newActive };
     }
     case 'ADD_ELEMENT': {
-      const slides = getActiveSlides(state).map((slide, i) =>
-        i === state.activeSlideIndex
-          ? { ...slide, elements: [...slide.elements, action.element] }
-          : slide
+      const updated = withUpdatedActiveSlide(state, (slide) =>
+        addElementToLayer(slide, state.activeLayerId, action.element)
       );
-      return { ...state, ...updateActiveSlides(state, slides), activeElementId: action.element.id, selectedElementIds: [action.element.id], activeAudioId: null };
+      return { ...state, ...updated, activeElementId: action.element.id, selectedElementIds: [action.element.id], activeAudioId: null };
     }
     case 'UPDATE_ELEMENT': {
-      const slides = getActiveSlides(state).map((slide, i) =>
-        i === state.activeSlideIndex
-          ? {
-              ...slide,
-              elements: slide.elements.map((el) =>
-                el.id === action.id ? { ...el, ...action.updates } as SlideElement : el
-              ),
-            }
-          : slide
+      const updated = withUpdatedActiveSlide(state, (slide) =>
+        mapElementsInSlide(slide, (el) =>
+          el.id === action.id ? ({ ...el, ...action.updates } as SlideElement) : el
+        )
       );
-      return { ...state, ...updateActiveSlides(state, slides) };
+      return { ...state, ...updated };
     }
     case 'DELETE_ELEMENT': {
-      const slides = getActiveSlides(state).map((slide, i) =>
-        i === state.activeSlideIndex
-          ? { ...slide, elements: slide.elements.filter((el) => el.id !== action.id) }
-          : slide
+      const updated = withUpdatedActiveSlide(state, (slide) =>
+        filterElementsInSlide(slide, (el) => el.id !== action.id)
       );
       const nextSelected = state.selectedElementIds.filter((id) => id !== action.id);
       return {
         ...state,
-        ...updateActiveSlides(state, slides),
+        ...updated,
         activeElementId: state.activeElementId === action.id ? (nextSelected[nextSelected.length - 1] ?? null) : state.activeElementId,
         selectedElementIds: nextSelected,
       };
@@ -280,12 +349,12 @@ function courseReducer(state: CourseState, action: Action): CourseState {
         return {};
       };
 
-      const updatedElements = slide.elements.map((el) => {
-        if (!ids.includes(el.id)) return el;
-        return { ...el, ...computeXY(el) } as SlideElement;
-      });
-      const updatedSlides = slides.map((s, i) => i === state.activeSlideIndex ? { ...s, elements: updatedElements } : s);
-      return { ...state, ...updateActiveSlides(state, updatedSlides) };
+      const updated = withUpdatedActiveSlide(state, (s) =>
+        mapElementsInSlide(s, (el) =>
+          ids.includes(el.id) ? ({ ...el, ...computeXY(el) } as SlideElement) : el
+        )
+      );
+      return { ...state, ...updated };
     }
     case 'DISTRIBUTE_ELEMENTS': {
       const ids = state.selectedElementIds;
@@ -318,12 +387,13 @@ function courseReducer(state: CourseState, action: Action): CourseState {
           newCoords.set(el.id, { y: Math.round(targetCenter - el.height / 2) });
         }
       }
-      const updatedElements = slide.elements.map((el) => {
-        const c = newCoords.get(el.id);
-        return c ? ({ ...el, ...c } as SlideElement) : el;
-      });
-      const updatedSlides = slides.map((s, i) => i === state.activeSlideIndex ? { ...s, elements: updatedElements } : s);
-      return { ...state, ...updateActiveSlides(state, updatedSlides) };
+      const updated = withUpdatedActiveSlide(state, (s) =>
+        mapElementsInSlide(s, (el) => {
+          const c = newCoords.get(el.id);
+          return c ? ({ ...el, ...c } as SlideElement) : el;
+        })
+      );
+      return { ...state, ...updated };
     }
     case 'LOAD_COURSE': {
       const backfillEl = (e: SlideElement): SlideElement => ({
@@ -331,16 +401,35 @@ function courseReducer(state: CourseState, action: Action): CourseState {
         exitDuration: 500,
         ...e,
       } as SlideElement);
-      const backfillSlide = (s: Slide): Slide => ({
-        ...s,
-        duration: s.duration ?? 5000,
-        elements: (s.elements ?? []).map(backfillEl),
-      });
+      const backfillSlide = (s: Slide): Slide => {
+        const elements = (s.elements ?? []).map(backfillEl);
+        // Migrate: if no layers exist, create a Base Layer containing all elements.
+        // Otherwise, backfill elements inside existing layers (keeping ids).
+        let layers: SlideLayer[];
+        if (s.layers && s.layers.length > 0) {
+          layers = s.layers.map((l) => ({
+            ...l,
+            visible: l.visible !== false,
+            locked: l.locked === true,
+            elements: (l.elements ?? []).map(backfillEl),
+          }));
+        } else {
+          layers = [createBaseLayer(elements)];
+        }
+        return rebuildElements({
+          ...s,
+          duration: s.duration ?? 5000,
+          elements,
+          layers,
+        });
+      };
       const loadedThemeColors = action.courseSettings?.themeColors;
+      const loadedSlides = action.slides.map(backfillSlide);
+      const loadedMasters = (action.masterSlides ?? []).map(backfillSlide);
       return {
         ...initialState,
-        slides: action.slides.map(backfillSlide),
-        masterSlides: (action.masterSlides ?? []).map(backfillSlide),
+        slides: loadedSlides,
+        masterSlides: loadedMasters,
         playerSettings: action.playerSettings ? { ...defaultPlayerSettings, ...action.playerSettings } : { ...defaultPlayerSettings },
         courseSettings: {
           ...defaultCourseSettings,
@@ -358,6 +447,7 @@ function courseReducer(state: CourseState, action: Action): CourseState {
         previewMode: false,
         variables: Array.isArray(action.variables) ? action.variables : [],
         variableValues: computeVariableValues(Array.isArray(action.variables) ? action.variables : []),
+        activeLayerId: slideFirstLayerId(loadedSlides[0]),
       };
     }
     case 'SET_PREVIEW_MODE':
@@ -402,22 +492,24 @@ function courseReducer(state: CourseState, action: Action): CourseState {
         isPlaying: false,
       };
     case 'ADD_MASTER_SLIDE': {
-      const newMasters = [...state.masterSlides, createSlide()];
-      return { ...state, masterSlides: newMasters, viewMode: 'master', activeSlideIndex: newMasters.length - 1, activeElementId: null, selectedElementIds: [] };
+      const s = createSlide();
+      const newMasters = [...state.masterSlides, s];
+      return { ...state, masterSlides: newMasters, viewMode: 'master', activeSlideIndex: newMasters.length - 1, activeElementId: null, selectedElementIds: [], activeLayerId: slideFirstLayerId(s) };
     }
     case 'DELETE_MASTER_SLIDE': {
       if (state.masterSlides.length <= 0) return state;
       const newMasters = state.masterSlides.filter((_, i) => i !== action.index);
-      // Remove masterId references from slides pointing to deleted master
       const deletedId = state.masterSlides[action.index]?.id;
       const updatedSlides = deletedId
         ? state.slides.map(s => s.masterId === deletedId ? { ...s, masterId: undefined } : s)
         : state.slides;
       const newIndex = Math.min(state.activeSlideIndex, Math.max(0, newMasters.length - 1));
-      return { ...state, masterSlides: newMasters, slides: updatedSlides, activeSlideIndex: newIndex, activeElementId: null, selectedElementIds: [] };
+      return { ...state, masterSlides: newMasters, slides: updatedSlides, activeSlideIndex: newIndex, activeElementId: null, selectedElementIds: [], activeLayerId: slideFirstLayerId(state.viewMode === 'master' ? newMasters[newIndex] : updatedSlides[newIndex]) };
     }
-    case 'SET_ACTIVE_MASTER_SLIDE':
-      return { ...state, viewMode: 'master', activeSlideIndex: action.index, activeElementId: null, selectedElementIds: [], activeAudioId: null, playheadTime: 0, isPlaying: false };
+    case 'SET_ACTIVE_MASTER_SLIDE': {
+      const target = state.masterSlides[action.index];
+      return { ...state, viewMode: 'master', activeSlideIndex: action.index, activeElementId: null, selectedElementIds: [], activeAudioId: null, playheadTime: 0, isPlaying: false, activeLayerId: slideFirstLayerId(target) };
+    }
     case 'UPDATE_PLAYER_SETTINGS':
       return { ...state, playerSettings: { ...state.playerSettings, ...action.updates } };
     case 'UPDATE_COURSE_SETTINGS':
@@ -479,15 +571,16 @@ function courseReducer(state: CourseState, action: Action): CourseState {
       return { ...state, ...updateActiveSlides(state, slides) };
     }
     case 'ADD_QUIZ_SLIDE': {
-      // Quiz slides only exist in main timeline.
       if (state.viewMode === 'master') return state;
-      const newSlides = [...state.slides, createQuizSlide()];
-      return { ...state, slides: newSlides, activeSlideIndex: newSlides.length - 1, activeElementId: null, selectedElementIds: [] };
+      const s = createQuizSlide();
+      const newSlides = [...state.slides, s];
+      return { ...state, slides: newSlides, activeSlideIndex: newSlides.length - 1, activeElementId: null, selectedElementIds: [], activeLayerId: slideFirstLayerId(s) };
     }
     case 'ADD_RESULTS_SLIDE': {
       if (state.viewMode === 'master') return state;
-      const newSlides = [...state.slides, createResultsSlide()];
-      return { ...state, slides: newSlides, activeSlideIndex: newSlides.length - 1, activeElementId: null, selectedElementIds: [] };
+      const s = createResultsSlide();
+      const newSlides = [...state.slides, s];
+      return { ...state, slides: newSlides, activeSlideIndex: newSlides.length - 1, activeElementId: null, selectedElementIds: [], activeLayerId: slideFirstLayerId(s) };
     }
     case 'UPDATE_QUIZ': {
       const slides = state.slides.map((s, i) =>
@@ -582,6 +675,108 @@ function courseReducer(state: CourseState, action: Action): CourseState {
       return { ...state, variableValues: { ...state.variableValues, [action.id]: action.value } };
     case 'RESET_VARIABLE_VALUES':
       return { ...state, variableValues: computeVariableValues(state.variables) };
+    case 'ADD_LAYER': {
+      const slides = getActiveSlides(state);
+      const slide = ensureLayers(slides[state.activeSlideIndex]);
+      const layers = slide.layers ?? [];
+      // Default name "Layer N" where N counts non-base layers (+1).
+      const existingNumbers = layers
+        .map((l) => /^Layer (\d+)$/.exec(l.name))
+        .map((m) => (m ? parseInt(m[1], 10) : 0));
+      const nextNum = Math.max(0, ...existingNumbers) + 1;
+      const newLayer: SlideLayer = {
+        id: crypto.randomUUID(),
+        name: action.name ?? `Layer ${nextNum}`,
+        visible: true,
+        locked: false,
+        elements: [],
+      };
+      // Append to top of stack (end of array).
+      const nextLayers = [...layers, newLayer];
+      const nextSlides = slides.map((s, i) =>
+        i === state.activeSlideIndex ? rebuildElements({ ...slide, layers: nextLayers }) : s
+      );
+      return {
+        ...state,
+        ...updateActiveSlides(state, nextSlides),
+        activeLayerId: newLayer.id,
+        activeElementId: null,
+        selectedElementIds: [],
+      };
+    }
+    case 'DELETE_LAYER': {
+      const slides = getActiveSlides(state);
+      const slide = ensureLayers(slides[state.activeSlideIndex]);
+      const layers = slide.layers ?? [];
+      if (layers.length <= 1) return state;
+      // Base Layer (index 0) cannot be deleted.
+      const idx = layers.findIndex((l) => l.id === action.layerId);
+      if (idx <= 0) return state;
+      const nextLayers = layers.filter((_, i) => i !== idx);
+      const nextSlide = rebuildElements({ ...slide, layers: nextLayers });
+      const nextSlides = slides.map((s, i) => (i === state.activeSlideIndex ? nextSlide : s));
+      const nextActiveLayer = state.activeLayerId === action.layerId
+        ? nextLayers[nextLayers.length - 1]?.id ?? null
+        : state.activeLayerId;
+      // Drop selection of any element that lived on the removed layer.
+      const remainingIds = new Set(nextSlide.elements.map((e) => e.id));
+      const nextSelected = state.selectedElementIds.filter((id) => remainingIds.has(id));
+      return {
+        ...state,
+        ...updateActiveSlides(state, nextSlides),
+        activeLayerId: nextActiveLayer,
+        selectedElementIds: nextSelected,
+        activeElementId: nextSelected.includes(state.activeElementId ?? '') ? state.activeElementId : null,
+      };
+    }
+    case 'RENAME_LAYER': {
+      const updated = withUpdatedActiveSlide(state, (slide) => {
+        const layers = (slide.layers ?? []).map((l) =>
+          l.id === action.layerId ? { ...l, name: action.name.slice(0, 40) } : l
+        );
+        return { ...slide, layers };
+      });
+      return { ...state, ...updated };
+    }
+    case 'TOGGLE_LAYER_VISIBILITY': {
+      const updated = withUpdatedActiveSlide(state, (slide) => {
+        const layers = (slide.layers ?? []).map((l) =>
+          l.id === action.layerId ? { ...l, visible: !l.visible } : l
+        );
+        return { ...slide, layers };
+      });
+      return { ...state, ...updated };
+    }
+    case 'TOGGLE_LAYER_LOCK': {
+      const updated = withUpdatedActiveSlide(state, (slide) => {
+        const layers = (slide.layers ?? []).map((l) =>
+          l.id === action.layerId ? { ...l, locked: !l.locked } : l
+        );
+        return { ...slide, layers };
+      });
+      return { ...state, ...updated };
+    }
+    case 'SET_ACTIVE_LAYER': {
+      return { ...state, activeLayerId: action.layerId, activeElementId: null, selectedElementIds: [] };
+    }
+    case 'REORDER_LAYERS': {
+      const slides = getActiveSlides(state);
+      const slide = ensureLayers(slides[state.activeSlideIndex]);
+      const layers = slide.layers ?? [];
+      const idx = layers.findIndex((l) => l.id === action.layerId);
+      if (idx < 0) return state;
+      // Base Layer (index 0) cannot be moved.
+      if (idx === 0) return state;
+      const target = action.direction === 'up' ? idx + 1 : idx - 1;
+      // Cannot move below Base Layer position (0).
+      if (target <= 0 || target >= layers.length) return state;
+      const next = [...layers];
+      const [moved] = next.splice(idx, 1);
+      next.splice(target, 0, moved);
+      const nextSlide = rebuildElements({ ...slide, layers: next });
+      const nextSlides = slides.map((s, i) => (i === state.activeSlideIndex ? nextSlide : s));
+      return { ...state, ...updateActiveSlides(state, nextSlides) };
+    }
     default:
       return state;
   }

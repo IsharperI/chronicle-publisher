@@ -701,7 +701,25 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
     if (!isPreview && e.target === e.currentTarget) dispatch({ type: 'CLEAR_SELECTION' });
   };
 
-  const editElements = activeSlide?.elements ?? [];
+  // Layer-aware element rendering. Build a flat list (bottom→top) and a
+  // per-element metadata map so the editor can decide which elements are
+  // interactive vs static.
+  const layers = activeSlide?.layers ?? [];
+  const elementLayerMeta = useMemo(() => {
+    const map = new Map<string, { layerId: string; layerLocked: boolean; layerVisible: boolean }>();
+    for (const l of layers) {
+      for (const el of l.elements) {
+        map.set(el.id, { layerId: l.id, layerLocked: l.locked, layerVisible: l.visible });
+      }
+    }
+    return map;
+  }, [layers]);
+  // Visible elements only (hidden layers' elements are dropped entirely).
+  const editElements = useMemo(() => {
+    if (layers.length === 0) return activeSlide?.elements ?? [];
+    return layers.flatMap((l) => (l.visible ? l.elements : []));
+  }, [layers, activeSlide]);
+  const activeLayerId = state.activeLayerId;
 
   // Active caption text from any audio track on the current slide whose
   // window contains the playhead (in seconds).
@@ -801,9 +819,32 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
           : editElements.map((el) => {
               const visible = isElementVisible(el, state.playheadTime);
               const isEditing = editingId === el.id && el.type === 'shape';
-              const locked = !!el.isLocked;
+              const meta = elementLayerMeta.get(el.id);
+              const layerLocked = !!meta?.layerLocked;
+              const onActiveLayer = !meta || meta.layerId === activeLayerId;
+              const locked = !!el.isLocked || layerLocked || !onActiveLayer;
               const hidden = !!el.isHidden;
               if (hidden) return null;
+              // Elements outside the active layer (or on a locked layer)
+              // render as non-interactive overlays — visible but un-selectable.
+              if (!onActiveLayer || layerLocked) {
+                if (!visible) return null;
+                const mpOff = state.isPlaying ? motionPathOffset(el, state.playheadTime) : null;
+                const mpT = mpOff ? `translate(${mpOff.dx}px, ${mpOff.dy}px)` : undefined;
+                return (
+                  <div
+                    key={el.id}
+                    data-el-id={el.id}
+                    style={{
+                      position: 'absolute', left: el.x, top: el.y, width: el.width, height: el.height,
+                      pointerEvents: 'none', zIndex: 1,
+                      ...(mpT ? { transform: mpT } : {}),
+                    }}
+                  >
+                    <ElementRenderer element={el} />
+                  </div>
+                );
+              }
               const mpOffset = state.isPlaying ? motionPathOffset(el, state.playheadTime) : null;
               const mpTransform = mpOffset ? `translate(${mpOffset.dx}px, ${mpOffset.dy}px)` : undefined;
               return (

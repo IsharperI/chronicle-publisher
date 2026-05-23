@@ -361,6 +361,23 @@ export interface ResultsConfig {
   failMessage: string;
 }
 
+/**
+ * A stacking layer inside a slide. Every slide always contains at least one
+ * layer — the Base Layer — which holds the slide's original elements.
+ * Layers are stored bottom-to-top: index 0 is the lowest (Base), the last
+ * index is the topmost rendered layer.
+ */
+export interface SlideLayer {
+  id: string;
+  name: string;
+  /** Visible in editor and preview. */
+  visible: boolean;
+  /** Locked layers render but elements cannot be selected/edited. */
+  locked: boolean;
+  /** Elements belonging to this layer. */
+  elements: SlideElement[];
+}
+
 /** How the slide advances when its internal timeline reaches the end. */
 export type SlideAdvanceMode = 'manual' | 'auto';
 /** What happens when the user navigates back to a previously visited slide. */
@@ -391,6 +408,12 @@ export interface Slide {
   results?: ResultsConfig;
   /** Optional visual style overrides applied via a Quiz Template. */
   quizStyle?: QuizStyleOverrides;
+  /**
+   * Stacking layers for this slide. Bottom-to-top order. When omitted (legacy
+   * data), the slide is treated as having a single implicit Base Layer
+   * containing `elements`. The reducer migrates this on load.
+   */
+  layers?: SlideLayer[];
 }
 
 export type NavigationMode = 'free' | 'restricted';
@@ -515,4 +538,6 @@ export interface CourseState {
   perQuestionTimerRemaining: Record<string, number>;
   /** Editor-only: when set, canvas enters motion-path drawing mode for the given element. */
   motionPathEditor: { elementId: string } | null;
+  /** Editor-only: id of the layer currently being edited on the active slide. */
+  activeLayerId: string | null;
 }
