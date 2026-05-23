@@ -338,6 +338,138 @@ function SlideNumberField({ index, total, onMove }: { index: number; total: numb
   );
 }
 
+function SlideLayersSection() {
+  const { state, dispatch } = useCourse();
+  const isMasterMode = state.viewMode === 'master';
+  const activeSlide = isMasterMode
+    ? state.masterSlides[state.activeSlideIndex]
+    : state.slides[state.activeSlideIndex];
+  const layers = activeSlide?.layers ?? [];
+  const activeLayerId = state.activeLayerId ?? layers[0]?.id ?? null;
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [draft, setDraft] = useState('');
+
+  if (!activeSlide || layers.length === 0) return null;
+
+  // Display top-to-bottom: reverse the underlying bottom→top array.
+  const displayLayers = [...layers].reverse();
+
+  return (
+    <div className="space-y-1.5 pb-3 border-b">
+      <div className="flex items-center justify-between">
+        <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Slide Layers</Label>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-6 w-6"
+          onClick={() => dispatch({ type: 'ADD_LAYER' })}
+          title="Add layer"
+          aria-label="Add layer"
+        >
+          <Plus className="h-3.5 w-3.5" />
+        </Button>
+      </div>
+      <div className="space-y-0.5">
+        {displayLayers.map((layer) => {
+          const isBase = layers[0]?.id === layer.id;
+          const isActive = activeLayerId === layer.id;
+          const idxInStack = layers.findIndex((l) => l.id === layer.id);
+          const canMoveUp = idxInStack < layers.length - 1;
+          const canMoveDown = idxInStack > 1; // cannot move into/below base position 0
+          return (
+            <div
+              key={layer.id}
+              role="button"
+              tabIndex={0}
+              onClick={() => dispatch({ type: 'SET_ACTIVE_LAYER', layerId: layer.id })}
+              className={`flex items-center gap-1 px-1.5 py-1 rounded text-xs cursor-pointer border ${
+                isActive
+                  ? 'bg-primary/10 border-primary text-foreground'
+                  : 'border-transparent hover:bg-accent/50'
+              }`}
+            >
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); dispatch({ type: 'TOGGLE_LAYER_VISIBILITY', layerId: layer.id }); }}
+                className="opacity-80 hover:opacity-100 shrink-0"
+                title={layer.visible ? 'Hide layer' : 'Show layer'}
+                aria-label={layer.visible ? 'Hide layer' : 'Show layer'}
+              >
+                {layer.visible ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+              </button>
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); dispatch({ type: 'TOGGLE_LAYER_LOCK', layerId: layer.id }); }}
+                className="opacity-80 hover:opacity-100 shrink-0"
+                title={layer.locked ? 'Unlock layer' : 'Lock layer'}
+                aria-label={layer.locked ? 'Unlock layer' : 'Lock layer'}
+              >
+                {layer.locked ? <Lock className="h-3.5 w-3.5" /> : <Unlock className="h-3.5 w-3.5" />}
+              </button>
+              {editingId === layer.id ? (
+                <input
+                  autoFocus
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value)}
+                  onClick={(e) => e.stopPropagation()}
+                  onBlur={() => {
+                    const name = draft.trim();
+                    if (name) dispatch({ type: 'RENAME_LAYER', layerId: layer.id, name });
+                    setEditingId(null);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') (e.currentTarget as HTMLInputElement).blur();
+                    if (e.key === 'Escape') { setEditingId(null); }
+                  }}
+                  className="flex-1 min-w-0 h-5 px-1 text-xs bg-white text-slate-800 border border-input rounded"
+                />
+              ) : (
+                <span
+                  className="flex-1 min-w-0 truncate select-none"
+                  onDoubleClick={(e) => { e.stopPropagation(); setEditingId(layer.id); setDraft(layer.name); }}
+                  title="Double-click to rename"
+                >
+                  {layer.name}{isBase ? '' : ''}
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); dispatch({ type: 'REORDER_LAYERS', layerId: layer.id, direction: 'up' }); }}
+                disabled={!canMoveUp}
+                className="opacity-70 hover:opacity-100 disabled:opacity-20 disabled:cursor-not-allowed shrink-0"
+                title="Move up"
+                aria-label="Move layer up"
+              >
+                <ChevronUp className="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); dispatch({ type: 'REORDER_LAYERS', layerId: layer.id, direction: 'down' }); }}
+                disabled={!canMoveDown}
+                className="opacity-70 hover:opacity-100 disabled:opacity-20 disabled:cursor-not-allowed shrink-0"
+                title="Move down"
+                aria-label="Move layer down"
+              >
+                <ChevronDown className="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); dispatch({ type: 'DELETE_LAYER', layerId: layer.id }); }}
+                disabled={isBase}
+                className="opacity-70 hover:opacity-100 disabled:opacity-20 disabled:cursor-not-allowed shrink-0"
+                title={isBase ? 'Base Layer cannot be deleted' : 'Delete layer'}
+                aria-label="Delete layer"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export function PropertiesPanel() {
   const { state, dispatch } = useCourse();
   const fileInputRef = useRef<HTMLInputElement>(null);
