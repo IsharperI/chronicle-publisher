@@ -672,6 +672,108 @@ function courseReducer(state: CourseState, action: Action): CourseState {
       return { ...state, variableValues: { ...state.variableValues, [action.id]: action.value } };
     case 'RESET_VARIABLE_VALUES':
       return { ...state, variableValues: computeVariableValues(state.variables) };
+    case 'ADD_LAYER': {
+      const slides = getActiveSlides(state);
+      const slide = ensureLayers(slides[state.activeSlideIndex]);
+      const layers = slide.layers ?? [];
+      // Default name "Layer N" where N counts non-base layers (+1).
+      const existingNumbers = layers
+        .map((l) => /^Layer (\d+)$/.exec(l.name))
+        .map((m) => (m ? parseInt(m[1], 10) : 0));
+      const nextNum = Math.max(0, ...existingNumbers) + 1;
+      const newLayer: SlideLayer = {
+        id: crypto.randomUUID(),
+        name: action.name ?? `Layer ${nextNum}`,
+        visible: true,
+        locked: false,
+        elements: [],
+      };
+      // Append to top of stack (end of array).
+      const nextLayers = [...layers, newLayer];
+      const nextSlides = slides.map((s, i) =>
+        i === state.activeSlideIndex ? rebuildElements({ ...slide, layers: nextLayers }) : s
+      );
+      return {
+        ...state,
+        ...updateActiveSlides(state, nextSlides),
+        activeLayerId: newLayer.id,
+        activeElementId: null,
+        selectedElementIds: [],
+      };
+    }
+    case 'DELETE_LAYER': {
+      const slides = getActiveSlides(state);
+      const slide = ensureLayers(slides[state.activeSlideIndex]);
+      const layers = slide.layers ?? [];
+      if (layers.length <= 1) return state;
+      // Base Layer (index 0) cannot be deleted.
+      const idx = layers.findIndex((l) => l.id === action.layerId);
+      if (idx <= 0) return state;
+      const nextLayers = layers.filter((_, i) => i !== idx);
+      const nextSlide = rebuildElements({ ...slide, layers: nextLayers });
+      const nextSlides = slides.map((s, i) => (i === state.activeSlideIndex ? nextSlide : s));
+      const nextActiveLayer = state.activeLayerId === action.layerId
+        ? nextLayers[nextLayers.length - 1]?.id ?? null
+        : state.activeLayerId;
+      // Drop selection of any element that lived on the removed layer.
+      const remainingIds = new Set(nextSlide.elements.map((e) => e.id));
+      const nextSelected = state.selectedElementIds.filter((id) => remainingIds.has(id));
+      return {
+        ...state,
+        ...updateActiveSlides(state, nextSlides),
+        activeLayerId: nextActiveLayer,
+        selectedElementIds: nextSelected,
+        activeElementId: nextSelected.includes(state.activeElementId ?? '') ? state.activeElementId : null,
+      };
+    }
+    case 'RENAME_LAYER': {
+      const updated = withUpdatedActiveSlide(state, (slide) => {
+        const layers = (slide.layers ?? []).map((l) =>
+          l.id === action.layerId ? { ...l, name: action.name.slice(0, 40) } : l
+        );
+        return { ...slide, layers };
+      });
+      return { ...state, ...updated };
+    }
+    case 'TOGGLE_LAYER_VISIBILITY': {
+      const updated = withUpdatedActiveSlide(state, (slide) => {
+        const layers = (slide.layers ?? []).map((l) =>
+          l.id === action.layerId ? { ...l, visible: !l.visible } : l
+        );
+        return { ...slide, layers };
+      });
+      return { ...state, ...updated };
+    }
+    case 'TOGGLE_LAYER_LOCK': {
+      const updated = withUpdatedActiveSlide(state, (slide) => {
+        const layers = (slide.layers ?? []).map((l) =>
+          l.id === action.layerId ? { ...l, locked: !l.locked } : l
+        );
+        return { ...slide, layers };
+      });
+      return { ...state, ...updated };
+    }
+    case 'SET_ACTIVE_LAYER': {
+      return { ...state, activeLayerId: action.layerId, activeElementId: null, selectedElementIds: [] };
+    }
+    case 'REORDER_LAYERS': {
+      const slides = getActiveSlides(state);
+      const slide = ensureLayers(slides[state.activeSlideIndex]);
+      const layers = slide.layers ?? [];
+      const idx = layers.findIndex((l) => l.id === action.layerId);
+      if (idx < 0) return state;
+      // Base Layer (index 0) cannot be moved.
+      if (idx === 0) return state;
+      const target = action.direction === 'up' ? idx + 1 : idx - 1;
+      // Cannot move below Base Layer position (0).
+      if (target <= 0 || target >= layers.length) return state;
+      const next = [...layers];
+      const [moved] = next.splice(idx, 1);
+      next.splice(target, 0, moved);
+      const nextSlide = rebuildElements({ ...slide, layers: next });
+      const nextSlides = slides.map((s, i) => (i === state.activeSlideIndex ? nextSlide : s));
+      return { ...state, ...updateActiveSlides(state, nextSlides) };
+    }
     default:
       return state;
   }
