@@ -1,12 +1,63 @@
 import React, { createContext, useContext, useReducer, type Dispatch } from 'react';
-import type { CourseState, Slide, SlideElement, ViewMode, PlayerSettings, CourseSettings, SlideAudio, QuizConfig, ResultsConfig, SlideKind, CourseVariable } from '@/types/course';
+import type { CourseState, Slide, SlideElement, SlideLayer, ViewMode, PlayerSettings, CourseSettings, SlideAudio, QuizConfig, ResultsConfig, SlideKind, CourseVariable } from '@/types/course';
 import { defaultPlayerSettings, defaultCourseSettings } from '@/types/course';
 
-const createSlide = (): Slide => ({
+const createBaseLayer = (elements: SlideElement[] = []): SlideLayer => ({
   id: crypto.randomUUID(),
-  elements: [],
-  duration: 5000,
+  name: 'Base Layer',
+  visible: true,
+  locked: false,
+  elements,
 });
+
+const createSlide = (): Slide => {
+  const baseLayer = createBaseLayer([]);
+  return {
+    id: crypto.randomUUID(),
+    elements: [],
+    duration: 5000,
+    layers: [baseLayer],
+  };
+};
+
+/** Ensure the slide has a layers array; migrate slide.elements into a Base Layer if not. */
+function ensureLayers(slide: Slide): Slide {
+  if (slide.layers && slide.layers.length > 0) return slide;
+  const baseLayer = createBaseLayer(slide.elements ?? []);
+  return { ...slide, layers: [baseLayer] };
+}
+
+/** Rebuild flat slide.elements from layer stack (bottom→top). */
+function rebuildElements(slide: Slide): Slide {
+  const layers = slide.layers ?? [];
+  if (layers.length === 0) return slide;
+  return { ...slide, elements: layers.flatMap((l) => l.elements) };
+}
+
+/** Apply a mapper to every element across all layers and rebuild flat elements. */
+function mapElementsInSlide(slide: Slide, mapper: (el: SlideElement) => SlideElement): Slide {
+  const s = ensureLayers(slide);
+  const layers = (s.layers ?? []).map((l) => ({ ...l, elements: l.elements.map(mapper) }));
+  return rebuildElements({ ...s, layers });
+}
+
+/** Filter out elements across all layers matching the predicate. */
+function filterElementsInSlide(slide: Slide, keep: (el: SlideElement) => boolean): Slide {
+  const s = ensureLayers(slide);
+  const layers = (s.layers ?? []).map((l) => ({ ...l, elements: l.elements.filter(keep) }));
+  return rebuildElements({ ...s, layers });
+}
+
+/** Append an element to the given layer (or topmost if not found) and rebuild. */
+function addElementToLayer(slide: Slide, layerId: string | null, element: SlideElement): Slide {
+  const s = ensureLayers(slide);
+  const layers = s.layers ?? [];
+  const targetIdx = layerId ? layers.findIndex((l) => l.id === layerId) : -1;
+  const idx = targetIdx >= 0 ? targetIdx : layers.length - 1;
+  const next = layers.map((l, i) => (i === idx ? { ...l, elements: [...l.elements, element] } : l));
+  return rebuildElements({ ...s, layers: next });
+}
+
 
 const defaultQuizConfig = (): QuizConfig => ({
   questionType: 'multiple-choice',
