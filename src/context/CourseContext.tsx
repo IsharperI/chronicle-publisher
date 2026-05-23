@@ -215,25 +215,43 @@ function computeVariableValues(vars: CourseVariable[]): Record<string, boolean |
   return out;
 }
 
+function slideFirstLayerId(slide: Slide | undefined): string | null {
+  return slide?.layers?.[0]?.id ?? null;
+}
+
+function withUpdatedActiveSlide(
+  state: CourseState,
+  updater: (slide: Slide) => Slide
+): Partial<CourseState> {
+  const slides = getActiveSlides(state);
+  const next = slides.map((s, i) => (i === state.activeSlideIndex ? updater(ensureLayers(s)) : s));
+  return updateActiveSlides(state, next);
+}
+
 function courseReducer(state: CourseState, action: Action): CourseState {
   switch (action.type) {
     case 'ADD_SLIDE': {
       if (state.viewMode === 'master') {
-        const newMasters = [...state.masterSlides, createSlide()];
-        return { ...state, masterSlides: newMasters, activeSlideIndex: newMasters.length - 1, activeElementId: null, selectedElementIds: [] };
+        const s = createSlide();
+        const newMasters = [...state.masterSlides, s];
+        return { ...state, masterSlides: newMasters, activeSlideIndex: newMasters.length - 1, activeElementId: null, selectedElementIds: [], activeLayerId: slideFirstLayerId(s) };
       }
-      const newSlides = [...state.slides, createSlide()];
-      return { ...state, slides: newSlides, activeSlideIndex: newSlides.length - 1, activeElementId: null, selectedElementIds: [] };
+      const s = createSlide();
+      const newSlides = [...state.slides, s];
+      return { ...state, slides: newSlides, activeSlideIndex: newSlides.length - 1, activeElementId: null, selectedElementIds: [], activeLayerId: slideFirstLayerId(s) };
     }
     case 'DELETE_SLIDE': {
       const slides = getActiveSlides(state);
       if (slides.length <= 1) return state;
       const newSlides = slides.filter((_, i) => i !== action.index);
       const newIndex = Math.min(state.activeSlideIndex, newSlides.length - 1);
-      return { ...state, ...updateActiveSlides(state, newSlides), activeSlideIndex: newIndex, activeElementId: null, selectedElementIds: [] };
+      return { ...state, ...updateActiveSlides(state, newSlides), activeSlideIndex: newIndex, activeElementId: null, selectedElementIds: [], activeLayerId: slideFirstLayerId(newSlides[newIndex]) };
     }
-    case 'SET_ACTIVE_SLIDE':
-      return { ...state, activeSlideIndex: action.index, activeElementId: null, selectedElementIds: [], activeAudioId: null, playheadTime: 0, isPlaying: false };
+    case 'SET_ACTIVE_SLIDE': {
+      const slides = getActiveSlides(state);
+      const target = slides[action.index];
+      return { ...state, activeSlideIndex: action.index, activeElementId: null, selectedElementIds: [], activeAudioId: null, playheadTime: 0, isPlaying: false, activeLayerId: slideFirstLayerId(target) };
+    }
     case 'MOVE_SLIDE': {
       const slides = getActiveSlides(state);
       const { from, to } = action;
@@ -245,36 +263,27 @@ function courseReducer(state: CourseState, action: Action): CourseState {
       return { ...state, ...updateActiveSlides(state, next), activeSlideIndex: newActive };
     }
     case 'ADD_ELEMENT': {
-      const slides = getActiveSlides(state).map((slide, i) =>
-        i === state.activeSlideIndex
-          ? { ...slide, elements: [...slide.elements, action.element] }
-          : slide
+      const updated = withUpdatedActiveSlide(state, (slide) =>
+        addElementToLayer(slide, state.activeLayerId, action.element)
       );
-      return { ...state, ...updateActiveSlides(state, slides), activeElementId: action.element.id, selectedElementIds: [action.element.id], activeAudioId: null };
+      return { ...state, ...updated, activeElementId: action.element.id, selectedElementIds: [action.element.id], activeAudioId: null };
     }
     case 'UPDATE_ELEMENT': {
-      const slides = getActiveSlides(state).map((slide, i) =>
-        i === state.activeSlideIndex
-          ? {
-              ...slide,
-              elements: slide.elements.map((el) =>
-                el.id === action.id ? { ...el, ...action.updates } as SlideElement : el
-              ),
-            }
-          : slide
+      const updated = withUpdatedActiveSlide(state, (slide) =>
+        mapElementsInSlide(slide, (el) =>
+          el.id === action.id ? ({ ...el, ...action.updates } as SlideElement) : el
+        )
       );
-      return { ...state, ...updateActiveSlides(state, slides) };
+      return { ...state, ...updated };
     }
     case 'DELETE_ELEMENT': {
-      const slides = getActiveSlides(state).map((slide, i) =>
-        i === state.activeSlideIndex
-          ? { ...slide, elements: slide.elements.filter((el) => el.id !== action.id) }
-          : slide
+      const updated = withUpdatedActiveSlide(state, (slide) =>
+        filterElementsInSlide(slide, (el) => el.id !== action.id)
       );
       const nextSelected = state.selectedElementIds.filter((id) => id !== action.id);
       return {
         ...state,
-        ...updateActiveSlides(state, slides),
+        ...updated,
         activeElementId: state.activeElementId === action.id ? (nextSelected[nextSelected.length - 1] ?? null) : state.activeElementId,
         selectedElementIds: nextSelected,
       };
