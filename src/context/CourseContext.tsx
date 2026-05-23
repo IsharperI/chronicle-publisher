@@ -387,12 +387,13 @@ function courseReducer(state: CourseState, action: Action): CourseState {
           newCoords.set(el.id, { y: Math.round(targetCenter - el.height / 2) });
         }
       }
-      const updatedElements = slide.elements.map((el) => {
-        const c = newCoords.get(el.id);
-        return c ? ({ ...el, ...c } as SlideElement) : el;
-      });
-      const updatedSlides = slides.map((s, i) => i === state.activeSlideIndex ? { ...s, elements: updatedElements } : s);
-      return { ...state, ...updateActiveSlides(state, updatedSlides) };
+      const updated = withUpdatedActiveSlide(state, (s) =>
+        mapElementsInSlide(s, (el) => {
+          const c = newCoords.get(el.id);
+          return c ? ({ ...el, ...c } as SlideElement) : el;
+        })
+      );
+      return { ...state, ...updated };
     }
     case 'LOAD_COURSE': {
       const backfillEl = (e: SlideElement): SlideElement => ({
