@@ -1066,7 +1066,21 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
     visited[slide.id]=true;
     var masterEls=getMasterElements(slide);
     masterEls.forEach(function(el){stage.appendChild(renderElement(el))});
-    (slide.elements||[]).forEach(function(el){stage.appendChild(renderElement(el))});
+    var _layers=slide.layers;
+    if(_layers&&_layers.length){
+      for(var _li=0;_li<_layers.length;_li++){
+        var _L=_layers[_li];
+        if(!_L.visible)continue;
+        var _le=_L.elements||[];
+        for(var _ei=0;_ei<_le.length;_ei++){
+          var _node=renderElement(_le[_ei]);
+          _node.setAttribute("data-layer-id",_L.id);
+          stage.appendChild(_node);
+        }
+      }
+    } else {
+      (slide.elements||[]).forEach(function(el){stage.appendChild(renderElement(el))});
+    }
     if(slide.slideType==="quiz")renderQuizSlide(slide);
     else if(slide.slideType==="results")renderResultsSlide(slide);
     if(meta)meta.textContent="Slide "+(current+1)+" / "+slides.length;
