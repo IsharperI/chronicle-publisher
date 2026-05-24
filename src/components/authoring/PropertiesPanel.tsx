@@ -942,6 +942,7 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
   const isMediaAction = newAction === 'playMedia' || newAction === 'pauseMedia' || newAction === 'stopMedia';
   const isCourseAction = newAction === 'restartCourse' || newAction === 'exitCourse' || newAction === 'completeCourse';
   const isTimelineAction = newAction === 'pauseTimeline' || newAction === 'resumeTimeline';
+  const isLayerAction = newAction === 'showLayer' || newAction === 'hideLayer';
   const isJumpToTime = newAction === 'jumpToTime';
   const isEmphasize = newAction === 'emphasizeElement';
   const isOpenUrl = newAction === 'openUrl';
