@@ -302,6 +302,11 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
   const [scale, setScale] = useState(0.5);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [lightboxSlideId, setLightboxSlideId] = useState<string | null>(null);
+  // Runtime-only override map for layer visibility set by showLayer/hideLayer
+  // triggers during playback. Keyed by layer id. Undefined entries fall back
+  // to the author's `layer.visible` value. Reset on slide change so author
+  // data is never mutated.
+  const [layerRuntimeVis, setLayerRuntimeVis] = useState<Record<string, boolean>>({});
   const audioRefs = useRef<Map<string, HTMLAudioElement>>(new Map());
   const previewAccumRef = useRef(0);
   const isPlayingRef = useRef(state.isPlaying);
@@ -310,7 +315,7 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
   const onPreviewNextRef = useRef(onPreviewNext);
   useEffect(() => { onPreviewNextRef.current = onPreviewNext; }, [onPreviewNext]);
   useEffect(() => { isPlayingRef.current = state.isPlaying; }, [state.isPlaying]);
-  useEffect(() => { setLightboxSlideId(null); }, [state.activeSlideIndex]);
+  useEffect(() => { setLightboxSlideId(null); setLayerRuntimeVis({}); }, [state.activeSlideIndex]);
 
 
   const isPreview = state.previewMode;
