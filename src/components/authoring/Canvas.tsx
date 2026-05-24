@@ -714,20 +714,27 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
   // per-element metadata map so the editor can decide which elements are
   // interactive vs static.
   const layers = activeSlide?.layers ?? [];
+  // A layer is effectively visible only when the author has it visible AND no
+  // runtime trigger has hidden it for the current session.
+  const isLayerEffectivelyVisible = useCallback(
+    (l: { id: string; visible: boolean }) => l.visible && (layerRuntimeVis[l.id] ?? true),
+    [layerRuntimeVis],
+  );
   const elementLayerMeta = useMemo(() => {
     const map = new Map<string, { layerId: string; layerLocked: boolean; layerVisible: boolean }>();
     for (const l of layers) {
+      const eff = isLayerEffectivelyVisible(l);
       for (const el of l.elements) {
-        map.set(el.id, { layerId: l.id, layerLocked: l.locked, layerVisible: l.visible });
+        map.set(el.id, { layerId: l.id, layerLocked: l.locked, layerVisible: eff });
       }
     }
     return map;
-  }, [layers]);
+  }, [layers, isLayerEffectivelyVisible]);
   // Visible elements only (hidden layers' elements are dropped entirely).
   const editElements = useMemo(() => {
     if (layers.length === 0) return activeSlide?.elements ?? [];
-    return layers.flatMap((l) => (l.visible ? l.elements : []));
-  }, [layers, activeSlide]);
+    return layers.flatMap((l) => (isLayerEffectivelyVisible(l) ? l.elements : []));
+  }, [layers, activeSlide, isLayerEffectivelyVisible]);
   const activeLayerId = state.activeLayerId;
 
   // Active caption text from any audio track on the current slide whose
