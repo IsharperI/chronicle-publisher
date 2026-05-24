@@ -1383,6 +1383,18 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
             </SelectContent>
           </Select>
         )}
+        {isLayerAction && (
+          <Select value={newTarget} onValueChange={setNewTarget}>
+            <SelectTrigger className="h-7 text-xs bg-white text-slate-800 rounded-md">
+              <SelectValue placeholder={layerChoices.length ? 'Select layer…' : 'No layers on slide'} />
+            </SelectTrigger>
+            <SelectContent>
+              {layerChoices.map((l) => (
+                <SelectItem key={l.id} value={l.id}>{l.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
         {isMediaAction && (
           <Select value={newTarget} onValueChange={setNewTarget}>
             <SelectTrigger className="h-7 text-xs bg-white text-slate-800 rounded-md">
