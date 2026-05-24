@@ -1356,6 +1356,8 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
             <SelectItem value="resumeTimeline">Resume Timeline</SelectItem>
             <SelectItem value="openUrl">Open URL</SelectItem>
             <SelectItem value="lightboxSlide">Lightbox Slide</SelectItem>
+            <SelectItem value="showLayer">Show Layer</SelectItem>
+            <SelectItem value="hideLayer">Hide Layer</SelectItem>
             <SelectItem value="adjustVariable">Adjust Variable</SelectItem>
           </SelectContent>
         </Select>
