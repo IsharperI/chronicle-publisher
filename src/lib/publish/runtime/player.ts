@@ -930,6 +930,12 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
       setPlaying(true);
     } else if(t.action==="lightboxSlide"){
       openLightbox(t.targetId);
+    } else if(t.action==="showLayer"){
+      var _sl=stage.querySelectorAll('[data-layer-id="'+t.targetId+'"]');
+      for(var _si=0;_si<_sl.length;_si++)_sl[_si].style.display="";
+    } else if(t.action==="hideLayer"){
+      var _hl=stage.querySelectorAll('[data-layer-id="'+t.targetId+'"]');
+      for(var _hi=0;_hi<_hl.length;_hi++)_hl[_hi].style.display="none";
     }
   }
   function closeLightbox(){
