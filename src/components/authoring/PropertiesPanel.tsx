@@ -996,6 +996,11 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
   const slideElements = (activeSlide?.elements ?? []).map((el, i) => ({ id: el.id, label: elementName(el, i) }));
   const elementLabel = (id: string) => slideElements.find((e) => e.id === id)?.label || id.slice(0, 8);
 
+  // Layer picker source: all layers on the active slide except the Base Layer
+  // (index 0). Stored value is the layer id.
+  const layerChoices = (activeSlide?.layers ?? []).slice(1).map((l) => ({ id: l.id, label: l.name }));
+  const layerLabel = (id: string) => layerChoices.find((l) => l.id === id)?.label || id.slice(0, 8);
+
   // Media sources available on the current slide: audio tracks + video elements.
   const mediaSources = (() => {
     const out: { id: string; label: string }[] = [];
