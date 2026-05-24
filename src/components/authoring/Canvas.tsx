@@ -463,6 +463,10 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
       if (!exists) return;
       dispatch({ type: 'SET_PLAYING', playing: false });
       setLightboxSlideId(t.targetId);
+    } else if (t.action === 'showLayer') {
+      setLayerRuntimeVis((m) => ({ ...m, [t.targetId]: true }));
+    } else if (t.action === 'hideLayer') {
+      setLayerRuntimeVis((m) => ({ ...m, [t.targetId]: false }));
     }
   }, [state.slides, state.activeSlideIndex, state.variables, state.variableValues, dispatch]);
 
