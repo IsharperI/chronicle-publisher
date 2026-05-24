@@ -942,6 +942,7 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
   const isMediaAction = newAction === 'playMedia' || newAction === 'pauseMedia' || newAction === 'stopMedia';
   const isCourseAction = newAction === 'restartCourse' || newAction === 'exitCourse' || newAction === 'completeCourse';
   const isTimelineAction = newAction === 'pauseTimeline' || newAction === 'resumeTimeline';
+  const isLayerAction = newAction === 'showLayer' || newAction === 'hideLayer';
   const isJumpToTime = newAction === 'jumpToTime';
   const isEmphasize = newAction === 'emphasizeElement';
   const isOpenUrl = newAction === 'openUrl';
@@ -994,6 +995,11 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
   };
   const slideElements = (activeSlide?.elements ?? []).map((el, i) => ({ id: el.id, label: elementName(el, i) }));
   const elementLabel = (id: string) => slideElements.find((e) => e.id === id)?.label || id.slice(0, 8);
+
+  // Layer picker source: all layers on the active slide except the Base Layer
+  // (index 0). Stored value is the layer id.
+  const layerChoices = (activeSlide?.layers ?? []).slice(1).map((l) => ({ id: l.id, label: l.name }));
+  const layerLabel = (id: string) => layerChoices.find((l) => l.id === id)?.label || id.slice(0, 8);
 
   // Media sources available on the current slide: audio tracks + video elements.
   const mediaSources = (() => {
@@ -1153,6 +1159,8 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
         else if (t.action === 'completeCourse') actionPhrase = 'Complete Course';
         else if (t.action === 'pauseTimeline') actionPhrase = 'Pause Timeline';
         else if (t.action === 'resumeTimeline') actionPhrase = 'Resume Timeline';
+        else if (t.action === 'showLayer') actionPhrase = `Show Layer '${layerLabel(t.targetId)}'`;
+        else if (t.action === 'hideLayer') actionPhrase = `Hide Layer '${layerLabel(t.targetId)}'`;
         else if (t.action === 'jumpToTime') actionPhrase = `Jump to ${typeof t.time === 'number' ? t.time : 0}s`;
         else if (t.action === 'emphasizeElement') actionPhrase = `Emphasize Element '${elementLabel(t.targetId)}' (${t.emphasis || 'pulse'})`;
         else if (t.action === 'openUrl') actionPhrase = `Open URL ${(t.url || '').slice(0, 40)}`;
@@ -1348,6 +1356,8 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
             <SelectItem value="resumeTimeline">Resume Timeline</SelectItem>
             <SelectItem value="openUrl">Open URL</SelectItem>
             <SelectItem value="lightboxSlide">Lightbox Slide</SelectItem>
+            <SelectItem value="showLayer">Show Layer</SelectItem>
+            <SelectItem value="hideLayer">Hide Layer</SelectItem>
             <SelectItem value="adjustVariable">Adjust Variable</SelectItem>
           </SelectContent>
         </Select>
@@ -1369,6 +1379,18 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
             <SelectContent>
               {slideElements.map((e) => (
                 <SelectItem key={e.id} value={e.id}>{e.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+        {isLayerAction && (
+          <Select value={newTarget} onValueChange={setNewTarget}>
+            <SelectTrigger className="h-7 text-xs bg-white text-slate-800 rounded-md">
+              <SelectValue placeholder={layerChoices.length ? 'Select layer…' : 'No layers on slide'} />
+            </SelectTrigger>
+            <SelectContent>
+              {layerChoices.map((l) => (
+                <SelectItem key={l.id} value={l.id}>{l.label}</SelectItem>
               ))}
             </SelectContent>
           </Select>

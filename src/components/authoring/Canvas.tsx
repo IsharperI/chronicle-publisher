@@ -302,6 +302,11 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
   const [scale, setScale] = useState(0.5);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [lightboxSlideId, setLightboxSlideId] = useState<string | null>(null);
+  // Runtime-only override map for layer visibility set by showLayer/hideLayer
+  // triggers during playback. Keyed by layer id. Undefined entries fall back
+  // to the author's `layer.visible` value. Reset on slide change so author
+  // data is never mutated.
+  const [layerRuntimeVis, setLayerRuntimeVis] = useState<Record<string, boolean>>({});
   const audioRefs = useRef<Map<string, HTMLAudioElement>>(new Map());
   const previewAccumRef = useRef(0);
   const isPlayingRef = useRef(state.isPlaying);
@@ -310,7 +315,7 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
   const onPreviewNextRef = useRef(onPreviewNext);
   useEffect(() => { onPreviewNextRef.current = onPreviewNext; }, [onPreviewNext]);
   useEffect(() => { isPlayingRef.current = state.isPlaying; }, [state.isPlaying]);
-  useEffect(() => { setLightboxSlideId(null); }, [state.activeSlideIndex]);
+  useEffect(() => { setLightboxSlideId(null); setLayerRuntimeVis({}); }, [state.activeSlideIndex]);
 
 
   const isPreview = state.previewMode;
@@ -458,6 +463,10 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
       if (!exists) return;
       dispatch({ type: 'SET_PLAYING', playing: false });
       setLightboxSlideId(t.targetId);
+    } else if (t.action === 'showLayer') {
+      setLayerRuntimeVis((m) => ({ ...m, [t.targetId]: true }));
+    } else if (t.action === 'hideLayer') {
+      setLayerRuntimeVis((m) => ({ ...m, [t.targetId]: false }));
     }
   }, [state.slides, state.activeSlideIndex, state.variables, state.variableValues, dispatch]);
 
@@ -705,20 +714,27 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
   // per-element metadata map so the editor can decide which elements are
   // interactive vs static.
   const layers = activeSlide?.layers ?? [];
+  // A layer is effectively visible only when the author has it visible AND no
+  // runtime trigger has hidden it for the current session.
+  const isLayerEffectivelyVisible = useCallback(
+    (l: { id: string; visible: boolean }) => l.visible && (layerRuntimeVis[l.id] ?? true),
+    [layerRuntimeVis],
+  );
   const elementLayerMeta = useMemo(() => {
     const map = new Map<string, { layerId: string; layerLocked: boolean; layerVisible: boolean }>();
     for (const l of layers) {
+      const eff = isLayerEffectivelyVisible(l);
       for (const el of l.elements) {
-        map.set(el.id, { layerId: l.id, layerLocked: l.locked, layerVisible: l.visible });
+        map.set(el.id, { layerId: l.id, layerLocked: l.locked, layerVisible: eff });
       }
     }
     return map;
-  }, [layers]);
+  }, [layers, isLayerEffectivelyVisible]);
   // Visible elements only (hidden layers' elements are dropped entirely).
   const editElements = useMemo(() => {
     if (layers.length === 0) return activeSlide?.elements ?? [];
-    return layers.flatMap((l) => (l.visible ? l.elements : []));
-  }, [layers, activeSlide]);
+    return layers.flatMap((l) => (isLayerEffectivelyVisible(l) ? l.elements : []));
+  }, [layers, activeSlide, isLayerEffectivelyVisible]);
   const activeLayerId = state.activeLayerId;
 
   // Active caption text from any audio track on the current slide whose
