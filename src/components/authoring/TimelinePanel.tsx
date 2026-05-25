@@ -263,7 +263,25 @@ export function TimelinePanel() {
   const { state, dispatch } = useCourse();
   const [open, setOpen] = useState(true);
   const trackAreaRef = useRef<HTMLDivElement>(null);
+  const labelsScrollRef = useRef<HTMLDivElement>(null);
+  const tracksScrollRef = useRef<HTMLDivElement>(null);
+  const syncingScrollRef = useRef<'labels' | 'tracks' | null>(null);
   const [trackWidth, setTrackWidth] = useState(600);
+
+  const handleLabelsScroll = useCallback(() => {
+    if (syncingScrollRef.current === 'tracks') { syncingScrollRef.current = null; return; }
+    const a = labelsScrollRef.current, b = tracksScrollRef.current;
+    if (!a || !b) return;
+    syncingScrollRef.current = 'labels';
+    b.scrollTop = a.scrollTop;
+  }, []);
+  const handleTracksScroll = useCallback(() => {
+    if (syncingScrollRef.current === 'labels') { syncingScrollRef.current = null; return; }
+    const a = labelsScrollRef.current, b = tracksScrollRef.current;
+    if (!a || !b) return;
+    syncingScrollRef.current = 'tracks';
+    a.scrollTop = b.scrollTop;
+  }, []);
   const animRef = useRef<number>(0);
   const lastFrameRef = useRef<number>(0);
 
@@ -416,7 +434,13 @@ export function TimelinePanel() {
           <TabsContent value="timeline" className="mt-0 h-[calc(180px-36px)]">
             <div className="flex h-full overflow-hidden">
               {/* Labels */}
-              <div className="w-[180px] shrink-0 border-r overflow-y-auto">
+              <div
+                className="w-[180px] shrink-0 border-r overflow-y-auto"
+                ref={labelsScrollRef}
+                onScroll={handleLabelsScroll}
+              >
+                {/* Spacer matching the ruler row in the tracks column */}
+                <div className="h-5 border-b" />
                 {displayGroups.map((group) => {
                   const collapsed = collapsedLayers.has(group.id);
                   return (
@@ -433,7 +457,7 @@ export function TimelinePanel() {
                         <div
                           key={el.id}
                           className={cn(
-                            'w-full h-7 flex items-center gap-1 px-2 text-xs hover:bg-accent/50 transition-colors',
+                            'w-full h-7 my-0.5 flex items-center gap-1 px-2 text-xs hover:bg-accent/50 transition-colors',
                             state.activeElementId === el.id && 'bg-accent text-accent-foreground'
                           )}
                         >
@@ -461,7 +485,9 @@ export function TimelinePanel() {
                         </div>
                       ))}
                       {!collapsed && group.elements.length === 0 && (
-                        <p className="text-[10px] text-muted-foreground text-center py-1.5">Empty layer</p>
+                        <div className="h-[18px] flex items-center justify-center">
+                          <p className="text-[10px] text-muted-foreground leading-none">Empty layer</p>
+                        </div>
                       )}
                     </div>
                   );
@@ -474,7 +500,7 @@ export function TimelinePanel() {
                     key={a.id}
                     onClick={() => dispatch({ type: 'SET_ACTIVE_AUDIO', id: a.id })}
                     className={cn(
-                      'w-full h-7 flex items-center gap-1.5 px-2 text-xs truncate border-t bg-muted/30 hover:bg-accent/50 transition-colors text-left',
+                      'w-full h-7 my-0.5 flex items-center gap-1.5 px-2 text-xs truncate border-t bg-muted/30 hover:bg-accent/50 transition-colors text-left',
                       state.activeAudioId === a.id && 'bg-accent text-accent-foreground'
                     )}
                   >
@@ -497,7 +523,8 @@ export function TimelinePanel() {
               {/* Tracks */}
               <div
                 className="flex-1 overflow-x-auto overflow-y-auto relative"
-                ref={measureWidth}
+                ref={(node) => { measureWidth(node); tracksScrollRef.current = node; }}
+                onScroll={handleTracksScroll}
                 onMouseDown={handleScrubDrag}
                 onClick={handleScrub}
               >
