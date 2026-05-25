@@ -58,7 +58,11 @@ export function StoryViewOverlay({ open, onClose }: { open: boolean; onClose: ()
     // Outgoing jumps per slide
     const jumpsBySlide: { toIndex: number; label: string }[][] = slides.map((slide) => {
       const out: { toIndex: number; label: string }[] = [];
-      slide.elements.forEach((el, ei) => {
+      const allElements: SlideElement[] = [
+        ...slide.elements,
+        ...(slide.layers?.flatMap((l) => l.elements) ?? []),
+      ];
+      allElements.forEach((el, ei) => {
         for (const t of el.triggers ?? []) {
           if (t.action === 'jumpToSlide' && t.targetId) {
             const idx = idToIndex.get(t.targetId);
