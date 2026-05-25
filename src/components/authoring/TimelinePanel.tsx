@@ -263,7 +263,25 @@ export function TimelinePanel() {
   const { state, dispatch } = useCourse();
   const [open, setOpen] = useState(true);
   const trackAreaRef = useRef<HTMLDivElement>(null);
+  const labelsScrollRef = useRef<HTMLDivElement>(null);
+  const tracksScrollRef = useRef<HTMLDivElement>(null);
+  const syncingScrollRef = useRef<'labels' | 'tracks' | null>(null);
   const [trackWidth, setTrackWidth] = useState(600);
+
+  const handleLabelsScroll = useCallback(() => {
+    if (syncingScrollRef.current === 'tracks') { syncingScrollRef.current = null; return; }
+    const a = labelsScrollRef.current, b = tracksScrollRef.current;
+    if (!a || !b) return;
+    syncingScrollRef.current = 'labels';
+    b.scrollTop = a.scrollTop;
+  }, []);
+  const handleTracksScroll = useCallback(() => {
+    if (syncingScrollRef.current === 'labels') { syncingScrollRef.current = null; return; }
+    const a = labelsScrollRef.current, b = tracksScrollRef.current;
+    if (!a || !b) return;
+    syncingScrollRef.current = 'tracks';
+    a.scrollTop = b.scrollTop;
+  }, []);
   const animRef = useRef<number>(0);
   const lastFrameRef = useRef<number>(0);
 
