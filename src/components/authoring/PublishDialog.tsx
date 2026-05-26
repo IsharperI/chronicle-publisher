@@ -221,14 +221,33 @@ export function PublishDialog({ open, onOpenChange }: Props) {
               </div>
             )}
 
-            {section !== 'lms' && (
+            {section === 'word' && (
+              <div className="space-y-5 max-w-3xl">
+                <div className="space-y-1.5">
+                  <Label htmlFor="word-title">Course Title</Label>
+                  <Input id="word-title" value={title} onChange={(e) => setTitle(e.target.value)} />
+                </div>
+                <div className="rounded-lg border bg-slate-50 p-4 text-sm text-slate-700">
+                  <div className="font-semibold text-slate-800 mb-2">Word Export</div>
+                  <p className="text-slate-600">
+                    Generates a Microsoft Word (.docx) document with a title page and a two-column
+                    table containing a thumbnail and the text content, notes, and audio
+                    transcription for each of the {state.slides.length} slide{state.slides.length === 1 ? '' : 's'} in your course.
+                  </p>
+                  <div className="mt-3 text-xs text-slate-500">
+                    Output filename: <span className="font-mono text-slate-700">{slugify(title)}-word-export.docx</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {(section === 'web' || section === 'video') && (
               <div className="h-full flex items-center justify-center text-center">
                 <div className="max-w-sm">
                   <div className="text-2xl font-semibold text-slate-800 mb-2">Coming soon</div>
                   <p className="text-sm text-slate-500">
                     {section === 'web' && 'Publish a standalone web package that can be hosted on any static server.'}
                     {section === 'video' && 'Render the entire course as an MP4 video file.'}
-                    {section === 'word' && 'Export slide content and notes as a Microsoft Word document.'}
                   </p>
                 </div>
               </div>
