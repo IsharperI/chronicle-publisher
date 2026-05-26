@@ -14,6 +14,7 @@ import {
   ShadingType,
   PageBreak,
   LevelFormat,
+  HeightRule,
 } from 'docx';
 import { saveAs } from 'file-saver';
 import html2canvas from 'html2canvas';
