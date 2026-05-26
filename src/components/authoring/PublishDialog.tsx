@@ -260,7 +260,7 @@ export function PublishDialog({ open, onOpenChange }: Props) {
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button
             onClick={handlePublish}
-            disabled={publishing || section !== 'lms'}
+            disabled={publishing || (section !== 'lms' && section !== 'word')}
           >
             {publishing ? 'Publishing…' : 'Publish'}
           </Button>
