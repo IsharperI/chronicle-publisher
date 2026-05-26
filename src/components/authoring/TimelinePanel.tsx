@@ -306,12 +306,18 @@ export function TimelinePanel() {
     });
   };
 
-  const measureWidth = useCallback((node: HTMLDivElement | null) => {
+  const resizeObserverRef = useRef<ResizeObserver | null>(null);
+  const setTracksRef = useCallback((node: HTMLDivElement | null) => {
+    tracksScrollRef.current = node;
+    if (resizeObserverRef.current) {
+      resizeObserverRef.current.disconnect();
+      resizeObserverRef.current = null;
+    }
     if (node) {
       const ro = new ResizeObserver(([entry]) => setTrackWidth(entry.contentRect.width));
       ro.observe(node);
+      resizeObserverRef.current = ro;
       setTrackWidth(node.clientWidth);
-      return () => ro.disconnect();
     }
   }, []);
 
@@ -523,7 +529,7 @@ export function TimelinePanel() {
               {/* Tracks */}
               <div
                 className="flex-1 overflow-x-auto overflow-y-auto relative"
-                ref={(node) => { measureWidth(node); tracksScrollRef.current = node; }}
+                ref={setTracksRef}
                 onScroll={handleTracksScroll}
                 onMouseDown={handleScrubDrag}
                 onClick={handleScrub}
