@@ -70,6 +70,12 @@ export function PublishDialog({ open, onOpenChange }: Props) {
   const handlePublish = async () => {
     setPublishing(true);
     try {
+      if (section === 'word') {
+        const wordFilename = `${slugify(title)}-word-export.docx`;
+        await exportToWord(state, title, wordFilename);
+        onOpenChange(false);
+        return;
+      }
       const opts: PublishOptions = {
         format,
         courseTitle: title,
