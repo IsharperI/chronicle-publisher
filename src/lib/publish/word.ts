@@ -225,7 +225,7 @@ export async function exportToWord(state: CourseState, courseTitle: string, file
 
     rows.push(new TableRow({
       cantSplit: false,
-      height: { value: 2200, rule: 'atLeast' as never },
+      height: { value: 2200, rule: HeightRule.ATLEAST },
       children: [
         new TableCell({
           borders: CELL_BORDERS,
