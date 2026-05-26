@@ -529,7 +529,7 @@ export function TimelinePanel() {
               {/* Tracks */}
               <div
                 className="flex-1 overflow-x-auto overflow-y-auto relative"
-                ref={(node) => { measureWidth(node); tracksScrollRef.current = node; }}
+                ref={setTracksRef}
                 onScroll={handleTracksScroll}
                 onMouseDown={handleScrubDrag}
                 onClick={handleScrub}
