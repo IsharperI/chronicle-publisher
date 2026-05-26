@@ -11,6 +11,7 @@ import { useCourse } from '@/context/CourseContext';
 import { publish } from '@/lib/publish';
 import type { PublishFormat, PublishOptions, ReportStatus, CompletionMode } from '@/lib/publish/types';
 import { analyzeCompatibility } from '@/lib/publish/compat';
+import { exportToWord } from '@/lib/publish/word';
 import { cn } from '@/lib/utils';
 
 interface Props {
