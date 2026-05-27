@@ -12,6 +12,9 @@ import { publish } from '@/lib/publish';
 import type { PublishFormat, PublishOptions, ReportStatus, CompletionMode } from '@/lib/publish/types';
 import { analyzeCompatibility } from '@/lib/publish/compat';
 import { exportToWord } from '@/lib/publish/word';
+import { exportToVideo, isMp4Supported, type VideoQuality, type VideoStructure } from '@/lib/publish/video';
+import { Switch } from '@/components/ui/switch';
+import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 
 interface Props {
@@ -60,6 +63,14 @@ export function PublishDialog({ open, onOpenChange }: Props) {
   const [trackingOpen, setTrackingOpen] = useState(false);
   const [publishing, setPublishing] = useState(false);
 
+  // Video export state
+  const [videoStructure, setVideoStructure] = useState<VideoStructure>('single');
+  const [videoQuality, setVideoQuality] = useState<VideoQuality>('medium');
+  const [videoCaptions, setVideoCaptions] = useState(false);
+  const [videoProgress, setVideoProgress] = useState<{ current: number; total: number; label: string } | null>(null);
+  const [videoError, setVideoError] = useState<string | null>(null);
+  const [abortController, setAbortController] = useState<AbortController | null>(null);
+
   const quizSlides = useMemo(
     () => state.slides.filter((s) => s.slideType === 'quiz'),
     [state.slides],
@@ -74,6 +85,35 @@ export function PublishDialog({ open, onOpenChange }: Props) {
         const wordFilename = `${slugify(title)}-word-export.docx`;
         await exportToWord(state, title, wordFilename);
         onOpenChange(false);
+        return;
+      }
+      if (section === 'video') {
+        setVideoError(null);
+        if (!isMp4Supported()) {
+          setVideoError('MP4 export is not supported in this browser. Please use Chrome or Edge.');
+          return;
+        }
+        const ctrl = new AbortController();
+        setAbortController(ctrl);
+        setVideoProgress({ current: 0, total: state.slides.length, label: 'Starting…' });
+        try {
+          await exportToVideo(state, {
+            structure: videoStructure,
+            quality: videoQuality,
+            captions: videoCaptions,
+            courseTitle: title,
+            signal: ctrl.signal,
+            onProgress: (i, total, label) => setVideoProgress({ current: i, total, label }),
+          });
+          onOpenChange(false);
+        } catch (e) {
+          if ((e as Error).message !== 'Export cancelled') {
+            setVideoError((e as Error).message);
+          }
+        } finally {
+          setAbortController(null);
+          setVideoProgress(null);
+        }
         return;
       }
       const opts: PublishOptions = {
@@ -241,13 +281,86 @@ export function PublishDialog({ open, onOpenChange }: Props) {
               </div>
             )}
 
-            {(section === 'web' || section === 'video') && (
+            {section === 'video' && (
+              <div className="space-y-5 max-w-3xl">
+                <div className="space-y-1.5">
+                  <Label htmlFor="vid-title">Course Title</Label>
+                  <Input id="vid-title" value={title} onChange={(e) => setTitle(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Structure</Label>
+                  <div className="space-y-2">
+                    <label className="flex items-start gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="vid-structure"
+                        checked={videoStructure === 'single'}
+                        onChange={() => setVideoStructure('single')}
+                        className="mt-1"
+                      />
+                      <div>
+                        <div className="text-sm font-medium text-slate-800">Single video</div>
+                        <div className="text-xs text-slate-500">Export the entire course as one MP4 file.</div>
+                      </div>
+                    </label>
+                    <label className="flex items-start gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="vid-structure"
+                        checked={videoStructure === 'per-slide'}
+                        onChange={() => setVideoStructure('per-slide')}
+                        className="mt-1"
+                      />
+                      <div>
+                        <div className="text-sm font-medium text-slate-800">One video per slide</div>
+                        <div className="text-xs text-slate-500">Each slide exported as a separate MP4, packaged as a zip.</div>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label>Quality</Label>
+                    <Select value={videoQuality} onValueChange={(v) => setVideoQuality(v as VideoQuality)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="low">Low (480p)</SelectItem>
+                        <SelectItem value="medium">Medium (720p)</SelectItem>
+                        <SelectItem value="high">High (1080p)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Captions</Label>
+                    <div className="flex items-center gap-2 h-10">
+                      <Switch checked={videoCaptions} onCheckedChange={setVideoCaptions} />
+                      <span className="text-sm text-slate-600">
+                        {videoCaptions ? 'Burn captions into frames' : 'No captions'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {videoProgress && (
+                  <div className="rounded-lg border bg-slate-50 p-4 space-y-2">
+                    <div className="text-sm font-medium text-slate-800">{videoProgress.label}</div>
+                    <Progress value={videoProgress.total ? (videoProgress.current / videoProgress.total) * 100 : 0} />
+                  </div>
+                )}
+                {videoError && (
+                  <div className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-800">
+                    {videoError}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {section === 'web' && (
               <div className="h-full flex items-center justify-center text-center">
                 <div className="max-w-sm">
                   <div className="text-2xl font-semibold text-slate-800 mb-2">Coming soon</div>
                   <p className="text-sm text-slate-500">
-                    {section === 'web' && 'Publish a standalone web package that can be hosted on any static server.'}
-                    {section === 'video' && 'Render the entire course as an MP4 video file.'}
+                    Publish a standalone web package that can be hosted on any static server.
                   </p>
                 </div>
               </div>
@@ -257,13 +370,19 @@ export function PublishDialog({ open, onOpenChange }: Props) {
 
         {/* Footer */}
         <div className="h-16 border-t bg-slate-50 px-6 flex items-center justify-end gap-2 shrink-0">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button
-            onClick={handlePublish}
-            disabled={publishing || (section !== 'lms' && section !== 'word')}
-          >
-            {publishing ? 'Publishing…' : 'Publish'}
-          </Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={!!abortController}>Cancel</Button>
+          {section === 'video' && abortController ? (
+            <Button variant="destructive" onClick={() => abortController.abort()}>
+              Cancel export
+            </Button>
+          ) : (
+            <Button
+              onClick={handlePublish}
+              disabled={publishing || (section !== 'lms' && section !== 'word' && section !== 'video')}
+            >
+              {publishing ? 'Publishing…' : 'Publish'}
+            </Button>
+          )}
         </div>
       </div>
 
