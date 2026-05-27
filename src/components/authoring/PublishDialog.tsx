@@ -63,6 +63,17 @@ export function PublishDialog({ open, onOpenChange }: Props) {
   const [trackingOpen, setTrackingOpen] = useState(false);
   const [publishing, setPublishing] = useState(false);
 
+  // Video export state
+  const [videoStructure, setVideoStructure] = useState<VideoStructure>('single');
+  const [videoQuality, setVideoQuality] = useState<VideoQuality>('medium');
+  const [videoCaptions, setVideoCaptions] = useState(false);
+  const [videoProgress, setVideoProgress] = useState<{ current: number; total: number; label: string } | null>(null);
+  const [videoError, setVideoError] = useState<string | null>(null);
+  const videoAbortRef = (window as unknown as { __videoAbort?: AbortController }).__videoAbort
+    ? undefined
+    : undefined;
+  const [abortController, setAbortController] = useState<AbortController | null>(null);
+
   const quizSlides = useMemo(
     () => state.slides.filter((s) => s.slideType === 'quiz'),
     [state.slides],
