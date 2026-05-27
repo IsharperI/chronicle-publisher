@@ -69,9 +69,6 @@ export function PublishDialog({ open, onOpenChange }: Props) {
   const [videoCaptions, setVideoCaptions] = useState(false);
   const [videoProgress, setVideoProgress] = useState<{ current: number; total: number; label: string } | null>(null);
   const [videoError, setVideoError] = useState<string | null>(null);
-  const videoAbortRef = (window as unknown as { __videoAbort?: AbortController }).__videoAbort
-    ? undefined
-    : undefined;
   const [abortController, setAbortController] = useState<AbortController | null>(null);
 
   const quizSlides = useMemo(
