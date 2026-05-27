@@ -87,6 +87,35 @@ export function PublishDialog({ open, onOpenChange }: Props) {
         onOpenChange(false);
         return;
       }
+      if (section === 'video') {
+        setVideoError(null);
+        if (!isMp4Supported()) {
+          setVideoError('MP4 export is not supported in this browser. Please use Chrome or Edge.');
+          return;
+        }
+        const ctrl = new AbortController();
+        setAbortController(ctrl);
+        setVideoProgress({ current: 0, total: state.slides.length, label: 'Starting…' });
+        try {
+          await exportToVideo(state, {
+            structure: videoStructure,
+            quality: videoQuality,
+            captions: videoCaptions,
+            courseTitle: title,
+            signal: ctrl.signal,
+            onProgress: (i, total, label) => setVideoProgress({ current: i, total, label }),
+          });
+          onOpenChange(false);
+        } catch (e) {
+          if ((e as Error).message !== 'Export cancelled') {
+            setVideoError((e as Error).message);
+          }
+        } finally {
+          setAbortController(null);
+          setVideoProgress(null);
+        }
+        return;
+      }
       const opts: PublishOptions = {
         format,
         courseTitle: title,
