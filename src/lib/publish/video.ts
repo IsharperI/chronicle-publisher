@@ -36,7 +36,7 @@ export function isMp4Supported(): boolean {
 function getAllElements(slide: Slide): SlideElement[] {
   if (slide.layers && slide.layers.length > 0) {
     return slide.layers.flatMap((l: SlideLayer) =>
-      l.elements.filter((e) => !l.isHidden && !e.isHidden),
+      l.elements.filter((e) => l.visible !== false && !e.isHidden),
     );
   }
   return slide.elements.filter((e) => !e.isHidden);
