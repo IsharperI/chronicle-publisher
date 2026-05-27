@@ -1,5 +1,7 @@
 import JSZip from 'jszip';
-import type { AppState, Slide, SlideElement, SlideLayer } from '@/types/course';
+import type { CourseState, Slide, SlideElement, SlideLayer } from '@/types/course';
+
+type AppState = CourseState;
 
 export type VideoStructure = 'single' | 'per-slide';
 export type VideoQuality = 'low' | 'medium' | 'high';
