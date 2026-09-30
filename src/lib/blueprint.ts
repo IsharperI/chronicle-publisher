@@ -9,6 +9,8 @@ import {
   type ShapeType,
   type Slide,
   type SlideElement,
+  type SlideLayer,
+  type Trigger,
   type TextElement,
 } from '@/types/course';
 import { sanitizeSlides, sanitizePlayerSettings, sanitizeCourseSettings, sanitizeVariables } from '@/lib/sanitize';
@@ -26,6 +28,17 @@ const imageTextSlide = z.object({
 });
 const column = z.object({ heading: z.string(), bullets: bulletList });
 const twoColumnSlide = z.object({ layout: z.literal('two-column'), title: z.string(), left: column, right: column, ...common });
+const revealItem = z.object({
+  label: z.string().min(1, 'label is required'),
+  heading: z.string().optional(),
+  body: z.string().min(1, 'body is required'),
+  imageDescription: z.string().optional(),
+});
+const revealSlide = z.object({
+  layout: z.literal('reveal'), title: z.string(), intro: z.string().optional(),
+  items: z.array(revealItem).min(2, 'items must have 2–6 entries').max(6, 'items must have 2–6 entries'),
+  ...common,
+});
 const calloutSlide = z.object({ layout: z.literal('callout'), title: z.string(), message: z.string(), tone: z.enum(['warning', 'info']), ...common });
 const quizSlide = z.object({
   layout: z.literal('quiz'), question: z.string(),
@@ -40,7 +53,7 @@ const resultsSlide = z.object({
 });
 
 export const blueprintSlideSchema = z.discriminatedUnion('layout', [
-  titleSlide, sectionSlide, bulletsSlide, imageTextSlide, twoColumnSlide, calloutSlide, quizSlide, resultsSlide,
+  titleSlide, sectionSlide, bulletsSlide, imageTextSlide, twoColumnSlide, revealSlide, calloutSlide, quizSlide, resultsSlide,
 ]);
 
 export const courseBlueprintSchema = z.object({
@@ -165,6 +178,66 @@ export function blueprintToCourse(bp: CourseBlueprint, canvas: CanvasDimensions 
           text(x, 220, 432, 490, bulletText(c.bullets ?? []), bulletSize((c.bullets ?? []).length), DARK),
         ];
         return content(s.title, [...titleBar(s.title), ...col(60, s.left), ...col(532, s.right)], s);
+      }
+      case 'reveal': {
+        // Storyline-style lightboxes: a button per item on the base layer; each
+        // opens its own hidden layer (dimmed backdrop + card + close button).
+        const SECONDARY = colors[1];
+        const n = s.items.length;
+        const cols = n <= 3 ? n : n === 4 ? 2 : 3;
+        const rows = Math.ceil(n / cols);
+        const gap = 24;
+        const areaX = 60, areaY = 240, areaW = 904, areaH = 440;
+        const bw = (areaW - gap * (cols - 1)) / cols;
+        const bh = Math.min(110, (areaH - gap * (rows - 1)) / rows);
+        const layerIds = s.items.map(() => crypto.randomUUID());
+        const onClick = (action: 'showLayer' | 'hideLayer', targetId: string): Trigger[] => [
+          { event: 'onClick', action, targetId },
+        ];
+
+        const baseEls: SlideElement[] = [
+          ...titleBar(s.title),
+          text(60, 140, 904, 80, s.intro ?? 'Select each button to learn more.', 22, DARK),
+          ...s.items.map((it, i) => {
+            const r = Math.floor(i / cols), c = i % cols;
+            // Center a short last row.
+            const inRow = r === rows - 1 ? n - r * cols : cols;
+            const rowW = inRow * bw + (inRow - 1) * gap;
+            const x = areaX + (areaW - rowW) / 2 + c * (bw + gap);
+            return shape(x, areaY + r * (bh + gap), bw, bh, PRIMARY, {
+              text: it.label, textColor: LIGHT, fontSize: it.label.length > 24 ? 18 : 22,
+              hoverFillColor: SECONDARY, borderRadius: 12, triggers: onClick('showLayer', layerIds[i]),
+            });
+          }),
+        ];
+
+        const itemLayers: SlideLayer[] = s.items.map((it, i) => {
+          const close = onClick('hideLayer', layerIds[i]);
+          const heading = it.heading ?? it.label;
+          const bodySize = it.body.length > 450 ? 18 : it.body.length > 280 ? 20 : 22;
+          const els: SlideElement[] = [
+            shape(0, 0, 1024, 768, 'rgba(0,0,0,0.55)', { triggers: close }),
+            shape(112, 84, 800, 600, '#ffffff', { borderRadius: 12, boxShadow: '0 12px 40px rgba(0,0,0,0.35)' }),
+            shape(112, 84, 800, 12, PRIMARY),
+            text(152, 116, 660, 70, heading, 30, PRIMARY, '700'),
+            shape(848, 112, 44, 44, PRIMARY, {
+              text: '✕', textColor: LIGHT, fontSize: 20, hoverFillColor: SECONDARY, triggers: close,
+            }, 'circle'),
+          ];
+          if (it.imageDescription) {
+            els.push(
+              shape(152, 200, 300, 440, LIGHT, { borderColor: DARK, borderWidth: 2, text: 'IMAGE PLACEHOLDER\n\n' + it.imageDescription, textColor: DARK, fontSize: 14 }),
+              text(480, 200, 392, 440, it.body, bodySize, DARK),
+            );
+          } else {
+            els.push(text(152, 200, 720, 440, it.body, bodySize, DARK));
+          }
+          return { id: layerIds[i], name: shortTitle(it.label, 40), visible: false, locked: false, elements: els };
+        });
+
+        const baseLayer: SlideLayer = { id: crypto.randomUUID(), name: 'Base Layer', visible: true, locked: false, elements: baseEls };
+        const layers = [baseLayer, ...itemLayers];
+        return { ...content(s.title, layers.flatMap((l) => l.elements), s), layers };
       }
       case 'callout': {
         const warn = s.tone === 'warning';
@@ -309,13 +382,16 @@ SLIDE LAYOUTS (choose one per slide with "layout")
 5. Two columns: comparisons such as Do / Don't or Before / After; 1 to 8 bullets per column
 { "layout": "two-column", "title": "Approved vs. Prohibited", "left": { "heading": "Approved", "bullets": ["Item A", "Item B"] }, "right": { "heading": "Prohibited", "bullets": ["Item C", "Item D"] } }
 
-6. Callout: one key message under 150 characters. tone "warning" for safety-critical rules, "info" for tips and reminders
+6. Click-to-reveal (lightboxes): 2 to 6 buttons; each opens a pop-up with more detail. Use it where the source has lightboxes, tabs, hotspots or "click to learn more" content, or for a set of related items the learner can explore in any order. label is the button text (under 30 characters); heading is optional (defaults to the label); body under 500 characters; imageDescription is optional
+{ "layout": "reveal", "title": "Types of Electrical Injuries", "intro": "Select each injury type to learn more.", "items": [ { "label": "Electric Shock", "body": "Current passing through the body. Effects range from tingling to cardiac arrest.", "imageDescription": "Electric shock warning icon" }, { "label": "Burns", "heading": "Electrical Burns", "body": "Heat at the contact point damages skin and tissue." } ] }
+
+7. Callout: one key message under 150 characters. tone "warning" for safety-critical rules, "info" for tips and reminders
 { "layout": "callout", "title": "Before You Start", "tone": "warning", "message": "Never begin work until the vehicle is locked out." }
 
-7. Quiz question: multiple choice, 2 to 6 choices, at least one correct. If more than one is correct the learner selects all that apply. Feedback is optional
+8. Quiz question: multiple choice, 2 to 6 choices, at least one correct. If more than one is correct the learner selects all that apply. Feedback is optional
 { "layout": "quiz", "question": "When can you begin work?", "choices": [ { "text": "Right away", "correct": false }, { "text": "After lockout is confirmed", "correct": true } ], "correctFeedback": "Correct.", "incorrectFeedback": "Not quite. Lockout must be confirmed first." }
 
-8. Results slide: put last when the course has quiz questions. passThreshold is 0 to 100
+9. Results slide: put last when the course has quiz questions. passThreshold is 0 to 100
 { "layout": "results", "passThreshold": 80 }
 
 GUIDANCE

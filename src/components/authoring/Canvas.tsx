@@ -27,7 +27,17 @@ function getAnimOutClass(anim: AnimationOut): string {
   }
 }
 
-function getAnimationPhase(el: SlideElement, playheadTime: number): 'before' | 'entering' | 'visible' | 'exiting' | 'after' {
+/**
+ * Elements whose timeline bar reaches the end of the slide stay on screen after
+ * the timeline finishes (as in Storyline). Without this, content vanished the
+ * moment the playhead reached the slide's end.
+ */
+function lastsToSlideEnd(el: SlideElement, slideDur?: number): boolean {
+  return slideDur != null && el.startTime + el.duration >= slideDur;
+}
+
+function getAnimationPhase(el: SlideElement, playheadTime: number, slideDur?: number): 'before' | 'entering' | 'visible' | 'exiting' | 'after' {
+  if (lastsToSlideEnd(el, slideDur) && playheadTime >= el.startTime + (el.entranceDuration ?? 500)) return 'visible';
   const end = el.startTime + el.duration;
   const entranceDur = el.entranceDuration ?? 500;
   const exitDur = el.exitDuration ?? 500;
@@ -293,7 +303,8 @@ function ElementRenderer({ element, isPreview }: { element: SlideElement; isPrev
   return null;
 }
 
-function isElementVisible(el: SlideElement, playheadTime: number): boolean {
+function isElementVisible(el: SlideElement, playheadTime: number, slideDur?: number): boolean {
+  if (lastsToSlideEnd(el, slideDur)) return playheadTime >= el.startTime;
   return playheadTime >= el.startTime && playheadTime < el.startTime + el.duration;
 }
 
@@ -715,10 +726,10 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
   // per-element metadata map so the editor can decide which elements are
   // interactive vs static.
   const layers = activeSlide?.layers ?? [];
-  // A layer is effectively visible only when the author has it visible AND no
-  // runtime trigger has hidden it for the current session.
+  // A layer's author visibility is its starting state; during playback a
+  // showLayer/hideLayer trigger overrides it (so hidden layers can be revealed).
   const isLayerEffectivelyVisible = useCallback(
-    (l: { id: string; visible: boolean }) => l.visible && (layerRuntimeVis[l.id] ?? true),
+    (l: { id: string; visible: boolean }) => layerRuntimeVis[l.id] ?? l.visible,
     [layerRuntimeVis],
   );
   const elementLayerMeta = useMemo(() => {
@@ -773,7 +784,7 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
       >
         {/* Master slide background layer (locked, non-interactive) */}
         {masterElements.map((el) => {
-          const visible = isElementVisible(el, state.playheadTime);
+          const visible = isElementVisible(el, state.playheadTime, activeSlide?.duration);
           if (!visible && !isPreview) return (
             <div
               key={`master-${el.id}`}
@@ -801,7 +812,7 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
         {/* Regular slide elements */}
         {isPreview
           ? editElements.map((el) => {
-              const phase = getAnimationPhase(el, state.playheadTime);
+              const phase = getAnimationPhase(el, state.playheadTime, activeSlide?.duration);
               if (phase === 'before' || phase === 'after') return null;
               const animClass = phase === 'entering' ? getAnimInClass(el.animationIn)
                 : phase === 'exiting' ? getAnimOutClass(el.animationOut) : '';
@@ -834,7 +845,7 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
               );
             })
           : editElements.map((el) => {
-              const visible = isElementVisible(el, state.playheadTime);
+              const visible = isElementVisible(el, state.playheadTime, activeSlide?.duration);
               const isEditing = editingId === el.id && el.type === 'shape';
               const meta = elementLayerMeta.get(el.id);
               const layerLocked = !!meta?.layerLocked;

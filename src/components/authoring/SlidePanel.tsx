@@ -202,7 +202,10 @@ const SlideThumbnail = memo(function SlideThumbnail({ slide, canvasWidth, canvas
             transformOrigin: 'top left',
           }}
         >
-          {slide.elements.map((el) => (
+          {(slide.layers?.length
+            ? slide.layers.filter((l) => l.visible !== false).flatMap((l) => l.elements)
+            : slide.elements
+          ).map((el) => (
             <ThumbElement key={el.id} el={el} themeColors={themeColors} />
           ))}
         </div>

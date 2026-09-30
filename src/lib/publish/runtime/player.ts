@@ -384,15 +384,20 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
           .replace(/\\{strokeWidth\\}/g,String(borderWidth));
         d.innerHTML='<svg viewBox="0 0 100 100" preserveAspectRatio="none" style="width:100%;height:100%;display:block;overflow:visible">'+inner+'</svg>';
         if(el.hoverFillColor||el.hoverBorderColor){
-          d.addEventListener("mouseenter",function(){
-            var hf=el.hoverFillColor||fillColor,hb=el.hoverBorderColor||borderColor;
-            var hi=EXT_SHAPE_SVG[st].replace(/\\{fill\\}/g,hf).replace(/\\{stroke\\}/g,hb).replace(/\\{strokeWidth\\}/g,String(borderWidth));
-            d.innerHTML='<svg viewBox="0 0 100 100" preserveAspectRatio="none" style="width:100%;height:100%;display:block;overflow:visible">'+hi+'</svg>';
-            d.style.cursor="pointer";
-          });
-          d.addEventListener("mouseleave",function(){
-            d.innerHTML='<svg viewBox="0 0 100 100" preserveAspectRatio="none" style="width:100%;height:100%;display:block;overflow:visible">'+inner+'</svg>';
-          });
+          /* Recolour the existing SVG nodes in place. Rebuilding innerHTML on hover wiped the
+             shape's text label and swapped the node under the pointer, which cancelled clicks. */
+          var _fillNodes=[],_strokeNodes=[],_all=d.querySelectorAll("svg *");
+          for(var _k=0;_k<_all.length;_k++){
+            if(_all[_k].getAttribute("fill")===fillColor)_fillNodes.push(_all[_k]);
+            if(_all[_k].getAttribute("stroke")===borderColor)_strokeNodes.push(_all[_k]);
+          }
+          var _paint=function(f,b){
+            var i;
+            for(i=0;i<_fillNodes.length;i++)_fillNodes[i].setAttribute("fill",f);
+            for(i=0;i<_strokeNodes.length;i++)_strokeNodes[i].setAttribute("stroke",b);
+          };
+          d.addEventListener("mouseenter",function(){_paint(el.hoverFillColor||fillColor,el.hoverBorderColor||borderColor);d.style.cursor="pointer"});
+          d.addEventListener("mouseleave",function(){_paint(fillColor,borderColor)});
         }
       } else {
         d.style.backgroundColor=fillColor;
@@ -950,7 +955,7 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
       openLightbox(t.targetId);
     } else if(t.action==="showLayer"){
       var _sl=stage.querySelectorAll('[data-layer-id="'+t.targetId+'"]');
-      for(var _si=0;_si<_sl.length;_si++)_sl[_si].style.display="";
+      for(var _si=0;_si<_sl.length;_si++)_sl[_si].style.display=_sl[_si].getAttribute("data-disp")||"";
     } else if(t.action==="hideLayer"){
       var _hl=stage.querySelectorAll('[data-layer-id="'+t.targetId+'"]');
       for(var _hi=0;_hi<_hl.length;_hi++)_hl[_hi].style.display="none";
@@ -1094,11 +1099,13 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
     if(_layers&&_layers.length){
       for(var _li=0;_li<_layers.length;_li++){
         var _L=_layers[_li];
-        if(!_L.visible)continue;
+        /* Hidden layers are rendered but hidden, so showLayer triggers can reveal them. */
         var _le=_L.elements||[];
         for(var _ei=0;_ei<_le.length;_ei++){
           var _node=renderElement(_le[_ei]);
           _node.setAttribute("data-layer-id",_L.id);
+          _node.setAttribute("data-disp",_node.style.display||"");
+          if(!_L.visible)_node.style.display="none";
           stage.appendChild(_node);
         }
       }

@@ -108,6 +108,7 @@ export function safeAudioSrc(value: unknown): string | null {
 
 import type {
   Slide,
+  SlideLayer,
   SlideElement,
   PlayerSettings,
   CourseSettings,
@@ -210,6 +211,8 @@ function sanitizeElement(raw: any): SlideElement | null {
     animationOut: safeEnum(raw.animationOut, ANIM_OUT, 'none'),
     entranceDuration: safeNumber(raw.entranceDuration, 500, 0, 60_000),
     exitDuration: safeNumber(raw.exitDuration, 500, 0, 60_000),
+    ...(raw.isLocked === true ? { isLocked: true } : {}),
+    ...(raw.isHidden === true ? { isHidden: true } : {}),
   };
   if (raw.type === 'text') {
     const el: TextElement = {
@@ -366,8 +369,24 @@ function sanitizeSlide(raw: any): Slide {
     transitionDuration: safeNumber(raw?.transitionDuration, 0.5, 0, 10),
     advanceMode: safeEnum(raw?.advanceMode, ['manual', 'auto'] as const, 'manual'),
     revisitMode: safeEnum(raw?.revisitMode, ['reset', 'resume'] as const, 'reset'),
+    layers: sanitizeLayers(raw?.layers),
     ...sanitizeSlideKind(raw),
   };
+}
+
+/** Preserves slide layers (previously dropped on load, which merged every layer into one). */
+function sanitizeLayers(raw: unknown): SlideLayer[] | undefined {
+  if (!Array.isArray(raw) || raw.length === 0) return undefined;
+  type RawLayer = { id?: unknown; name?: unknown; visible?: unknown; locked?: unknown; elements?: unknown };
+  return (raw.slice(0, 50).filter((l) => l && typeof l === 'object') as RawLayer[]).map((l) => ({
+    id: safeId(l.id),
+    name: safeString(l.name, 'Layer', 100) || 'Layer',
+    visible: l.visible !== false,
+    locked: l.locked === true,
+    elements: Array.isArray(l.elements)
+      ? l.elements.slice(0, 1000).map(sanitizeElement).filter((e): e is SlideElement => e !== null)
+      : [],
+  }));
 }
 
 function sanitizeFeedback(raw: any) {
