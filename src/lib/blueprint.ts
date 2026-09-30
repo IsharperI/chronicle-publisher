@@ -119,8 +119,9 @@ export function blueprintToCourse(bp: CourseBlueprint, canvas: CanvasDimensions 
   const slides: Slide[] = bp.slides.map((s): Slide => {
     switch (s.layout) {
       case 'title': {
-        const els: SlideElement[] = [shape(0, 0, 1024, 768, PRIMARY), text(80, 260, 864, 130, s.title, 48, LIGHT, '700')];
-        if (s.subtitle) els.push(text(80, 400, 864, 100, s.subtitle, 24, LIGHT));
+        const titleSize = s.title.length <= 28 ? 48 : s.title.length <= 50 ? 40 : 34;
+        const els: SlideElement[] = [shape(0, 0, 1024, 768, PRIMARY), text(80, 220, 864, 180, s.title, titleSize, LIGHT, '700')];
+        if (s.subtitle) els.push(text(80, 410, 864, 100, s.subtitle, 24, LIGHT));
         return content(s.title, els, s);
       }
       case 'bullets':
