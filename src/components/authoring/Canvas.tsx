@@ -74,7 +74,7 @@ function ElementRenderer({ element, isPreview }: { element: SlideElement; isPrev
         {...hoverProps}
         style={{
           width: '100%', height: '100%', fontSize: te.fontSize, fontWeight: te.fontWeight,
-          color, backgroundColor: bg, padding: 8, overflow: 'hidden', wordBreak: 'break-word',
+          color, backgroundColor: bg, padding: 8, overflow: 'hidden', wordBreak: 'break-word', whiteSpace: 'pre-wrap',
           transition: isPreview ? 'color 0.2s, background-color 0.2s' : undefined,
           cursor: isPreview && (te.hoverBackgroundColor || te.hoverTextColor) ? 'pointer' : undefined,
         }}
