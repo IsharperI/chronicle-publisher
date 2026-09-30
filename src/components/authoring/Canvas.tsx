@@ -1,5 +1,6 @@
 import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import { Rnd } from 'react-rnd';
+import { TextLines } from './TextLines';
 import { useCourse } from '@/context/CourseContext';
 import type { SlideElement, TextElement, ShapeElement, AnimationIn, AnimationOut, TableElement, Slide, QuizConfig, QuizChoice, QuizMatchPair, QuizSortItem } from '@/types/course';
 import { isExtendedShapeType, resolveShapeSvg } from '@/lib/shapes';
@@ -79,7 +80,7 @@ function ElementRenderer({ element, isPreview }: { element: SlideElement; isPrev
           cursor: isPreview && (te.hoverBackgroundColor || te.hoverTextColor) ? 'pointer' : undefined,
         }}
       >
-        {te.content}
+        <TextLines content={te.content} />
       </div>
     );
   }

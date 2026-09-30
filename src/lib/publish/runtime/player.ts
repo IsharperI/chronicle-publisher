@@ -296,6 +296,24 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
     return[];
   }
 
+  /* Text with "• " bullet lines gets a hanging indent so wrapped lines align with the text. */
+  function fillText(d,content){
+    var NL=String.fromCharCode(10),B=String.fromCharCode(8226)+" ";
+    var lines=String(content||"").split(NL),hasB=false,i;
+    for(i=0;i<lines.length;i++){if(lines[i].indexOf(B)===0){hasB=true;break;}}
+    if(!hasB){d.textContent=String(content||"");return;}
+    for(i=0;i<lines.length;i++){
+      var row=document.createElement("div");
+      if(lines[i].indexOf(B)===0){
+        row.style.display="flex";
+        var m=document.createElement("span");m.style.flex="none";m.style.width="0.9em";m.textContent=String.fromCharCode(8226);
+        var t=document.createElement("span");t.style.flex="1";t.style.minWidth="0";t.textContent=lines[i].slice(2);
+        row.appendChild(m);row.appendChild(t);
+      }else{row.textContent=lines[i]||String.fromCharCode(160);}
+      d.appendChild(row);
+    }
+  }
+
   function renderElement(el){
     var d=document.createElement("div");
     d.className="el";
@@ -318,7 +336,7 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
       d.style.color=el.textColor||"#000";
       d.style.backgroundColor=el.backgroundColor||"transparent";
       d.style.padding="4px";d.style.whiteSpace="pre-wrap";d.style.overflow="hidden";d.style.wordWrap="break-word";
-      d.textContent=el.content||"";
+      fillText(d,el.content);
       if(el.hoverTextColor||el.hoverBackgroundColor){
         var baseTC=el.textColor||"#000",baseBG=el.backgroundColor||"transparent";
         d.addEventListener("mouseenter",function(){if(el.hoverTextColor)d.style.color=el.hoverTextColor;if(el.hoverBackgroundColor)d.style.backgroundColor=el.hoverBackgroundColor;d.style.cursor="pointer"});

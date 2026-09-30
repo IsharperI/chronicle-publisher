@@ -1,4 +1,5 @@
 import { useCourse } from '@/context/CourseContext';
+import { TextLines } from './TextLines';
 import { Button } from '@/components/ui/button';
 import { Plus, Trash2, HelpCircle, Trophy } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -40,7 +41,7 @@ function ThumbElement({ el, themeColors }: { el: SlideElement; themeColors: stri
           wordBreak: 'break-word',
         }}
       >
-        {el.content}
+        <TextLines content={el.content} />
       </div>
     );
   }
