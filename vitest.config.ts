@@ -9,6 +9,8 @@ export default defineConfig({
     globals: true,
     setupFiles: ["./src/test/setup.ts"],
     include: ["src/**/*.{test,spec}.{ts,tsx}"],
+    // Process kokoro-js through Vite so tests can stub its heavy engines.
+    server: { deps: { inline: ["kokoro-js"] } },
   },
   resolve: {
     alias: { "@": path.resolve(__dirname, "./src") },
