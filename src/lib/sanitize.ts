@@ -366,7 +366,56 @@ function sanitizeSlide(raw: any): Slide {
     transitionDuration: safeNumber(raw?.transitionDuration, 0.5, 0, 10),
     advanceMode: safeEnum(raw?.advanceMode, ['manual', 'auto'] as const, 'manual'),
     revisitMode: safeEnum(raw?.revisitMode, ['reset', 'resume'] as const, 'reset'),
+    ...sanitizeSlideKind(raw),
   };
+}
+
+function sanitizeFeedback(raw: any) {
+  return {
+    mode: safeEnum(raw?.mode, ['inline', 'jumpToSlide', 'overlay'] as const, 'inline'),
+    message: typeof raw?.message === 'string' ? safeString(raw.message, '', 2_000) : undefined,
+    targetSlideId: typeof raw?.targetSlideId === 'string' ? safeId(raw.targetSlideId) : undefined,
+  };
+}
+
+/** Preserves quiz/results slide configuration (previously dropped on load). */
+function sanitizeSlideKind(raw: any): Partial<Slide> {
+  const slideType = safeEnum(raw?.slideType, ['content', 'quiz', 'results'] as const, 'content');
+  const out: Partial<Slide> = { slideType };
+  if (slideType === 'quiz' && raw?.quiz && typeof raw.quiz === 'object') {
+    const q = raw.quiz;
+    const arr = (v: any) => (Array.isArray(v) ? v.slice(0, 50) : []);
+    out.quiz = {
+      questionType: safeEnum(q.questionType, ['multiple-choice', 'dnd-matching', 'dnd-sorting'] as const, 'multiple-choice'),
+      question: safeString(q.question, '', 2_000),
+      choices: arr(q.choices).map((c: any) => ({ id: safeId(c?.id), text: safeString(c?.text, '', 1_000), correct: safeBoolean(c?.correct) })),
+      singleSelect: safeBoolean(q.singleSelect, true),
+      pairs: arr(q.pairs).map((p: any) => ({ id: safeId(p?.id), left: safeString(p?.left, '', 1_000), right: safeString(p?.right, '', 1_000) })),
+      sortItems: arr(q.sortItems).map((i: any) => ({ id: safeId(i?.id), text: safeString(i?.text, '', 1_000) })),
+      correctFeedback: sanitizeFeedback(q.correctFeedback),
+      incorrectFeedback: sanitizeFeedback(q.incorrectFeedback),
+      attempts: safeNumber(q.attempts, 1, 0, 10),
+      attemptsExhaustedBehavior: safeEnum(q.attemptsExhaustedBehavior, ['reveal', 'lock'] as const, 'reveal'),
+      quizRevisitMode: safeEnum(q.quizRevisitMode, ['reset', 'resume'] as const, 'reset'),
+      allowSkip: safeBoolean(q.allowSkip),
+      skipTargetSlideId: typeof q.skipTargetSlideId === 'string' ? safeId(q.skipTargetSlideId) : undefined,
+      timer: q.timer && typeof q.timer === 'object' ? {
+        enabled: safeBoolean(q.timer.enabled),
+        mode: safeEnum(q.timer.mode, ['per-question', 'course'] as const, 'per-question'),
+        minutes: safeNumber(q.timer.minutes, 1, 0, 600),
+        seconds: safeNumber(q.timer.seconds, 0, 0, 59),
+        showToLearner: safeBoolean(q.timer.showToLearner, true),
+      } : undefined,
+    };
+  }
+  if (slideType === 'results' && raw?.results && typeof raw.results === 'object') {
+    out.results = {
+      passThreshold: safeNumber(raw.results.passThreshold, 80, 0, 100),
+      passMessage: safeString(raw.results.passMessage, '', 2_000),
+      failMessage: safeString(raw.results.failMessage, '', 2_000),
+    };
+  }
+  return out;
 }
 
 export function sanitizeSlides(raw: unknown): Slide[] {

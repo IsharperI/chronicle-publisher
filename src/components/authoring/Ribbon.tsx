@@ -16,6 +16,8 @@ import type { TextElement, ImageElement, ShapeElement, VideoElement, SlideAudio,
 import { Separator } from '@/components/ui/separator';
 import { PlayerSettingsModal } from './PlayerSettingsModal';
 import { sanitizeSlides, sanitizePlayerSettings, sanitizeCourseSettings, sanitizeVariables } from '@/lib/sanitize';
+import { isBlueprint, validateBlueprint, blueprintToCourse } from '@/lib/blueprint';
+import { toast } from 'sonner';
 
 import { StorySizeControl, ThemeColorsControl } from './DesignControls';
 import { QuizThemesOverlay, QuestionBankOverlay } from './QuizOverlays';
@@ -67,6 +69,25 @@ export function Ribbon() {
     reader.onload = (ev) => {
       try {
         const data = JSON.parse(ev.target?.result as string);
+        if (isBlueprint(data)) {
+          const res = validateBlueprint(data);
+          if (res.ok === false) {
+            toast.error('Blueprint has errors', { description: res.errors.slice(0, 5).join('\n') });
+            return;
+          }
+          const course = blueprintToCourse(res.blueprint, state.courseSettings.canvasDimensions);
+          const slides = sanitizeSlides(course.slides);
+          dispatch({
+            type: 'LOAD_COURSE',
+            slides,
+            masterSlides: sanitizeSlides(course.masterSlides),
+            playerSettings: sanitizePlayerSettings(course.playerSettings),
+            courseSettings: sanitizeCourseSettings({ ...state.courseSettings, ...course.courseSettings }),
+            variables: sanitizeVariables([]),
+          });
+          toast.success(`Loaded blueprint: ${slides.length} slides`);
+          return;
+        }
         if (data && Array.isArray(data.slides)) {
           // Sanitize all imported data: validates colors, fonts, image URIs,
           // numeric ranges, and enums to prevent CSS/HTML/JS injection when
