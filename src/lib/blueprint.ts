@@ -18,6 +18,7 @@ const common = { narration: z.string().optional(), sourceRef: z.string().optiona
 const bulletList = z.array(z.string()).min(1, 'bullets must have 1–8 items').max(8, 'bullets must have 1–8 items');
 
 const titleSlide = z.object({ layout: z.literal('title'), title: z.string(), subtitle: z.string().optional(), ...common });
+const sectionSlide = z.object({ layout: z.literal('section'), title: z.string(), subtitle: z.string().optional(), ...common });
 const bulletsSlide = z.object({ layout: z.literal('bullets'), title: z.string(), bullets: bulletList, ...common });
 const imageTextSlide = z.object({
   layout: z.literal('image-text'), title: z.string(), body: z.string(), imageDescription: z.string(),
@@ -39,7 +40,7 @@ const resultsSlide = z.object({
 });
 
 export const blueprintSlideSchema = z.discriminatedUnion('layout', [
-  titleSlide, bulletsSlide, imageTextSlide, twoColumnSlide, calloutSlide, quizSlide, resultsSlide,
+  titleSlide, sectionSlide, bulletsSlide, imageTextSlide, twoColumnSlide, calloutSlide, quizSlide, resultsSlide,
 ]);
 
 export const courseBlueprintSchema = z.object({
@@ -82,6 +83,16 @@ export interface BlueprintCourse {
   courseSettings: Partial<CourseSettings>;
 }
 
+/** Fit a title into the 30-character slide-title limit, cutting at a word boundary with an ellipsis. */
+export function shortTitle(title: string, max = 30): string {
+  const t = title.trim().replace(/\s+/g, ' ');
+  if (t.length <= max) return t;
+  const cut = t.slice(0, max - 1);
+  const space = cut.lastIndexOf(' ');
+  const base = space >= max / 2 ? cut.slice(0, space) : cut;
+  return base.replace(/[\s,;:.\-–—(]+$/, '') + '…';
+}
+
 export function blueprintToCourse(bp: CourseBlueprint, canvas: CanvasDimensions = { width: 1024, height: 768 }): BlueprintCourse {
   const colors = bp.course.themeColors ?? [...defaultCourseSettings.themeColors];
   const PRIMARY = colors[0], ACCENT2 = colors[3], DARK = colors[4], LIGHT = colors[5];
@@ -113,12 +124,24 @@ export function blueprintToCourse(bp: CourseBlueprint, canvas: CanvasDimensions 
     return n || undefined;
   };
   const content = (title: string, elements: SlideElement[], s: BlueprintSlide): Slide => ({
-    id: crypto.randomUUID(), title: title.slice(0, 30), elements, duration: 5000,
+    id: crypto.randomUUID(), title: shortTitle(title), elements, duration: 5000,
     advanceMode: 'manual', slideType: 'content', notes: notesFor(s),
   });
 
   const slides: Slide[] = bp.slides.map((s): Slide => {
     switch (s.layout) {
+      case 'section': {
+        // Section divider: light background, primary accent bar, large title.
+        const size = s.title.length <= 34 ? 44 : 36;
+        const els: SlideElement[] = [
+          shape(0, 0, 1024, 768, LIGHT),
+          shape(0, 0, 28, 768, PRIMARY),
+          shape(80, 262, 120, 8, ACCENT2),
+          text(80, 290, 864, 140, s.title, size, PRIMARY, '700'),
+        ];
+        if (s.subtitle) els.push(text(80, 440, 864, 120, s.subtitle, 24, DARK));
+        return content(s.title, els, s);
+      }
       case 'title': {
         const titleSize = s.title.length <= 28 ? 48 : s.title.length <= 50 ? 40 : 34;
         const els: SlideElement[] = [shape(0, 0, 1024, 768, PRIMARY), text(80, 220, 864, 180, s.title, titleSize, LIGHT, '700')];
@@ -138,8 +161,8 @@ export function blueprintToCourse(bp: CourseBlueprint, canvas: CanvasDimensions 
       }
       case 'two-column': {
         const col = (x: number, c: { heading?: string; bullets?: string[] }) => [
-          text(x, 150, 432, 50, c.heading ?? "", 26, PRIMARY, '700'),
-          text(x, 210, 432, 500, bulletText(c.bullets ?? []), bulletSize((c.bullets ?? []).length), DARK),
+          text(x, 150, 432, 60, c.heading ?? "", 26, PRIMARY, '700'),
+          text(x, 220, 432, 490, bulletText(c.bullets ?? []), bulletSize((c.bullets ?? []).length), DARK),
         ];
         return content(s.title, [...titleBar(s.title), ...col(60, s.left), ...col(532, s.right)], s);
       }
@@ -155,7 +178,7 @@ export function blueprintToCourse(bp: CourseBlueprint, canvas: CanvasDimensions 
       case 'quiz':
         return {
           id: crypto.randomUUID(), elements: [], duration: 5000, slideType: 'quiz',
-          title: ('Quiz: ' + s.question).slice(0, 30), notes: notesFor(s),
+          title: shortTitle('Quiz: ' + s.question), notes: notesFor(s),
           quiz: {
             questionType: 'multiple-choice',
             question: s.question,
@@ -274,26 +297,30 @@ SLIDE LAYOUTS (choose one per slide with "layout")
 1. Title slide (use first)
 { "layout": "title", "title": "Brake Pad Inspection", "subtitle": "Level 1 maintenance" }
 
-2. Bullet list: 1 to 8 bullets, ideally 3 to 5, each under 70 characters
+2. Section divider: use at the start of each section or chapter. Subtitle is optional
+{ "layout": "section", "title": "Generating Electricity", "subtitle": "Section 2" }
+
+3. Bullet list: 1 to 8 bullets, ideally 3 to 5, each under 70 characters
 { "layout": "bullets", "title": "What You Will Learn", "bullets": ["First point", "Second point", "Third point"] }
 
-3. Text beside an image: body under 300 characters. imageDescription says what photo or drawing is needed. imageSide is "left" or "right" (optional)
+4. Text beside an image: body under 300 characters. imageDescription says what photo or drawing is needed. imageSide is "left" or "right" (optional)
 { "layout": "image-text", "title": "Personal Protective Equipment", "body": "Wear gloves and safety glasses for all tasks.", "imageDescription": "Technician wearing gloves and safety glasses", "imageSide": "right" }
 
-4. Two columns: comparisons such as Do / Don't or Before / After; 1 to 8 bullets per column
+5. Two columns: comparisons such as Do / Don't or Before / After; 1 to 8 bullets per column
 { "layout": "two-column", "title": "Approved vs. Prohibited", "left": { "heading": "Approved", "bullets": ["Item A", "Item B"] }, "right": { "heading": "Prohibited", "bullets": ["Item C", "Item D"] } }
 
-5. Callout: one key message under 150 characters. tone "warning" for safety-critical rules, "info" for tips and reminders
+6. Callout: one key message under 150 characters. tone "warning" for safety-critical rules, "info" for tips and reminders
 { "layout": "callout", "title": "Before You Start", "tone": "warning", "message": "Never begin work until the vehicle is locked out." }
 
-6. Quiz question: multiple choice, 2 to 6 choices, at least one correct. If more than one is correct the learner selects all that apply. Feedback is optional
+7. Quiz question: multiple choice, 2 to 6 choices, at least one correct. If more than one is correct the learner selects all that apply. Feedback is optional
 { "layout": "quiz", "question": "When can you begin work?", "choices": [ { "text": "Right away", "correct": false }, { "text": "After lockout is confirmed", "correct": true } ], "correctFeedback": "Correct.", "incorrectFeedback": "Not quite. Lockout must be confirmed first." }
 
-7. Results slide: put last when the course has quiz questions. passThreshold is 0 to 100
+8. Results slide: put last when the course has quiz questions. passThreshold is 0 to 100
 { "layout": "results", "passThreshold": 80 }
 
 GUIDANCE
 - Keep slide titles under 50 characters.
+- If the source is divided into sections, start each one with a section slide.
 - A typical module: 1 title slide, 6 to 15 content slides, 3 to 5 quiz questions, 1 results slide.
 - Quiz questions must test content that appears on earlier slides.
 - Use "warning" callouts only for genuine safety-critical rules.`;
