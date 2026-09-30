@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useReducer, type Dispatch } from 'react';
 import type { CourseState, Slide, SlideElement, SlideLayer, ViewMode, PlayerSettings, CourseSettings, SlideAudio, QuizConfig, ResultsConfig, SlideKind, CourseVariable } from '@/types/course';
 import { defaultPlayerSettings, defaultCourseSettings } from '@/types/course';
+import { TTS_AUDIO_NAME } from '@/lib/tts/narration';
 
 const createBaseLayer = (elements: SlideElement[] = []): SlideLayer => ({
   id: crypto.randomUUID(),
@@ -58,6 +59,19 @@ function addElementToLayer(slide: Slide, layerId: string | null, element: SlideE
   return rebuildElements({ ...s, layers: next });
 }
 
+
+/**
+ * Lengthen a slide's timeline. Elements that ran to the old end of the slide
+ * are stretched to the new end, so they don't disappear partway through.
+ */
+export function extendSlideDuration(slide: Slide, newDuration: number): Slide {
+  const oldEnd = slide.duration;
+  if (newDuration <= oldEnd) return slide;
+  const stretched = mapElementsInSlide(slide, (el) =>
+    el.startTime + el.duration >= oldEnd ? { ...el, duration: newDuration - el.startTime } : el,
+  );
+  return { ...stretched, duration: newDuration };
+}
 
 const defaultQuizConfig = (): QuizConfig => ({
   questionType: 'multiple-choice',
@@ -163,6 +177,8 @@ type Action =
   | { type: 'UPDATE_COURSE_SETTINGS'; updates: Partial<CourseSettings> }
   | { type: 'UPDATE_THEME_COLOR'; index: number; color: string }
   | { type: 'ADD_AUDIO'; audio: SlideAudio }
+  /** Add text-to-speech narration to a slide (by id), replacing any earlier TTS narration and lengthening the slide to fit. */
+  | { type: 'SET_SLIDE_NARRATION'; slideId: string; audio: SlideAudio }
   | { type: 'DELETE_AUDIO'; id: string }
   | { type: 'UPDATE_AUDIO'; id: string; updates: Partial<SlideAudio> }
   | { type: 'SET_ACTIVE_AUDIO'; id: string | null }
@@ -228,7 +244,7 @@ function withUpdatedActiveSlide(
   return updateActiveSlides(state, next);
 }
 
-function courseReducer(state: CourseState, action: Action): CourseState {
+export function courseReducer(state: CourseState, action: Action): CourseState {
   switch (action.type) {
     case 'ADD_SLIDE': {
       if (state.viewMode === 'master') {
@@ -526,6 +542,18 @@ function courseReducer(state: CourseState, action: Action): CourseState {
           : slide
       );
       return { ...state, ...updateActiveSlides(state, slides) };
+    }
+    case 'SET_SLIDE_NARRATION': {
+      const idx = state.slides.findIndex((s) => s.id === action.slideId);
+      if (idx < 0) return state; // slide was deleted or a different course was loaded
+      const slide = state.slides[idx];
+      const audio = [...(slide.audio ?? []).filter((a) => a.name !== TTS_AUDIO_NAME), action.audio];
+      // Half a second of breathing room after the voice ends.
+      const needed = Math.ceil(action.audio.duration * 1000) + 500;
+      const updated = extendSlideDuration({ ...slide, audio }, needed);
+      const slides = state.slides.slice();
+      slides[idx] = updated;
+      return { ...state, slides };
     }
     case 'DELETE_AUDIO': {
       const slides = getActiveSlides(state).map((slide, i) =>

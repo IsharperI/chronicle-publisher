@@ -284,6 +284,13 @@ export function blueprintToCourse(bp: CourseBlueprint, canvas: CanvasDimensions 
   };
 }
 
+/** A slide's voice-over script, for generating narration audio after a blueprint loads. */
+export interface BlueprintNarration {
+  slideId: string;
+  title: string;
+  script: string;
+}
+
 /** Payload for the LOAD_COURSE action produced from a blueprint (already sanitized). */
 export interface BlueprintLoadPayload {
   slides: Slide[];
@@ -300,15 +307,20 @@ export interface BlueprintLoadPayload {
 export function prepareBlueprintLoad(
   data: unknown,
   currentSettings: CourseSettings,
-): { ok: true; payload: BlueprintLoadPayload } | { ok: false; errors: string[] } {
+): { ok: true; payload: BlueprintLoadPayload; narration: BlueprintNarration[] } | { ok: false; errors: string[] } {
   if (!isBlueprint(data)) {
     return { ok: false, errors: ['This is not a course blueprint (it needs "blueprintVersion": 1 at the top level).'] };
   }
   const res = validateBlueprint(data);
   if (res.ok === false) return { ok: false, errors: res.errors };
   const course = blueprintToCourse(res.blueprint, currentSettings.canvasDimensions);
+  // Voice-over scripts to turn into audio after loading (slide ids survive sanitizing).
+  const narration: BlueprintNarration[] = res.blueprint.slides
+    .map((bs, i) => ({ slideId: course.slides[i].id, title: course.slides[i].title ?? `Slide ${i + 1}`, script: bs.narration?.trim() ?? '' }))
+    .filter((n) => n.script);
   return {
     ok: true,
+    narration,
     payload: {
       slides: sanitizeSlides(course.slides),
       masterSlides: sanitizeSlides(course.masterSlides),
@@ -362,7 +374,7 @@ FORMAT
 themeColors is optional: exactly 6 hex colors in this order: Primary, Secondary, Accent 1, Accent 2 (used for warnings), Dark (text), Light (backgrounds).
 
 Every slide may also have:
-  "narration": "What the narrator says on this slide (optional)",
+  "narration": "What the narrator says on this slide (optional). Read aloud by text-to-speech.",
   "sourceRef": "Manual name, section 4.2"
 
 SLIDE LAYOUTS (choose one per slide with "layout")
@@ -395,6 +407,8 @@ SLIDE LAYOUTS (choose one per slide with "layout")
 { "layout": "results", "passThreshold": 80 }
 
 GUIDANCE
+- If the source has a voice-over (VO) script, copy it into "narration" word for word; don't summarize it. It is turned into audio automatically.
+- In "narration" only, write numbers, symbols and formulas the way they should be spoken (for example "six point two four times ten to the eighteenth" rather than "6.24 × 10¹⁸", "P equals V times I" rather than "P = V × I"). Slide text keeps the normal notation.
 - Keep slide titles under 50 characters.
 - If the source is divided into sections, start each one with a section slide.
 - A typical module: 1 title slide, 6 to 15 content slides, 3 to 5 quiz questions, 1 results slide.

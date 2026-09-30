@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Save, Upload, Play, X, Type, ImageIcon, Square, Eye, Settings, Music, Video as VideoIcon, AlignLeft, AlignCenter, AlignRight, AlignStartVertical, AlignCenterVertical, AlignEndVertical, AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter, Ban, Sparkles, ArrowUpFromLine, ArrowLeftFromLine, ZoomIn, CopyCheck, MousePointerClick, Target, CheckSquare, ChevronDown, Table as TableIcon, HelpCircle, Trophy, Layers, FolderOpen, Map as MapIcon, Spline, Palette, Library, Variable, ClipboardPaste } from 'lucide-react';
+import { Save, Upload, Play, X, Type, ImageIcon, Square, Eye, Settings, Music, Video as VideoIcon, AlignLeft, AlignCenter, AlignRight, AlignStartVertical, AlignCenterVertical, AlignEndVertical, AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter, Ban, Sparkles, ArrowUpFromLine, ArrowLeftFromLine, ZoomIn, CopyCheck, MousePointerClick, Target, CheckSquare, ChevronDown, Table as TableIcon, HelpCircle, Trophy, Layers, FolderOpen, Map as MapIcon, Spline, Palette, Library, Variable, ClipboardPaste, AudioLines } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { MediaLibraryOverlay } from './MediaLibraryOverlay';
 import { StoryViewOverlay } from './StoryViewOverlay';
@@ -18,6 +18,10 @@ import { PlayerSettingsModal } from './PlayerSettingsModal';
 import { sanitizeSlides, sanitizePlayerSettings, sanitizeCourseSettings, sanitizeVariables } from '@/lib/sanitize';
 import { isBlueprint, prepareBlueprintLoad } from '@/lib/blueprint';
 import { BlueprintDialog } from './BlueprintDialog';
+import { TextToSpeechDialog } from './TextToSpeechDialog';
+import { NarrationProgress } from './NarrationProgress';
+import { cancelNarration, startCourseNarration } from '@/lib/tts/narrationJob';
+import { getVoicePref } from '@/lib/tts';
 import { toast } from 'sonner';
 
 import { StorySizeControl, ThemeColorsControl } from './DesignControls';
@@ -40,6 +44,7 @@ export function Ribbon() {
   const [questionBankOpen, setQuestionBankOpen] = useState(false);
   const [variablesOpen, setVariablesOpen] = useState(false);
   const [blueprintOpen, setBlueprintOpen] = useState(false);
+  const [ttsOpen, setTtsOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const audioInputRef = useRef<HTMLInputElement>(null);
@@ -79,9 +84,12 @@ export function Ribbon() {
           }
           dispatch({ type: 'LOAD_COURSE', ...res.payload });
           toast.success(`Loaded blueprint: ${res.payload.slides.length} slides`);
+          // Voice the narration scripts in the background (Kokoro, in-browser).
+          void startCourseNarration(res.narration, dispatch, getVoicePref());
           return;
         }
         if (data && Array.isArray(data.slides)) {
+          cancelNarration(); // a different course is being loaded
           // Sanitize all imported data: validates colors, fonts, image URIs,
           // numeric ranges, and enums to prevent CSS/HTML/JS injection when
           // these values are later embedded in the SCORM export. See
@@ -412,6 +420,7 @@ export function Ribbon() {
             <RibbonGroup label="Media">
               <RibbonButton icon={Music} label="Audio" onClick={() => audioInputRef.current?.click()} />
               <input ref={audioInputRef} type="file" accept="audio/*,.mp3,.wav,.ogg,.m4a" className="hidden" onChange={handleAudioFile} />
+              <RibbonButton icon={AudioLines} label="Text to Speech" onClick={() => setTtsOpen(true)} />
               <RibbonButton icon={VideoIcon} label="Video" onClick={() => videoInputRef.current?.click()} />
               <input ref={videoInputRef} type="file" accept="video/mp4,video/webm,.mp4,.webm" className="hidden" onChange={handleVideoFile} />
             </RibbonGroup>
@@ -549,6 +558,8 @@ export function Ribbon() {
     <StoryViewOverlay open={storyViewOpen} onClose={() => setStoryViewOpen(false)} />
     <PublishDialog open={publishOpen} onOpenChange={setPublishOpen} />
     <BlueprintDialog open={blueprintOpen} onOpenChange={setBlueprintOpen} />
+    <TextToSpeechDialog open={ttsOpen} onOpenChange={setTtsOpen} />
+    <NarrationProgress />
     <QuizThemesOverlay open={quizThemesOpen} onClose={() => setQuizThemesOpen(false)} />
     <QuestionBankOverlay open={questionBankOpen} onClose={() => setQuestionBankOpen(false)} />
     </>
