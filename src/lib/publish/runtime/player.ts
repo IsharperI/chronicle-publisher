@@ -391,7 +391,7 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
       if(el.text){
         var txt=document.createElement("div");
         txt.textContent=el.text;
-        txt.style.cssText="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;overflow:hidden;padding:4px;pointer-events:none;word-break:break-word";
+        txt.style.cssText="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;overflow:hidden;padding:4px;pointer-events:none;word-break:break-word;white-space:pre-wrap";
         txt.style.color=el.textColor||"#000";
         txt.style.fontSize=(el.fontSize||16)+"px";
         d.style.position="absolute";
