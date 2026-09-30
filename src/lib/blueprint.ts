@@ -135,9 +135,9 @@ export function blueprintToCourse(bp: CourseBlueprint, canvas: CanvasDimensions 
         ], s);
       }
       case 'two-column': {
-        const col = (x: number, c: { heading: string; bullets: string[] }) => [
-          text(x, 150, 432, 50, c.heading, 26, PRIMARY, '700'),
-          text(x, 210, 432, 500, bulletText(c.bullets), bulletSize(c.bullets.length), DARK),
+        const col = (x: number, c: { heading?: string; bullets?: string[] }) => [
+          text(x, 150, 432, 50, c.heading ?? "", 26, PRIMARY, '700'),
+          text(x, 210, 432, 500, bulletText(c.bullets ?? []), bulletSize((c.bullets ?? []).length), DARK),
         ];
         return content(s.title, [...titleBar(s.title), ...col(60, s.left), ...col(532, s.right)], s);
       }
