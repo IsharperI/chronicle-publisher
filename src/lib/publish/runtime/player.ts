@@ -317,7 +317,7 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
       d.style.fontWeight=el.fontWeight||"400";
       d.style.color=el.textColor||"#000";
       d.style.backgroundColor=el.backgroundColor||"transparent";
-      d.style.padding="4px";d.style.overflow="hidden";d.style.wordWrap="break-word";
+      d.style.padding="4px";d.style.whiteSpace="pre-wrap";d.style.overflow="hidden";d.style.wordWrap="break-word";
       d.textContent=el.content||"";
       if(el.hoverTextColor||el.hoverBackgroundColor){
         var baseTC=el.textColor||"#000",baseBG=el.backgroundColor||"transparent";
