@@ -34,6 +34,10 @@ function ThumbElement({ el, themeColors }: { el: SlideElement; themeColors: stri
           fontSize: el.fontSize,
           fontWeight: el.fontWeight as React.CSSProperties['fontWeight'],
           lineHeight: 1.1,
+          padding: 8,
+          textAlign: 'left',
+          whiteSpace: 'pre-wrap',
+          wordBreak: 'break-word',
         }}
       >
         {el.content}
@@ -82,7 +86,21 @@ function ThumbElement({ el, themeColors }: { el: SlideElement; themeColors: stri
     };
     if (el.boxShadow) shapeStyle.boxShadow = el.boxShadow;
 
-    return <div style={shapeStyle} />;
+    return (
+      <div style={shapeStyle}>
+        {el.text ? (
+          <div
+            style={{
+              position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              textAlign: 'center', padding: 4, whiteSpace: 'pre-wrap', wordBreak: 'break-word', overflow: 'hidden',
+              color: el.textColor ?? '#000000', fontSize: el.fontSize ?? 16,
+            }}
+          >
+            {el.text}
+          </div>
+        ) : null}
+      </div>
+    );
   }
 
   if (el.type === 'image') {

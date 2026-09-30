@@ -435,6 +435,22 @@ export function sanitizePlayerSettings(raw: unknown): Partial<PlayerSettings> | 
     navigationMode: safeEnum(r.navigationMode, NAV_MODES, 'free'),
     backgroundImage: safeImageSrc(r.backgroundImage),
     backgroundMode: safeEnum(r.backgroundMode, BG_MODES, 'stretch'),
+    courseTitle: stripDangerousChars(safeString(r.courseTitle, 'Untitled Course', 200)) || 'Untitled Course',
+    sidebarPosition: safeEnum(r.sidebarPosition, ['left', 'right', 'none'] as const, 'left'),
+    playerTabs: {
+      showMenu: safeBoolean(r.playerTabs?.showMenu, true),
+      showNotes: safeBoolean(r.playerTabs?.showNotes, true),
+    },
+    playerControls: {
+      showPlayPause: safeBoolean(r.playerControls?.showPlayPause, true),
+      showCaptions: safeBoolean(r.playerControls?.showCaptions, true),
+    },
+    courseTimer: r.courseTimer && typeof r.courseTimer === 'object' ? {
+      enabled: safeBoolean(r.courseTimer.enabled),
+      minutes: safeNumber(r.courseTimer.minutes, 10, 0, 600),
+      seconds: safeNumber(r.courseTimer.seconds, 0, 0, 59),
+      showToLearner: safeBoolean(r.courseTimer.showToLearner, true),
+    } : undefined,
   };
 }
 
