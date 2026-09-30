@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { X, Upload, Cloud, Globe, Video as VideoIcon, FileText, AlertTriangle, Settings2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -50,6 +50,16 @@ export function PublishDialog({ open, onOpenChange }: Props) {
   const [lessonTitle, setLessonTitle] = useState(state.playerSettings.courseTitle || 'Lesson');
   const [lessonIdentifier, setLessonIdentifier] = useState(`lesson_${Date.now()}`);
   const [reportStatus, setReportStatus] = useState<ReportStatus>('passed-incomplete');
+
+  // Refresh title-based fields each time the dialog opens, so a course loaded
+  // after startup doesn't publish as "Untitled Course".
+  const courseTitle = state.playerSettings.courseTitle;
+  useEffect(() => {
+    if (!open) return;
+    setTitle(courseTitle || 'Untitled Course');
+    setFilename(`${slugify(courseTitle)}.zip`);
+    setLessonTitle(courseTitle || 'Lesson');
+  }, [open, courseTitle]);
 
   const [completionMode, setCompletionMode] = useState<CompletionMode>('percent');
   const [completionPercent, setCompletionPercent] = useState(100);
