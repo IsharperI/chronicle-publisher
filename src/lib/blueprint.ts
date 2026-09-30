@@ -11,6 +11,7 @@ import {
   type SlideElement,
   type TextElement,
 } from '@/types/course';
+import { sanitizeSlides, sanitizePlayerSettings, sanitizeCourseSettings, sanitizeVariables } from '@/lib/sanitize';
 
 const hex = z.string().regex(/^#[0-9a-fA-F]{6}$/, 'must be a 6-digit hex color');
 const common = { narration: z.string().optional(), sourceRef: z.string().optional() };
@@ -29,7 +30,7 @@ const quizSlide = z.object({
   layout: z.literal('quiz'), question: z.string(),
   choices: z.array(z.object({ text: z.string(), correct: z.boolean() }))
     .min(2, 'choices must have 2–6 items').max(6, 'choices must have 2–6 items')
-    .refine((c) => c.some((x) => x.correct), 'at least one choice must be correct'),
+    .refine((c) => c.some((x) => x.correct), 'must have at least one correct choice'),
   correctFeedback: z.string().optional(), incorrectFeedback: z.string().optional(), ...common,
 });
 const resultsSlide = z.object({
@@ -186,3 +187,113 @@ export function blueprintToCourse(bp: CourseBlueprint, canvas: CanvasDimensions 
     courseSettings: { themeColors: [...colors] },
   };
 }
+
+/** Payload for the LOAD_COURSE action produced from a blueprint (already sanitized). */
+export interface BlueprintLoadPayload {
+  slides: Slide[];
+  masterSlides: Slide[];
+  playerSettings: Partial<PlayerSettings> | undefined;
+  courseSettings: Partial<CourseSettings> | undefined;
+  variables: ReturnType<typeof sanitizeVariables>;
+}
+
+/**
+ * Shared path used by Load Project and the Paste Blueprint dialog:
+ * validate → convert → sanitize. Returns a ready-to-dispatch payload or errors.
+ */
+export function prepareBlueprintLoad(
+  data: unknown,
+  currentSettings: CourseSettings,
+): { ok: true; payload: BlueprintLoadPayload } | { ok: false; errors: string[] } {
+  if (!isBlueprint(data)) {
+    return { ok: false, errors: ['This is not a course blueprint (it needs "blueprintVersion": 1 at the top level).'] };
+  }
+  const res = validateBlueprint(data);
+  if (res.ok === false) return { ok: false, errors: res.errors };
+  const course = blueprintToCourse(res.blueprint, currentSettings.canvasDimensions);
+  return {
+    ok: true,
+    payload: {
+      slides: sanitizeSlides(course.slides),
+      masterSlides: sanitizeSlides(course.masterSlides),
+      playerSettings: sanitizePlayerSettings(course.playerSettings),
+      courseSettings: sanitizeCourseSettings({ ...currentSettings, ...course.courseSettings }),
+      variables: sanitizeVariables([]),
+    },
+  };
+}
+
+/**
+ * Parse pasted text as JSON. Tolerates the ```json code fences that AI chats
+ * usually wrap their output in, and text before/after the JSON object.
+ */
+export function parseBlueprintText(text: string): { ok: true; data: unknown } | { ok: false; error: string } {
+  let t = text.trim();
+  const fence = t.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fence) t = fence[1].trim();
+  if (!t.startsWith('{')) {
+    const first = t.indexOf('{');
+    const last = t.lastIndexOf('}');
+    if (first !== -1 && last > first) t = t.slice(first, last + 1);
+  }
+  if (!t) return { ok: false, error: 'Paste a blueprint first.' };
+  try {
+    return { ok: true, data: JSON.parse(t) };
+  } catch (e) {
+    return { ok: false, error: `This is not valid JSON: ${(e as Error).message}` };
+  }
+}
+
+/** Instructions to paste into any AI chat so it produces a valid blueprint. */
+export const BLUEPRINT_GUIDE = `You are writing an eLearning course as a "Chronicle course blueprint": a JSON file that an authoring tool converts into slides.
+
+RULES
+- Write content ONLY from the source material I provide. Do not add facts, numbers, part names, values or procedures that are not in the source. If the source does not cover something, leave it out.
+- Put the source location (document name + section/page) in "sourceRef" on every content slide, so a subject-matter expert can check it.
+- Write for the audience I name. Short, plain sentences. One idea per slide.
+- Output ONLY the JSON object. No explanation before or after it.
+
+FORMAT
+{
+  "blueprintVersion": 1,
+  "course": {
+    "title": "Course title",
+    "audience": "Who it is for (optional)",
+    "themeColors": ["#1e3a5f", "#3b6ea5", "#2a9d8f", "#f4a261", "#1f2937", "#f9fafb"]
+  },
+  "slides": [ ...slides... ]
+}
+themeColors is optional: exactly 6 hex colors in this order: Primary, Secondary, Accent 1, Accent 2 (used for warnings), Dark (text), Light (backgrounds).
+
+Every slide may also have:
+  "narration": "What the narrator says on this slide (optional)",
+  "sourceRef": "Manual name, section 4.2"
+
+SLIDE LAYOUTS (choose one per slide with "layout")
+
+1. Title slide (use first)
+{ "layout": "title", "title": "Brake Pad Inspection", "subtitle": "Level 1 maintenance" }
+
+2. Bullet list: 1 to 8 bullets, ideally 3 to 5, each under 70 characters
+{ "layout": "bullets", "title": "What You Will Learn", "bullets": ["First point", "Second point", "Third point"] }
+
+3. Text beside an image: body under 300 characters. imageDescription says what photo or drawing is needed. imageSide is "left" or "right" (optional)
+{ "layout": "image-text", "title": "Personal Protective Equipment", "body": "Wear gloves and safety glasses for all tasks.", "imageDescription": "Technician wearing gloves and safety glasses", "imageSide": "right" }
+
+4. Two columns: comparisons such as Do / Don't or Before / After; 1 to 8 bullets per column
+{ "layout": "two-column", "title": "Approved vs. Prohibited", "left": { "heading": "Approved", "bullets": ["Item A", "Item B"] }, "right": { "heading": "Prohibited", "bullets": ["Item C", "Item D"] } }
+
+5. Callout: one key message under 150 characters. tone "warning" for safety-critical rules, "info" for tips and reminders
+{ "layout": "callout", "title": "Before You Start", "tone": "warning", "message": "Never begin work until the vehicle is locked out." }
+
+6. Quiz question: multiple choice, 2 to 6 choices, at least one correct. If more than one is correct the learner selects all that apply. Feedback is optional
+{ "layout": "quiz", "question": "When can you begin work?", "choices": [ { "text": "Right away", "correct": false }, { "text": "After lockout is confirmed", "correct": true } ], "correctFeedback": "Correct.", "incorrectFeedback": "Not quite. Lockout must be confirmed first." }
+
+7. Results slide: put last when the course has quiz questions. passThreshold is 0 to 100
+{ "layout": "results", "passThreshold": 80 }
+
+GUIDANCE
+- Keep slide titles under 50 characters.
+- A typical module: 1 title slide, 6 to 15 content slides, 3 to 5 quiz questions, 1 results slide.
+- Quiz questions must test content that appears on earlier slides.
+- Use "warning" callouts only for genuine safety-critical rules.`;

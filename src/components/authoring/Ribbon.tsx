@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Save, Upload, Play, X, Type, ImageIcon, Square, Eye, Settings, Music, Video as VideoIcon, AlignLeft, AlignCenter, AlignRight, AlignStartVertical, AlignCenterVertical, AlignEndVertical, AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter, Ban, Sparkles, ArrowUpFromLine, ArrowLeftFromLine, ZoomIn, CopyCheck, MousePointerClick, Target, CheckSquare, ChevronDown, Table as TableIcon, HelpCircle, Trophy, Layers, FolderOpen, Map as MapIcon, Spline, Palette, Library, Variable } from 'lucide-react';
+import { Save, Upload, Play, X, Type, ImageIcon, Square, Eye, Settings, Music, Video as VideoIcon, AlignLeft, AlignCenter, AlignRight, AlignStartVertical, AlignCenterVertical, AlignEndVertical, AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter, Ban, Sparkles, ArrowUpFromLine, ArrowLeftFromLine, ZoomIn, CopyCheck, MousePointerClick, Target, CheckSquare, ChevronDown, Table as TableIcon, HelpCircle, Trophy, Layers, FolderOpen, Map as MapIcon, Spline, Palette, Library, Variable, ClipboardPaste } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { MediaLibraryOverlay } from './MediaLibraryOverlay';
 import { StoryViewOverlay } from './StoryViewOverlay';
@@ -16,7 +16,8 @@ import type { TextElement, ImageElement, ShapeElement, VideoElement, SlideAudio,
 import { Separator } from '@/components/ui/separator';
 import { PlayerSettingsModal } from './PlayerSettingsModal';
 import { sanitizeSlides, sanitizePlayerSettings, sanitizeCourseSettings, sanitizeVariables } from '@/lib/sanitize';
-import { isBlueprint, validateBlueprint, blueprintToCourse } from '@/lib/blueprint';
+import { isBlueprint, prepareBlueprintLoad } from '@/lib/blueprint';
+import { BlueprintDialog } from './BlueprintDialog';
 import { toast } from 'sonner';
 
 import { StorySizeControl, ThemeColorsControl } from './DesignControls';
@@ -38,6 +39,7 @@ export function Ribbon() {
   const [quizThemesOpen, setQuizThemesOpen] = useState(false);
   const [questionBankOpen, setQuestionBankOpen] = useState(false);
   const [variablesOpen, setVariablesOpen] = useState(false);
+  const [blueprintOpen, setBlueprintOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const audioInputRef = useRef<HTMLInputElement>(null);
@@ -70,22 +72,13 @@ export function Ribbon() {
       try {
         const data = JSON.parse(ev.target?.result as string);
         if (isBlueprint(data)) {
-          const res = validateBlueprint(data);
+          const res = prepareBlueprintLoad(data, state.courseSettings);
           if (res.ok === false) {
             toast.error('Blueprint has errors', { description: res.errors.slice(0, 5).join('\n') });
             return;
           }
-          const course = blueprintToCourse(res.blueprint, state.courseSettings.canvasDimensions);
-          const slides = sanitizeSlides(course.slides);
-          dispatch({
-            type: 'LOAD_COURSE',
-            slides,
-            masterSlides: sanitizeSlides(course.masterSlides),
-            playerSettings: sanitizePlayerSettings(course.playerSettings),
-            courseSettings: sanitizeCourseSettings({ ...state.courseSettings, ...course.courseSettings }),
-            variables: sanitizeVariables([]),
-          });
-          toast.success(`Loaded blueprint: ${slides.length} slides`);
+          dispatch({ type: 'LOAD_COURSE', ...res.payload });
+          toast.success(`Loaded blueprint: ${res.payload.slides.length} slides`);
           return;
         }
         if (data && Array.isArray(data.slides)) {
@@ -386,6 +379,7 @@ export function Ribbon() {
               <RibbonButton icon={Save} label="Save" onClick={saveProject} />
               <RibbonButton icon={Upload} label="Load" onClick={() => fileInputRef.current?.click()} />
               <input ref={fileInputRef} type="file" accept=".json" className="hidden" onChange={loadProject} />
+              <RibbonButton icon={ClipboardPaste} label="Blueprint" onClick={() => setBlueprintOpen(true)} />
             </RibbonGroup>
 
             <Separator orientation="vertical" className="h-12 mx-2" />
@@ -554,6 +548,7 @@ export function Ribbon() {
     <MediaLibraryOverlay open={mediaLibraryOpen} onClose={() => setMediaLibraryOpen(false)} />
     <StoryViewOverlay open={storyViewOpen} onClose={() => setStoryViewOpen(false)} />
     <PublishDialog open={publishOpen} onOpenChange={setPublishOpen} />
+    <BlueprintDialog open={blueprintOpen} onOpenChange={setBlueprintOpen} />
     <QuizThemesOverlay open={quizThemesOpen} onClose={() => setQuizThemesOpen(false)} />
     <QuestionBankOverlay open={questionBankOpen} onClose={() => setQuestionBankOpen(false)} />
     </>
