@@ -64,6 +64,29 @@ let worker: Worker | null = null;
 let nextId = 1;
 const pending = new Map<number, { resolve: (s: SpeechSegment[]) => void; reject: (e: Error) => void; opts: TtsOptions; total: number }>();
 
+/**
+ * Safety net: if the engine reports no progress for this long, give up and
+ * restart it rather than showing a spinner forever. Every progress message
+ * (download %, each finished sentence) resets the clock.
+ */
+export const STALL_TIMEOUT_MS = 3 * 60_000;
+let stallTimer: ReturnType<typeof setTimeout> | null = null;
+
+function resetStallTimer() {
+  if (stallTimer) clearTimeout(stallTimer);
+  stallTimer = pending.size
+    ? setTimeout(() => failAll(new Error('the voice engine stopped responding (no progress for 3 minutes). Please try again.')), STALL_TIMEOUT_MS)
+    : null;
+}
+
+function failAll(err: Error) {
+  pending.forEach((j) => j.reject(err));
+  pending.clear();
+  worker?.terminate();
+  worker = null;
+  resetStallTimer();
+}
+
 function getWorker(): Worker {
   if (worker) return worker;
   worker = new Worker(new URL('./ttsWorker.ts', import.meta.url), { type: 'module' });
@@ -71,24 +94,21 @@ function getWorker(): Worker {
     const msg = e.data;
     const job = pending.get(msg.id);
     if (!job) return;
+    resetStallTimer();
     if (msg.type === 'status') {
       if (msg.stage === 'loading') job.opts.onProgress?.({ stage: 'loading', progress: msg.progress });
       else job.opts.onProgress?.({ stage: 'speaking', done: msg.done, total: Math.max(job.total, msg.done) });
     } else if (msg.type === 'done') {
       pending.delete(msg.id);
+      resetStallTimer();
       job.resolve(msg.segments);
     } else if (msg.type === 'error') {
       pending.delete(msg.id);
+      resetStallTimer();
       job.reject(new Error(friendlyError(msg.message)));
     }
   };
-  worker.onerror = (e) => {
-    const err = new Error(e.message || 'The text-to-speech engine failed to start.');
-    pending.forEach((j) => j.reject(err));
-    pending.clear();
-    worker?.terminate();
-    worker = null;
-  };
+  worker.onerror = (e) => failAll(new Error(e.message || 'The text-to-speech engine failed to start.'));
   return worker;
 }
 
@@ -104,6 +124,7 @@ const workerSynthesizer: Synthesizer = (text, opts) =>
   new Promise((resolve, reject) => {
     const id = nextId++;
     pending.set(id, { resolve, reject, opts, total: countSentences(text) });
+    resetStallTimer();
     getWorker().postMessage({ type: 'generate', id, text, voice: opts.voice ?? DEFAULT_VOICE, speed: opts.speed ?? 1 });
   });
 

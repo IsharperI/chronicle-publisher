@@ -5,6 +5,7 @@
  * stays responsive while speech is generated.
  */
 import { KokoroTTS } from 'kokoro-js';
+import { sentenceStream } from './sentences';
 
 type Incoming = { type: 'generate'; id: number; text: string; voice: string; speed: number };
 type Outgoing =
@@ -64,9 +65,10 @@ async function handle(msg: Incoming) {
     const tts = await load();
     const segments: { text: string; samples: Float32Array; sampleRate: number }[] = [];
     ctx.postMessage({ type: 'status', id, stage: 'speaking', done: 0 });
-    // stream() splits the script into sentences and synthesizes each in turn,
-    // which also gives us per-sentence timing for captions.
-    for await (const part of tts.stream(msg.text, { voice: msg.voice as never, speed: msg.speed })) {
+    // Synthesize sentence by sentence (which also gives per-sentence caption
+    // timing). Pass a closed sentence stream: tts.stream(string) never closes
+    // its own splitter and hangs waiting for the last sentence.
+    for await (const part of tts.stream(sentenceStream(msg.text), { voice: msg.voice as never, speed: msg.speed })) {
       segments.push({ text: part.text, samples: part.audio.audio as Float32Array, sampleRate: part.audio.sampling_rate });
       ctx.postMessage({ type: 'status', id, stage: 'speaking', done: segments.length });
     }
