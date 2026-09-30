@@ -48,7 +48,7 @@ function ShapeText({ se, isPreview }: { se: ShapeElement; isPreview?: boolean })
         overflow: 'hidden', padding: 4, pointerEvents: 'none',
         color: se.textColor ?? '#000000',
         fontSize: se.fontSize ?? 16,
-        wordBreak: 'break-word',
+        wordBreak: 'break-word', whiteSpace: 'pre-wrap',
       }}
     >
       {se.text}
