@@ -152,11 +152,11 @@ describe('parseBlueprintText repairs common AI slips', () => {
 
   it('explains unrepairable text by quoting where it broke', () => {
     const r = parseBlueprintText('{"blueprintVersion": 1, "slides": [ {"layout": "title", "title": "A"} ');
-    if (r.ok) {
+    if (r.ok === false) {
+      expect(r.error).toMatch(/not valid JSON/);
+    } else {
       // jsonrepair can close truncated JSON; that is fine too.
       expect(r.repaired).toBe(true);
-    } else {
-      expect(r.error).toMatch(/not valid JSON/);
     }
   });
 
