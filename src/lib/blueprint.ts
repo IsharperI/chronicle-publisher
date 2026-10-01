@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { jsonrepair } from 'jsonrepair';
 import {
   defaultCourseSettings,
   type BaseElement,
@@ -334,8 +335,14 @@ export function prepareBlueprintLoad(
 /**
  * Parse pasted text as JSON. Tolerates the ```json code fences that AI chats
  * usually wrap their output in, and text before/after the JSON object.
+ *
+ * If strict parsing fails, common AI formatting slips are repaired
+ * automatically (unescaped "quotes" inside text, trailing commas, missing
+ * commas, comments, single quotes); `repaired` is then true.
  */
-export function parseBlueprintText(text: string): { ok: true; data: unknown } | { ok: false; error: string } {
+export function parseBlueprintText(
+  text: string,
+): { ok: true; data: unknown; repaired: boolean } | { ok: false; error: string } {
   let t = text.trim();
   const fence = t.match(/```(?:json)?\s*([\s\S]*?)```/i);
   if (fence) t = fence[1].trim();
@@ -346,10 +353,33 @@ export function parseBlueprintText(text: string): { ok: true; data: unknown } | 
   }
   if (!t) return { ok: false, error: 'Paste a blueprint first.' };
   try {
-    return { ok: true, data: JSON.parse(t) };
-  } catch (e) {
-    return { ok: false, error: `This is not valid JSON: ${(e as Error).message}` };
+    return { ok: true, data: JSON.parse(t), repaired: false };
+  } catch (strictError) {
+    try {
+      return { ok: true, data: JSON.parse(jsonrepair(t)), repaired: true };
+    } catch {
+      return { ok: false, error: describeJsonError(t, strictError as Error) };
+    }
   }
+}
+
+/** Explain a JSON syntax error, quoting the text around the problem. */
+function describeJsonError(text: string, err: Error): string {
+  const msg = err.message;
+  let pos = -1;
+  const lc = msg.match(/line (\d+) column (\d+)/);
+  if (lc) {
+    const lines = text.split('\n');
+    const line = Math.min(Number(lc[1]), lines.length) - 1;
+    pos = lines.slice(0, line).reduce((n, l) => n + l.length + 1, 0) + Number(lc[2]) - 1;
+  } else {
+    const p = msg.match(/position (\d+)/);
+    if (p) pos = Number(p[1]);
+  }
+  if (pos < 0) return `This is not valid JSON: ${msg}`;
+  const from = Math.max(0, pos - 50);
+  const snippet = text.slice(from, pos + 20).replace(/\s+/g, ' ');
+  return `This is not valid JSON near: …${snippet}… (${msg}). Check that text doesn't contain straight double quotes (").`;
 }
 
 /** Instructions to paste into any AI chat so it produces a valid blueprint. */
@@ -360,6 +390,7 @@ RULES
 - Put the source location (document name + section/page) in "sourceRef" on every content slide, so a subject-matter expert can check it.
 - Write for the audience I name. Short, plain sentences. One idea per slide.
 - Output ONLY the JSON object. No explanation before or after it.
+- Inside text values, never use straight double quotes ("). For quoted words, button names or terms, use single quotes ('EXIT') or curly quotes (“EXIT”). A straight double quote inside text breaks the JSON.
 
 FORMAT
 {

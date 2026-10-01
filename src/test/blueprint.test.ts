@@ -107,3 +107,61 @@ describe('sanitizeSlides keeps layers', () => {
     expect(btn.triggers[0]).toMatchObject({ event: 'onClick', action: 'showLayer', targetId: slide.layers![1].id });
   });
 });
+
+describe('parseBlueprintText repairs common AI slips', () => {
+  const geminiStyle = `Here is the blueprint:
+\`\`\`json
+{
+"blueprintVersion": 1,
+"course": { "title": "Basic Electrical Theory" },
+"slides": [
+{
+"layout": "image-text",
+"title": "Congratulations",
+"body": "You have completed the course. Select EXIT to mark your progress.",
+"imageDescription": "High voltage power lines illuminated at night.",
+"narration": "Congratulations! If you'd like to review the content, select the topic from the "Menu" tab. To mark your progress and close this module, select the "EXIT" button.",
+"sourceRef": "EFP_BasicElectricalTheorySB_2.docx, Section 5"
+},
+{ "layout": "results", "passThreshold": 80, },
+]
+}
+\`\`\``;
+
+  it('fails strict JSON but is repaired, keeping the quoted words', () => {
+    const r = parseBlueprintText(geminiStyle);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.repaired).toBe(true);
+    const res = validateBlueprint(r.data);
+    expect(res.ok).toBe(true);
+    const narration = (r.data as { slides: { narration?: string }[] }).slides[0].narration!;
+    expect(narration).toContain('select the "EXIT" button.');
+    expect(narration).toContain('the "Menu" tab');
+  });
+
+  it('does not flag valid JSON as repaired', () => {
+    const r = parseBlueprintText('{"blueprintVersion":1,"course":{"title":"T"},"slides":[]}');
+    expect(r.ok && r.repaired).toBe(false);
+  });
+
+  it('keeps curly quotes and apostrophes as they are', () => {
+    const r = parseBlueprintText('{"blueprintVersion":1,"course":{"title":"Select “EXIT” – you’re done"},"slides":[]}');
+    expect(r.ok && (r.data as { course: { title: string } }).course.title).toBe('Select “EXIT” – you’re done');
+  });
+
+  it('explains unrepairable text by quoting where it broke', () => {
+    const r = parseBlueprintText('{"blueprintVersion": 1, "slides": [ {"layout": "title", "title": "A"} ');
+    if (r.ok) {
+      // jsonrepair can close truncated JSON; that is fine too.
+      expect(r.repaired).toBe(true);
+    } else {
+      expect(r.error).toMatch(/not valid JSON/);
+    }
+  });
+
+  it('tells the AI not to use straight double quotes inside text', async () => {
+    const { BLUEPRINT_GUIDE } = await import('@/lib/blueprint');
+    expect(BLUEPRINT_GUIDE).toMatch(/never use straight double quotes/);
+  });
+});

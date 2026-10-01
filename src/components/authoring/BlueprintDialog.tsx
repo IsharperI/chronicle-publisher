@@ -56,6 +56,11 @@ export function BlueprintDialog({ open, onOpenChange }: { open: boolean; onOpenC
       setErrors([parsed.error]);
       return;
     }
+    if (parsed.repaired) {
+      toast.info("Fixed formatting in the AI's output", {
+        description: 'For example quotation marks inside text. The content itself is unchanged.',
+      });
+    }
     const res = prepareBlueprintLoad(parsed.data, state.courseSettings);
     if (res.ok === false) {
       setErrors(res.errors);

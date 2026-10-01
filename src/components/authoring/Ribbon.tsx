@@ -16,7 +16,7 @@ import type { TextElement, ImageElement, ShapeElement, VideoElement, SlideAudio,
 import { Separator } from '@/components/ui/separator';
 import { PlayerSettingsModal } from './PlayerSettingsModal';
 import { sanitizeSlides, sanitizePlayerSettings, sanitizeCourseSettings, sanitizeVariables } from '@/lib/sanitize';
-import { isBlueprint, prepareBlueprintLoad } from '@/lib/blueprint';
+import { isBlueprint, parseBlueprintText, prepareBlueprintLoad } from '@/lib/blueprint';
 import { BlueprintDialog } from './BlueprintDialog';
 import { TextToSpeechDialog } from './TextToSpeechDialog';
 import { NarrationProgress } from './NarrationProgress';
@@ -75,7 +75,23 @@ export function Ribbon() {
     const reader = new FileReader();
     reader.onload = (ev) => {
       try {
-        const data = JSON.parse(ev.target?.result as string);
+        const raw = ev.target?.result as string;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let data: any;
+        try {
+          data = JSON.parse(raw);
+        } catch (err) {
+          // AI-written blueprints often have small JSON slips (e.g. unescaped
+          // quotes); repair those, but only accept the result if it's a blueprint.
+          const repaired = parseBlueprintText(raw);
+          if (repaired.ok && isBlueprint(repaired.data)) {
+            data = repaired.data;
+            toast.info("Fixed formatting in the AI's output", { description: 'For example quotation marks inside text.' });
+          } else {
+            toast.error("Couldn't read this file", { description: repaired.ok === false ? repaired.error : (err as Error).message });
+            return;
+          }
+        }
         if (isBlueprint(data)) {
           const res = prepareBlueprintLoad(data, state.courseSettings);
           if (res.ok === false) {
