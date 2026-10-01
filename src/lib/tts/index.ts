@@ -4,21 +4,16 @@
  * sentence-level captions, ready to add to a slide.
  */
 import type { SlideAudio } from '@/types/course';
-import { buildNarration, encodeMp3, toDataUrl, TTS_AUDIO_NAME, type SpeechSegment } from './narration';
+import { buildNarration, encodeMp3, segmentScript, toDataUrl, TTS_AUDIO_NAME, type Chunk, type SpeechSegment } from './narration';
 
 export { extractNarration, TTS_AUDIO_NAME } from './narration';
 
-/** Best-rated Kokoro English voices (Kokoro's own quality grades, best first per group). */
+/** The voices offered (same set and descriptions as MyCanary). */
 export const VOICES = [
-  { id: 'af_heart', label: 'Heart (US English, female)' },
-  { id: 'af_bella', label: 'Bella (US English, female)' },
-  { id: 'af_nicole', label: 'Nicole (US English, female, soft)' },
-  { id: 'am_michael', label: 'Michael (US English, male)' },
-  { id: 'am_fenrir', label: 'Fenrir (US English, male)' },
-  { id: 'am_puck', label: 'Puck (US English, male)' },
-  { id: 'bf_emma', label: 'Emma (UK English, female)' },
-  { id: 'bm_george', label: 'George (UK English, male)' },
-  { id: 'bm_fable', label: 'Fable (UK English, male)' },
+  { id: 'af_heart', label: 'Heart — Female, American (warm)' },
+  { id: 'af_bella', label: 'Bella — Female, American (bright)' },
+  { id: 'am_fenrir', label: 'Fenrir — Male, American (deep)' },
+  { id: 'am_michael', label: 'Michael — Male, American (light)' },
 ] as const;
 
 export const DEFAULT_VOICE = 'af_heart';
@@ -53,12 +48,12 @@ export interface TtsOptions {
   onProgress?: (p: TtsProgress) => void;
 }
 
-/** Rough sentence count, only used to show "sentence 2 of 5". */
+/** Number of chunks the script will be voiced in, used to show "sentence 2 of 5". */
 export function countSentences(text: string): number {
-  return Math.max(1, text.split(/(?<=[.!?…])\s+|\n+/).filter((s) => s.trim()).length);
+  return Math.max(1, segmentScript(text).length);
 }
 
-type Synthesizer = (text: string, opts: TtsOptions) => Promise<SpeechSegment[]>;
+type Synthesizer = (chunks: Chunk[], opts: TtsOptions) => Promise<SpeechSegment[]>;
 
 let worker: Worker | null = null;
 let nextId = 1;
@@ -120,13 +115,15 @@ export function friendlyError(message: string): string {
   return message;
 }
 
-const workerSynthesizer: Synthesizer = (text, opts) =>
-  new Promise((resolve, reject) => {
+const workerSynthesizer: Synthesizer = (chunks, opts) =>
+  new Promise<SpeechSegment[]>((resolve, reject) => {
     const id = nextId++;
-    pending.set(id, { resolve, reject, opts, total: countSentences(text) });
+    pending.set(id, { resolve, reject, opts, total: chunks.length });
     resetStallTimer();
-    getWorker().postMessage({ type: 'generate', id, text, voice: opts.voice ?? DEFAULT_VOICE, speed: opts.speed ?? 1 });
-  });
+    getWorker().postMessage({
+      type: 'generate', id, chunks: chunks.map((c) => c.text), voice: opts.voice ?? DEFAULT_VOICE, speed: opts.speed ?? 1,
+    });
+  }).then((segments) => segments.map((seg, i) => ({ ...seg, endsParagraph: chunks[i]?.endsParagraph ?? false })));
 
 let synthesizer: Synthesizer = workerSynthesizer;
 
@@ -137,9 +134,9 @@ export function setSynthesizer(fn: Synthesizer | null): void {
 
 /** Generate narration for a script and return it as slide audio with captions. */
 export async function generateNarrationAudio(script: string, opts: TtsOptions = {}): Promise<SlideAudio> {
-  const text = script.trim();
-  if (!text) throw new Error('There is no voice-over script to read.');
-  const segments = await synthesizer(text, opts);
+  const chunks = segmentScript(script);
+  if (!chunks.length) throw new Error('There is no voice-over script to read.');
+  const segments = await synthesizer(chunks, opts);
   if (!segments.length) throw new Error('No speech was generated.');
   opts.onProgress?.({ stage: 'encoding' });
   // Let the "encoding" status paint before the (brief) synchronous encode.

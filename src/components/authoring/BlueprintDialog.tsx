@@ -120,7 +120,7 @@ export function BlueprintDialog({ open, onOpenChange }: { open: boolean; onOpenC
               <div className="flex items-center gap-2 ml-auto">
                 <span className="text-muted-foreground">Voice</span>
                 <Select value={voice} onValueChange={setVoice}>
-                  <SelectTrigger className="h-8 w-56" aria-label="Narration voice">
+                  <SelectTrigger className="h-8 w-72" aria-label="Narration voice">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
