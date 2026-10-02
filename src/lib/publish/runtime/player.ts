@@ -10,10 +10,11 @@ import type { PublishOptions } from '../types';
  * runtime script that renders every slide and element type like the in-app
  * preview player.
  *
- * Exception: element timing. This player shows every element as soon as its
- * slide starts (startTime/duration only drive motion paths, and exit
- * animations are not played), whereas the in-app preview honors timing. See
- * "Known gaps" in docs/ARCHITECTURE.md. The LMS adapter is injected separately as
+ * Element timing matches the preview: applyTiming() shows each element at its
+ * startTime (playing its entrance animation), plays its exit animation before
+ * it ends, and keeps elements that run to the slide's end visible afterwards.
+ * Timing uses `visibility`; layers use `display`, so the two never clash.
+ * The LMS adapter is injected separately as
  * `window.__LMS` (see runtime/scorm12.ts, scorm2004.ts, xapi.ts).
  */
 export function buildPlayerHtml(state: CourseState, opts: PublishOptions, lmsRuntime: string): string {
@@ -469,14 +470,66 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
       tbl.appendChild(tbody);d.appendChild(tbl);
     }
 
-    var animInMap={"fade":"anim-fade-in","fly-in-left":"anim-fly-in-left","fly-in-right":"anim-fly-in-right"};
-    if(el.animationIn&&animInMap[el.animationIn]){
-      d.classList.add(animInMap[el.animationIn]);
-      var entDur=(el.entranceDuration!=null?el.entranceDuration:500);
-      d.style.animationDuration=entDur+"ms";
+    /* Element timing: applyTiming() shows the element at its start time (with
+       its entrance animation), plays its exit animation and hides it at its
+       end, matching the in-app preview. */
+    var st=el.startTime||0;
+    d.setAttribute("data-t-start",String(st));
+    d.setAttribute("data-t-end",String(st+(el.duration!=null?el.duration:1e9)));
+    if(el.animationIn&&ANIM_IN_CLASS[el.animationIn]){
+      d.setAttribute("data-anim-in",el.animationIn);
+      d.setAttribute("data-in-dur",String(el.entranceDuration!=null?el.entranceDuration:500));
     }
     return d;
   }
+
+  var ANIM_IN_CLASS={"fade":"anim-fade-in","fly-in-left":"anim-fly-in-left","fly-in-right":"anim-fly-in-right"};
+  var ANIM_OUT_CLASS={"fade":"anim-fade-out","fly-out-left":"anim-fly-out-left","fly-out-right":"anim-fly-out-right"};
+  var ANIM_CLASSES=["anim-fade-in","anim-fly-in-left","anim-fly-in-right","anim-fade-out","anim-fly-out-left","anim-fly-out-right"];
+  function playAnim(n,cls,ms){
+    for(var i=0;i<ANIM_CLASSES.length;i++)n.classList.remove(ANIM_CLASSES[i]);
+    void n.offsetWidth; /* restart the CSS animation */
+    n.style.animationDuration=ms+"ms";
+    n.classList.add(cls);
+  }
+  /* Show/hide the current slide's elements for playhead time ph (ms), like the
+     in-app preview: hidden before the element's start and after its end,
+     except that an element whose timeline bar reaches the end of the slide
+     stays on screen. Uses visibility (not display), so it never conflicts with
+     showLayer/hideLayer, which use display. */
+  function applyTiming(ph){
+    var slide=slides[current];if(!slide)return;
+    var slideDur=slide.duration||5000;
+    var nodes=stage.querySelectorAll("[data-t-start]");
+    for(var i=0;i<nodes.length;i++){
+      var n=nodes[i];
+      var s=+n.getAttribute("data-t-start"),e=+n.getAttribute("data-t-end");
+      var lasts=e>=slideDur;
+      var state;
+      if(ph<s||(!lasts&&ph>=e))state="off";
+      else{
+        var aOut=n.getAttribute("data-anim-out"),outDur=+(n.getAttribute("data-exit-dur")||500);
+        state=(!lasts&&aOut&&ANIM_OUT_CLASS[aOut]&&ph>=e-outDur)?"out":"on";
+      }
+      if(n._tState===state)continue;
+      var prev=n._tState;n._tState=state;
+      if(state==="off"){
+        n.style.visibility="hidden";
+        for(var k=0;k<ANIM_CLASSES.length;k++)n.classList.remove(ANIM_CLASSES[k]);
+      } else if(state==="out"){
+        n.style.visibility="";
+        playAnim(n,ANIM_OUT_CLASS[n.getAttribute("data-anim-out")],+(n.getAttribute("data-exit-dur")||500));
+      } else {
+        n.style.visibility="";
+        var aIn=n.getAttribute("data-anim-in"),inDur=+(n.getAttribute("data-in-dur")||500);
+        /* Animate entrances that happen now, not ones long past (e.g. when resuming a slide). */
+        if(prev!=="out"&&aIn&&ANIM_IN_CLASS[aIn]&&ph<s+inDur+150)playAnim(n,ANIM_IN_CLASS[aIn],inDur);
+      }
+    }
+  }
+  var timingRaf=null;
+  function stopTimingLoop(){if(timingRaf){cancelAnimationFrame(timingRaf);timingRaf=null}}
+  function tickTiming(){applyTiming(currentPlayhead());timingRaf=requestAnimationFrame(tickTiming)}
 
   function setNavLock(locked){
     if(navMode!=="restricted"){nextBtn.disabled=current===slides.length-1;return}
@@ -1104,6 +1157,7 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
   function render(){
     stopMotionTracks();
     stopTriggerLoop();
+    stopTimingLoop();
     stopQuizTimer();
     stage.innerHTML="";
     var _lbox=document.getElementById("lightbox-overlay");
@@ -1140,6 +1194,7 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
     var startMs=(revisit==="resume"&&typeof saved==="number"&&saved<(slide.duration||5000))?saved:0;
     if(revisit==="reset")savedPlayheads[slide.id]=0;
     startAudio(slide);setPlaying(true);startSlideTimer(startMs);scaleStage();
+    applyTiming(startMs);tickTiming(); /* first pass before paint avoids a flash of later elements */
     startMotionTracksFor(slide);
     startTriggersFor(slide);
     try{LMS.setLocation(current)}catch(e){}
