@@ -1,3 +1,8 @@
+/**
+ * UNUSED: not imported anywhere. An earlier top bar with Save/Load. Its save
+ * only stored `slides` (losing masters, settings and variables), so don't revive
+ * it as-is. The real Save/Load lives in Ribbon.tsx.
+ */
 import { useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Save, Upload, Play, X } from 'lucide-react';

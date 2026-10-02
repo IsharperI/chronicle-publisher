@@ -1,3 +1,20 @@
+/**
+ * The slide stage: the central editor component.
+ *
+ * Edit mode: renders the active slide's elements (bottom-to-top across visible
+ * layers) with drag/resize via react-rnd, selection, inline shape-text editing,
+ * the motion-path overlay and the master-slide background.
+ *
+ * Preview mode (isPreview, inside PlayerShell): drives the playhead with
+ * requestAnimationFrame, plays slide audio and shows captions, runs triggers
+ * (click, hover, timeline, media events, with variable conditions), shows and
+ * hides layers at runtime (layerRuntimeVis), opens lightbox slides, and renders
+ * quiz/results slides (QuizSlideOverlay).
+ *
+ * ElementRenderer draws a single element. It is one of three renderers that
+ * must stay in sync (also SlidePanel thumbnails and the exported player in
+ * lib/publish/runtime/player.ts). See docs/ARCHITECTURE.md.
+ */
 import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import { Rnd } from 'react-rnd';
 import { TextLines } from './TextLines';
@@ -67,6 +84,11 @@ function ShapeText({ se, isPreview }: { se: ShapeElement; isPreview?: boolean })
   );
 }
 
+/**
+ * Draws one element's content, in both the editor and preview. One of three
+ * renderers that must stay in sync: SlidePanel.tsx (ThumbElement) and the
+ * exported player (lib/publish/runtime/player.ts, renderElement).
+ */
 function ElementRenderer({ element, isPreview }: { element: SlideElement; isPreview?: boolean }) {
   const [hovered, setHovered] = useState(false);
   const { dispatch } = useCourse();

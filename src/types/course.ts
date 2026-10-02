@@ -1,3 +1,14 @@
+/**
+ * The course data model, the best place to start reading.
+ *
+ * Everything in a course file is described here. Notes:
+ * - Times: slide.duration and element startTime/duration are milliseconds;
+ *   audio duration and caption times are seconds.
+ * - Slides keep elements in `layers` (source of truth); `elements` is a
+ *   flattened copy maintained by the reducer (context/CourseContext.tsx).
+ * - Adding a field? Also add it to lib/sanitize.ts, or it is dropped when a
+ *   course is loaded from a file.
+ */
 export type ElementType = 'text' | 'image' | 'shape' | 'video' | 'hotspot' | 'checkbox' | 'table';
 export type ShapeType =
   | 'rectangle'

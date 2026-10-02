@@ -1,3 +1,7 @@
+/**
+ * Design-tab controls: story (canvas) size and the six course theme
+ * colors (Primary, Secondary, Accent 1, Accent 2, Dark, Light).
+ */
 import { useState } from 'react';
 import { useCourse } from '@/context/CourseContext';
 import { Button } from '@/components/ui/button';

@@ -1,3 +1,6 @@
+/**
+ * Shape menu (Insert → Shape): a grid of the shapes defined in lib/shapes.ts.
+ */
 import { useState } from 'react';
 import { Square, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';

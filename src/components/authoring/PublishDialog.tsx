@@ -1,3 +1,13 @@
+/**
+ * Publish dialog.
+ * - LMS / LRS: SCORM 1.2, SCORM 2004 or xAPI zip via lib/publish/index.ts, with
+ *   tracking options (completion by % viewed, quiz or triggers) and the
+ *   compatibility warnings from lib/publish/compat.ts.
+ * - Word: storyboard-style .docx via lib/publish/word.ts.
+ * - Video: MP4 (one file or one per slide) via lib/publish/video.ts.
+ * - Web: placeholder ("Coming soon").
+ * The title fields refresh from the course each time the dialog opens.
+ */
 import { useEffect, useMemo, useState } from 'react';
 import { X, Upload, Cloud, Globe, Video as VideoIcon, FileText, AlertTriangle, Settings2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';

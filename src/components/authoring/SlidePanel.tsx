@@ -1,3 +1,13 @@
+/**
+ * Left-hand slide list: thumbnails, select/add/delete slides, and the master
+ * slide list in master view. (Slides are reordered via the Slide Number field
+ * in PropertiesPanel.)
+ *
+ * ThumbElement is a lightweight renderer for thumbnails. It is one of three
+ * renderers that must stay in sync (also Canvas.tsx and the exported player).
+ * Thumbnails show only the slide's visible layers and mount lazily when scrolled
+ * into view.
+ */
 import { useCourse } from '@/context/CourseContext';
 import { TextLines } from './TextLines';
 import { Button } from '@/components/ui/button';
@@ -13,6 +23,8 @@ const THUMB_WIDTH = 160; // px rendered width of the thumbnail box
 /**
  * Render a single static, non-interactive miniature element. No event
  * listeners, no draggable logic, no state — purely visual.
+ * Keep in sync with Canvas.tsx (ElementRenderer) and the exported player
+ * (lib/publish/runtime/player.ts, renderElement).
  */
 function ThumbElement({ el, themeColors }: { el: SlideElement; themeColors: string[] }) {
   const baseStyle: React.CSSProperties = {

@@ -1,3 +1,7 @@
+/**
+ * Pre-publish compatibility warnings shown in the Publish dialog (embedded
+ * video/audio size, quiz/results presence for the chosen tracking mode, …).
+ */
 import type { CourseState } from '@/types/course';
 import type { PublishFormat } from './types';
 

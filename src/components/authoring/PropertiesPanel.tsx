@@ -1,3 +1,16 @@
+/**
+ * Right-hand properties panel.
+ *
+ * With no element selected it shows slide settings: title, slide number
+ * (reorder), layers (SlideLayersSection), duration, advance/revisit behavior,
+ * notes, slide audio with caption editing and Whisper auto-captions
+ * (AudioPanel), and the quiz or results editors for quiz/results slides.
+ *
+ * With an element selected it shows that element's position, size, timing,
+ * type-specific properties (text, image, shape, video, hotspot, checkbox,
+ * table) and the trigger editor (TriggersSection), where triggers, actions and
+ * variable conditions are configured.
+ */
 import { useEffect, useRef, useState } from 'react';
 import { useCourse } from '@/context/CourseContext';
 import { Input } from '@/components/ui/input';

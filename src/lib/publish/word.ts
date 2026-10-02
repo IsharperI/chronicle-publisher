@@ -1,3 +1,7 @@
+/**
+ * Word export: a storyboard-style .docx (one table row per slide with its
+ * content and notes) built with the `docx` library.
+ */
 import {
   Document,
   Packer,

@@ -1,3 +1,6 @@
+/**
+ * Question bank storage (localStorage, per browser; not part of course files).
+ */
 import type { QuizQuestionType, QuizChoice, QuizMatchPair, QuizSortItem } from '@/types/course';
 
 export interface BankQuestion {

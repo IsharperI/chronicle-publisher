@@ -1,3 +1,6 @@
+/**
+ * Insert → Text to Speech dialog (see the component comment below).
+ */
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { AlertTriangle, Loader2 } from 'lucide-react';

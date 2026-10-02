@@ -1,3 +1,8 @@
+/**
+ * Quiz themes: saved appearance presets for quiz slides (colors, fonts,
+ * radii), stored in localStorage via lib/quizTemplates.ts. Applying a theme
+ * sets a quiz slide's quizStyle.
+ */
 import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';

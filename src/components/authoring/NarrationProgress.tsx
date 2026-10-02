@@ -1,3 +1,6 @@
+/**
+ * Floating progress panel for whole-course narration (lib/tts/narrationJob.ts).
+ */
 import { Loader2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { describeProgress } from '@/lib/tts';

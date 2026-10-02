@@ -1,3 +1,8 @@
+/**
+ * Motion-path math: cubic-bezier evaluation and default paths for elements.
+ * Used by the editor (MotionPathLayer, Canvas). The exported player has its
+ * own copy (bezierPt in lib/publish/runtime/player.ts).
+ */
 import type { BaseElement, MotionPath } from '@/types/course';
 
 /** Cubic bezier point at parameter t (0..1). */

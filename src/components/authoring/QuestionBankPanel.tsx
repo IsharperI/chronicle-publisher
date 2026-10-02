@@ -1,3 +1,8 @@
+/**
+ * Question bank: reusable quiz questions (multiple choice, matching, sorting)
+ * stored in localStorage via lib/questionBank.ts. "Insert into Slide" copies a
+ * question into the currently selected quiz slide.
+ */
 import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';

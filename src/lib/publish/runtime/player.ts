@@ -7,8 +7,13 @@ import type { PublishOptions } from '../types';
 /**
  * Builds the self-contained index.html for the published package. The HTML
  * contains a JSON blob with all course data (slides, masters, settings) plus a
- * runtime script that renders every slide and element type identically to the
- * in-app preview player. The LMS adapter is injected separately as
+ * runtime script that renders every slide and element type like the in-app
+ * preview player.
+ *
+ * Exception: element timing. This player shows every element as soon as its
+ * slide starts (startTime/duration only drive motion paths, and exit
+ * animations are not played), whereas the in-app preview honors timing. See
+ * "Known gaps" in docs/ARCHITECTURE.md. The LMS adapter is injected separately as
  * `window.__LMS` (see runtime/scorm12.ts, scorm2004.ts, xapi.ts).
  */
 export function buildPlayerHtml(state: CourseState, opts: PublishOptions, lmsRuntime: string): string {
@@ -157,6 +162,13 @@ window.__PUBLISH_OPTS={completion:${completionConfig},reportStatus:${reportStatu
 }
 
 /** The slide-rendering runtime. Renders every element type and slide kind. */
+/**
+ * The exported player's JavaScript, returned as a string and inlined into
+ * index.html. Because it lives inside a template literal: it can't import
+ * anything, it's written in ES5 style (var/function) for old LMS browsers, and
+ * backslashes must be doubled (write "\\n", or use String.fromCharCode(10)).
+ * Test changes by publishing a package and opening its index.html.
+ */
 function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
   const shapeSvgJson = JSON.stringify(SHAPE_SVG);
   return `
@@ -314,6 +326,8 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
     }
   }
 
+  /* Builds the DOM for one element. One of three renderers that must stay in
+     sync (also Canvas.tsx ElementRenderer and SlidePanel.tsx ThumbElement). */
   function renderElement(el){
     var d=document.createElement("div");
     d.className="el";
@@ -1041,6 +1055,10 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
       target.addEventListener("pause",function(){if(target.ended)return;runTriggerAction(t)});
     }
   }
+  /* Binds the current slide's triggers. Walks slide.elements (the flattened
+     copy of every layer's elements) so buttons inside hidden layers, such as a
+     lightbox's close button, are wired too; they are rendered but hidden until
+     a showLayer trigger reveals them. */
   function startTriggersFor(slide){
     stopTriggerLoop();
     var els=(slide.elements||[]);

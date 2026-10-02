@@ -1,3 +1,8 @@
+/**
+ * The editor page layout. Wraps everything in CourseProvider (the single course
+ * store) and arranges the ribbon, slide list, canvas, properties panel and
+ * timeline. In preview mode the editor is replaced by PlayerShell.
+ */
 import { CourseProvider, useCourse } from '@/context/CourseContext';
 import { Ribbon } from '@/components/authoring/Ribbon';
 import { Canvas } from '@/components/authoring/Canvas';

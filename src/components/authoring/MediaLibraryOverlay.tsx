@@ -1,3 +1,7 @@
+/**
+ * Media library: lists every image, video and audio file used anywhere in the
+ * course (slides and master slides), for reuse on the current slide.
+ */
 import { useMemo, useState } from 'react';
 import { useCourse } from '@/context/CourseContext';
 import { Button } from '@/components/ui/button';
