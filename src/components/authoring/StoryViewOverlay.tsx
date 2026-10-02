@@ -401,7 +401,12 @@ export function StoryViewOverlay({ open, onClose }: { open: boolean; onClose: ()
         {/* invisible hit area covering the whole box, including diamond corners */}
         <rect x={p.x} y={p.y} width={NODE_W} height={NODE_H} fill="transparent" />
         {body}
-        {isActive && <circle cx={p.x + 10} cy={p.y + 10} r={4} fill={SELECT}><title>Slide open in the editor</title></circle>}
+        {isActive && (
+          // Marks the slide open in the editor; kept inside diamonds and circles.
+          <circle cx={shape === 'rect' || shape === 'results' ? p.x + 10 : cx} cy={shape === 'rect' || shape === 'results' ? p.y + 10 : p.y + 16} r={4} fill={SELECT}>
+            <title>Slide open in the editor</title>
+          </circle>
+        )}
         {showPort && (
           <g onPointerDown={(e) => startConnect(e, s.id)} style={{ cursor: 'crosshair' }} data-tree-port={s.id}>
             <circle cx={cx} cy={p.y + NODE_H + (shape === 'circle' ? 0 : 0)} r={14} fill="transparent" />
