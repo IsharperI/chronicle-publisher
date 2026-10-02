@@ -2,7 +2,7 @@
 
 A browser-based eLearning authoring tool, in the spirit of Articulate Storyline. Authors build slide-based courses (text, shapes, images, video, audio, quizzes, layers, triggers, variables) and publish them as **SCORM 1.2**, **SCORM 2004** or **xAPI** packages for an LMS, or as a Word document or video.
 
-Everything runs in the browser. There is no backend or database. Courses are saved and loaded as `.json` files.
+Everything runs in the browser. There is no backend or database. Courses are saved and loaded as `.json` files, and the latest version is autosaved in the browser so a refresh or crash doesn't lose work.
 
 ## Main features
 

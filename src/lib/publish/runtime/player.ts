@@ -861,7 +861,9 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
     courseCompletionReported=true;
     try{
       var sc=computeQuizScore();
-      LMS.setScore(sc.total>0?(sc.correct/sc.total):0, sc.pct, 0, 100);
+      /* Only report a score when the course has quiz questions: a content-only
+         course would otherwise show in LMS reports as 0%. */
+      if(sc.total>0)LMS.setScore(sc.correct/sc.total, sc.pct, 0, 100);
       var rs=PUB.reportStatus||"passed-incomplete";
       var status;
       if(rs==="passed-failed"){ status="passed"; }
@@ -980,8 +982,8 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
       try{if(LMS.finish)LMS.finish()}catch(e){}
       try{window.close()}catch(e){}
     } else if(t.action==="completeCourse"){
+      /* Status only: setting a score here would overwrite a real quiz score. */
       try{LMS.setStatus("completed")}catch(e){}
-      try{LMS.setScore(1,100,0,100)}catch(e){}
       try{if(LMS.commit)LMS.commit()}catch(e){}
     } else if(t.action==="jumpToTime"){
       var jSec=(typeof t.time==="number"?t.time:0);

@@ -1,7 +1,7 @@
 /**
  * The editor page layout. Wraps everything in CourseProvider (the single course
  * store) and arranges the ribbon, slide list, canvas, properties panel and
- * timeline. In preview mode the editor is replaced by PlayerShell.
+ * timeline, plus autosave. In preview mode the editor is replaced by PlayerShell.
  */
 import { CourseProvider, useCourse } from '@/context/CourseContext';
 import { Ribbon } from '@/components/authoring/Ribbon';
@@ -10,6 +10,7 @@ import { PropertiesPanel } from '@/components/authoring/PropertiesPanel';
 import { TimelinePanel } from '@/components/authoring/TimelinePanel';
 import { SlidePanel } from '@/components/authoring/SlidePanel';
 import { PlayerShell } from '@/components/authoring/PlayerShell';
+import { AutosaveManager } from '@/components/authoring/AutosaveManager';
 
 function AuthoringLayout() {
   const { state } = useCourse();
@@ -37,6 +38,7 @@ function AuthoringLayout() {
 const Index = () => (
   <CourseProvider>
     <AuthoringLayout />
+    <AutosaveManager />
   </CourseProvider>
 );
 

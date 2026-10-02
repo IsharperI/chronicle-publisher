@@ -7,7 +7,7 @@ This guide explains how the app fits together and what to watch out for. Read it
 Chronicle is a single-page React app (Vite + TypeScript + Tailwind + shadcn/ui). There is no backend:
 
 - The **whole course lives in one React state object** (`CourseState`) held by a context + reducer.
-- Courses are **saved and loaded as JSON files**, with all media (images, audio, video) embedded as base64 data URIs. There is **no autosave**: refreshing the page loses unsaved work.
+- Courses are **saved and loaded as JSON files**, with all media (images, audio, video) embedded as base64 data URIs. The latest version is also **autosaved in the browser** (see *Autosave*), but that copy stays on one browser and one computer, so the JSON file is still how courses are backed up and shared.
 - **Publishing** turns that state into a self-contained HTML player, zipped as a SCORM or xAPI package, entirely in the browser.
 - The AI features (text-to-speech and Whisper captions) download their models from Hugging Face on first use and run in the browser.
 
@@ -31,6 +31,8 @@ User edits ──► dispatch(action) ──► courseReducer ──► CourseSt
 | `lib/blueprint.ts` | Course blueprints: schema, validation, layout → slide conversion, JSON repair, and the AI instructions text. |
 | `lib/tts/` | Text-to-speech narration (Kokoro). See *Text-to-speech* below. |
 | `lib/transcribe.ts` | Whisper speech-to-text for "Auto-Generate Captions" on imported audio. |
+| `lib/project.ts` | What a saved project contains (`projectSnapshot`) and how saved data becomes a `LOAD_COURSE` payload (`sanitizeProject`). Used by Save/Load and autosave. |
+| `lib/autosave.ts` | Autosave storage (IndexedDB) and the saving/saved status shown in the ribbon. |
 | `lib/sanitize.ts` | Validates everything loaded from a file before it enters the app. See *Loading a course*. |
 | `lib/publish/` | Publishing: `index.ts` (zip builder), `runtime/` (the exported player and LMS APIs), `manifest/` (SCORM/xAPI manifests), `word.ts`, `video.ts`, `compat.ts`. |
 | `lib/shapes.ts`, `lib/themeVars.ts`, `lib/motionPath.ts` | Shared helpers: SVG shape library, theme color variables, bezier motion paths. Used by the editor and the exported player. |
@@ -88,11 +90,20 @@ When you change how something looks or behaves (a new element property, text han
 `Ribbon.tsx → loadProject`:
 
 1. Read the file and `JSON.parse` it. If parsing fails and the content is a **blueprint**, common AI formatting slips are repaired (`parseBlueprintText`, using `jsonrepair`).
-2. If it's a blueprint (`blueprintVersion: 1`), convert it (see below). Otherwise treat it as a saved project.
+2. If it's a blueprint (`blueprintVersion: 1`), convert it (see below). Otherwise treat it as a saved project (`sanitizeProject` in `lib/project.ts`).
 3. **Everything passes through `lib/sanitize.ts`** (`sanitizeSlides`, `sanitizePlayerSettings`, …). It validates colors, fonts, numbers, enums, IDs and data URIs, because these values end up inside the exported HTML.
 4. Dispatch `LOAD_COURSE`, which fills in defaults and migrates old files (for example, creating a Base Layer for slides without layers).
 
 > **Gotcha: the sanitizer is an allow-list.** Any field it doesn't copy is **silently dropped on load**. When you add a field to `types/course.ts`, add it to `sanitize.ts` too, or it will vanish the next time a project is opened. This has already bitten quiz settings, player settings (course title, sidebar, tabs, timer) and layers.
+
+## Autosave
+
+`AutosaveManager.tsx` (mounted in `pages/Index.tsx`) keeps the latest course in the browser's **IndexedDB** (`lib/autosave.ts`). IndexedDB is used rather than localStorage because courses embed media and can be tens of MB, and localStorage holds about 5 MB.
+
+- On startup, if a saved course exists, a dialog offers **Restore it** or **Start a new course** (which discards the copy). **Nothing is autosaved until that choice is made**, so the blank startup course can never overwrite the saved one.
+- After that, the course is saved about a second after each change, and immediately when the tab is hidden or closed. The browser's "leave page?" prompt appears only if a save is still pending or has failed.
+- The ribbon's title bar shows the status ("Saved in this browser 10:42", or "Autosave failed" in red, for example when storage is full).
+- **Limits:** there is one autosave slot per browser, and two tabs editing at once overwrite each other's copy. Autosave isn't shared across computers; use Save for that.
 
 ## Publishing (`lib/publish/`)
 
@@ -103,6 +114,8 @@ When you change how something looks or behaves (a new element property, text han
 3. Adds the manifest (`manifest/scorm12.ts`, `scorm2004.ts` → `imsmanifest.xml`; `tincan.ts` → `tincan.xml`), zips it with JSZip and downloads it.
 
 > **Gotcha: the exported player is code inside a string.** `PLAYER_RUNTIME` in `player.ts` returns the player's JavaScript as a **template literal**, so it can't `import` anything, is written in ES5 style (`var`, `function`), and **backslashes must be doubled** (`\\n`, `\\{`). Use `String.fromCharCode(10)` rather than `"\n"` when in doubt. Test changes by publishing a package and opening its `index.html`.
+
+**LMS reporting.** Scores are only sent once a quiz is scored. A course with no quiz questions reports a status but no score, so it never shows as "0%" in LMS reports. SCORM 1.2 and 2004 both report time spent (`cmi.core.session_time` / `cmi.session_time`), and SCORM 2004 sets `cmi.exit` to `suspend` until the course is complete so the LMS keeps the learner's place.
 
 Also in this folder: `compat.ts` (warnings shown in the Publish dialog), `word.ts` (Word storyboard export using `docx`) and `video.ts` (records slides with `MediaRecorder` into MP4).
 

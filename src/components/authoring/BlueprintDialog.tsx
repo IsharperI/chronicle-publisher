@@ -26,14 +26,9 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { VOICES, getVoicePref, setVoicePref } from '@/lib/tts';
 import { startCourseNarration } from '@/lib/tts/narrationJob';
+import { hasCourseContent } from '@/lib/project';
 
 type PendingLoad = { payload: BlueprintLoadPayload; narration: BlueprintNarration[] };
-
-/** True when the current course has content that loading a blueprint would replace. */
-function hasContent(slides: { elements: unknown[]; slideType?: string }[]): boolean {
-  if (slides.length > 1) return true;
-  return slides.some((s) => s.elements.length > 0 || (s.slideType && s.slideType !== 'content'));
-}
 
 export function BlueprintDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   const { state, dispatch } = useCourse();
@@ -74,7 +69,7 @@ export function BlueprintDialog({ open, onOpenChange }: { open: boolean; onOpenC
     }
     setErrors([]);
     const load = { payload: res.payload, narration: res.narration };
-    if (hasContent(state.slides)) setPending(load);
+    if (hasCourseContent(state.slides)) setPending(load);
     else apply(load);
   };
 

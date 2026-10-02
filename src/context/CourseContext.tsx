@@ -132,6 +132,12 @@ const createResultsSlide = (): Slide => ({
 });
 
 const firstSlide = createSlide();
+/** Copy of an object without its undefined fields, so spreading it never wipes defaults. */
+function withoutUndefined<T extends object>(obj: T | undefined): Partial<T> {
+  if (!obj) return {};
+  return Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined)) as Partial<T>;
+}
+
 const initialState: CourseState = {
   slides: [firstSlide],
   masterSlides: [],
@@ -460,10 +466,11 @@ export function courseReducer(state: CourseState, action: Action): CourseState {
         ...initialState,
         slides: loadedSlides,
         masterSlides: loadedMasters,
-        playerSettings: action.playerSettings ? { ...defaultPlayerSettings, ...action.playerSettings } : { ...defaultPlayerSettings },
+        playerSettings: { ...defaultPlayerSettings, ...withoutUndefined(action.playerSettings) },
         courseSettings: {
           ...defaultCourseSettings,
-          ...action.courseSettings,
+          // Skip missing (undefined) fields so they keep their defaults.
+          ...withoutUndefined(action.courseSettings),
           themeColors: Array.isArray(loadedThemeColors) && loadedThemeColors.length === 6
             ? [...loadedThemeColors]
             : [...defaultCourseSettings.themeColors],
