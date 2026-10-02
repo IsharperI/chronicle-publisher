@@ -5,6 +5,7 @@
  */
 import { useMemo, useRef, useState, useEffect, WheelEvent, MouseEvent } from 'react';
 import { useCourse } from '@/context/CourseContext';
+import { isBranchingSlide, resolveNext } from '@/lib/navigation';
 import { Button } from '@/components/ui/button';
 import { X, Maximize2 } from 'lucide-react';
 import type { Slide, SlideElement } from '@/types/course';
@@ -45,7 +46,11 @@ function elementLabel(el: SlideElement | undefined, idx: number): string {
     const t = String((el as any).content).replace(/<[^>]+>/g, '').trim();
     if (t) return t.length > 24 ? t.slice(0, 24) + '…' : t;
   }
-  if (el.type === 'shape') return `Shape ${idx + 1}`;
+  if (el.type === 'shape') {
+    const t = String((el as any).text ?? '').trim();
+    if (t) return t.length > 24 ? t.slice(0, 24) + '…' : t;
+    return `Shape ${idx + 1}`;
+  }
   if (el.type === 'image') return `Image ${idx + 1}`;
   if (el.type === 'video') return `Video ${idx + 1}`;
   if (el.type === 'hotspot') return `Hotspot ${idx + 1}`;
@@ -82,11 +87,15 @@ export function StoryViewOverlay({ open, onClose }: { open: boolean; onClose: ()
       }
       return out;
     });
+    // Where Next goes (lib/navigation.ts). Branching slides' Next is off (their
+    // auto buttons are already counted as jumps above).
+    const nextOf = slides.map((slide, i) =>
+      isBranchingSlide(slide) ? [] : resolveNext(slides, i).map((id) => idToIndex.get(id)!).filter((x) => x !== undefined));
 
     const shapeFor = (slide: Slide, hasJumps: boolean): NodeShape => {
       if (slide.slideType === 'results') return 'results';
       if (slide.slideType === 'quiz') return 'circle';
-      if (hasJumps) return 'diamond';
+      if (hasJumps || isBranchingSlide(slide)) return 'diamond';
       return 'rect';
     };
 
@@ -96,8 +105,7 @@ export function StoryViewOverlay({ open, onClose }: { open: boolean; onClose: ()
     slides.forEach((_, i) => {
       if (i === 0) return;
       const prev = i - 1;
-      const prevHasJumps = jumpsBySlide[prev].length > 0;
-      const sequentiallyReached = !prevHasJumps;
+      const sequentiallyReached = nextOf[prev].includes(i) && jumpsBySlide[prev].length === 0;
       if (sequentiallyReached) return;
       const inbound = jumpsBySlide.some((arr) => arr.some((j) => j.toIndex === i));
       if (inbound) inBranchOnly.add(i);
@@ -193,9 +201,10 @@ export function StoryViewOverlay({ open, onClose }: { open: boolean; onClose: ()
     for (let m = 0; m < mainOrder.length - 1; m++) {
       const fromIdx = mainOrder[m];
       const toIdx = mainOrder[m + 1];
-      // Always draw a sequential arrow between consecutive main-flow slides.
-      // Visual distinction (solid vs dashed branches) keeps the diagram readable.
-      edges.push({ fromIndex: fromIdx, toIndex: toIdx, kind: 'sequential', exit: 'bottom' });
+      // Solid arrow only where Next really goes there; jumps are dashed.
+      if (nextOf[fromIdx].includes(toIdx) && !jumpsBySlide[fromIdx].some((j) => j.toIndex === toIdx)) {
+        edges.push({ fromIndex: fromIdx, toIndex: toIdx, kind: 'sequential', exit: 'bottom' });
+      }
     }
 
     // Branch edges from diamonds.
@@ -231,6 +240,18 @@ export function StoryViewOverlay({ open, onClose }: { open: boolean; onClose: ()
         else exit = 'bottom';
         usedExits.add(exit);
         edges.push({ fromIndex: i, toIndex: j.toIndex, label: j.label, kind: 'branch', exit });
+      }
+    });
+
+    // Any Next connection not drawn yet (e.g. from a branch's last slide back
+    // to its hub, or between slides placed in different columns): solid arrow.
+    slides.forEach((_, i) => {
+      for (const t of nextOf[i]) {
+        if (edges.some((e) => e.fromIndex === i && e.toIndex === t)) continue;
+        const dc = (colOfIndex.get(t) ?? 0) - (colOfIndex.get(i) ?? 0);
+        const dr = (rowOfIndex.get(t) ?? 0) - (rowOfIndex.get(i) ?? 0);
+        const exit: FlowEdge['exit'] = dc > 0 ? 'right' : dc < 0 ? 'left' : dr < 0 ? 'top' : 'bottom';
+        edges.push({ fromIndex: i, toIndex: t, kind: 'sequential', exit, label: 'Next' });
       }
     });
 

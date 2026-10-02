@@ -12,6 +12,7 @@
  * - LOAD_COURSE fills defaults and migrates older files. Data must already have
  *   been through lib/sanitize.ts.
  */
+import { nextSlideIndex, reconcileBranching } from '@/lib/navigation';
 import React, { createContext, useContext, useReducer, type Dispatch } from 'react';
 import type { CourseState, Slide, SlideElement, SlideLayer, ViewMode, PlayerSettings, CourseSettings, SlideAudio, QuizConfig, ResultsConfig, SlideKind, CourseVariable } from '@/types/course';
 import { defaultPlayerSettings, defaultCourseSettings } from '@/types/course';
@@ -186,6 +187,10 @@ type Action =
   | { type: 'SET_PREVIEW_MODE'; enabled: boolean }
   | { type: 'PREVIEW_NEXT' }
   | { type: 'PREVIEW_PREV' }
+  /** Set where Next goes from a slide (see lib/navigation.ts). undefined = following slide. */
+  | { type: 'SET_SLIDE_NEXT'; slideId: string; next: string[] | undefined }
+  /** Preview: go back to the slide visited before this one. */
+  | { type: 'PREVIEW_BACK' }
   | { type: 'UPDATE_SLIDE'; index: number; updates: Partial<Slide> }
   | { type: 'SET_PLAYHEAD'; time: number }
   | { type: 'SET_PLAYING'; playing: boolean }
@@ -264,7 +269,22 @@ function withUpdatedActiveSlide(
   return updateActiveSlides(state, next);
 }
 
+/**
+ * The reducer. After every change to the slide list, reconcileBranching()
+ * keeps branching slides' auto-generated buttons in step with their
+ * connections (lib/navigation.ts).
+ */
 export function courseReducer(state: CourseState, action: Action): CourseState {
+  const next = baseReducer(state, action);
+  const before = state?.slides ?? [];
+  if (next.slides !== before) {
+    const slides = reconcileBranching(before, next.slides, next.courseSettings.canvasDimensions);
+    if (slides !== next.slides) return { ...next, slides };
+  }
+  return next;
+}
+
+function baseReducer(state: CourseState, action: Action): CourseState {
   switch (action.type) {
     case 'ADD_SLIDE': {
       if (state.viewMode === 'master') {
@@ -286,7 +306,11 @@ export function courseReducer(state: CourseState, action: Action): CourseState {
     case 'SET_ACTIVE_SLIDE': {
       const slides = getActiveSlides(state);
       const target = slides[action.index];
-      return { ...state, activeSlideIndex: action.index, activeElementId: null, selectedElementIds: [], activeAudioId: null, playheadTime: 0, isPlaying: false, activeLayerId: slideFirstLayerId(target) };
+      // In preview, remember the path taken so Prev retraces it (branches).
+      const previewHistory = state.previewMode && action.index !== state.activeSlideIndex
+        ? [...(state.previewHistory ?? []), state.activeSlideIndex].slice(-500)
+        : state.previewHistory;
+      return { ...state, previewHistory, activeSlideIndex: action.index, activeElementId: null, selectedElementIds: [], activeAudioId: null, playheadTime: 0, isPlaying: false, activeLayerId: slideFirstLayerId(target) };
     }
     case 'MOVE_SLIDE': {
       const slides = getActiveSlides(state);
@@ -491,6 +515,7 @@ export function courseReducer(state: CourseState, action: Action): CourseState {
       return {
         ...state,
         previewMode: action.enabled,
+        previewHistory: [],
         activeElementId: null,
         selectedElementIds: [],
         activeSlideIndex: action.enabled ? 0 : state.activeSlideIndex,
@@ -504,8 +529,27 @@ export function courseReducer(state: CourseState, action: Action): CourseState {
         // Reset live variable values to their defaults at the start of every preview session.
         variableValues: computeVariableValues(state.variables),
       };
-    case 'PREVIEW_NEXT':
-      return { ...state, activeSlideIndex: Math.min(state.activeSlideIndex + 1, state.slides.length - 1) };
+    case 'PREVIEW_NEXT': {
+      const target = nextSlideIndex(state.slides, state.activeSlideIndex);
+      if (target < 0) return state;
+      return baseReducer(state, { type: 'SET_ACTIVE_SLIDE', index: target });
+    }
+    case 'PREVIEW_BACK': {
+      const hist = state.previewHistory ?? [];
+      if (!hist.length) return state;
+      const back = baseReducer(state, { type: 'SET_ACTIVE_SLIDE', index: hist[hist.length - 1] });
+      return { ...back, previewHistory: hist.slice(0, -1) };
+    }
+    case 'SET_SLIDE_NEXT': {
+      const slides = state.slides.map((s) => {
+        if (s.id !== action.slideId) return s;
+        const copy = { ...s };
+        if (action.next === undefined) delete copy.next;
+        else copy.next = Array.from(new Set(action.next.filter((id) => id !== s.id)));
+        return copy;
+      });
+      return { ...state, slides };
+    }
     case 'PREVIEW_PREV':
       return { ...state, activeSlideIndex: Math.max(state.activeSlideIndex - 1, 0) };
     case 'UPDATE_SLIDE': {

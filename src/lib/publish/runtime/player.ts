@@ -531,9 +531,23 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
   function stopTimingLoop(){if(timingRaf){cancelAnimationFrame(timingRaf);timingRaf=null}}
   function tickTiming(){applyTiming(currentPlayhead());timingRaf=requestAnimationFrame(tickTiming)}
 
+  /* Where Next goes (same rules as lib/navigation.ts resolveNext): slide.next
+     omitted = the following slide; [] = no Next; 2+ ids = a branching slide
+     (Next disabled, the slide's own buttons lead on). Returns an index or -1. */
+  function nextIndexOf(i){
+    var s=slides[i];if(!s)return -1;
+    if(!s.next)return i+1<slides.length?i+1:-1;
+    var found=[];
+    for(var k=0;k<s.next.length;k++){for(var j=0;j<slides.length;j++){if(slides[j].id===s.next[k]){found.push(j);break}}}
+    return found.length===1?found[0]:-1;
+  }
+  function goNext(){var n=nextIndexOf(current);if(n>=0)goTo(n)}
+  var hasBranching=false;
+  for(var hb=0;hb<slides.length;hb++){if(slides[hb].next&&slides[hb].next.length>=2){hasBranching=true;break}}
   function setNavLock(locked){
-    if(navMode!=="restricted"){nextBtn.disabled=current===slides.length-1;return}
-    nextBtn.disabled=locked||current===slides.length-1;
+    var noNext=nextIndexOf(current)<0;
+    if(navMode!=="restricted"){nextBtn.disabled=noNext;return}
+    nextBtn.disabled=locked||noNext;
   }
 
   var activeAudio=[];
@@ -571,7 +585,7 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
     slideTimer=setTimeout(function(){
       slideTimerRunning=false;slideTimerOffset=dur;savedPlayheads[slide.id]=dur;
       if(navMode==="restricted"){unlocked=true;setNavLock(false)}
-      if(advance==="auto"&&current<slides.length-1){goTo(current+1)}
+      if(advance==="auto"&&nextIndexOf(current)>=0){goNext()}
       else{setPlaying(false)}
     },remaining);
   }
@@ -775,7 +789,7 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
         skipBtn.style.cssText="padding:12px 24px;background:transparent;color:"+textColor+";border:1px solid "+optBorder+";border-radius:"+optR+"px;font-size:16px;cursor:pointer";
         skipBtn.onclick=function(){
           if(q.skipTargetSlideId){for(var i=0;i<slides.length;i++)if(slides[i].id===q.skipTargetSlideId){goTo(i);return}}
-          if(current<slides.length-1)goTo(current+1);
+          goNext();
         };
         btnRow.appendChild(skipBtn);
       }
@@ -796,7 +810,7 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
         var cont=document.createElement("button");
         cont.textContent="Continue";
         cont.style.cssText="padding:12px 24px;background:"+btnBg+";color:"+btnText+";border:none;border-radius:"+optR+"px;font-size:16px;cursor:pointer";
-        cont.onclick=function(){if(current<slides.length-1)goTo(current+1)};
+        cont.onclick=function(){goNext()};
         btnRow.appendChild(cont);
       }
     }
@@ -878,6 +892,10 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
     if(courseCompletionReported)return;
     if(!PUB.completion||PUB.completion.mode!=="percent")return;
     var thresh=Math.max(1,Math.min(100,PUB.completion.percent||100));
+    /* In a course with branching slides a learner can't see every slide, so
+       reaching an end point (a slide with no Next) also counts as complete. */
+    var cs=slides[current];
+    if(hasBranching&&cs&&!(cs.next&&cs.next.length>=2)&&nextIndexOf(current)<0){reportCompletion();return}
     var visitedCount=0;for(var k in visited)if(visited.hasOwnProperty(k))visitedCount++;
     var pct=slides.length>0?(visitedCount/slides.length)*100:0;
     if(pct>=thresh)reportCompletion();
@@ -974,10 +992,11 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
     } else if(t.action==="restartCourse"){
       try{for(var k in savedPlayheads)delete savedPlayheads[k]}catch(e){}
       try{for(var v in visited)delete visited[v]}catch(e){}
+      navHistory.length=0;
       try{LMS.setLocation(0)}catch(e){}
       // Reset all variables to their declared defaults at course restart.
       try{for(var vi=0;vi<variableDefs.length;vi++){variableValues[variableDefs[vi].id]=variableDefs[vi].defaultValue}}catch(e){}
-      goTo(0);
+      goTo(0,true);
     } else if(t.action==="exitCourse"){
       try{if(LMS.finish)LMS.finish()}catch(e){}
       try{window.close()}catch(e){}
@@ -1189,7 +1208,7 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
     if(slide.slideType==="quiz")renderQuizSlide(slide);
     else if(slide.slideType==="results")renderResultsSlide(slide);
     if(meta)meta.textContent="Slide "+(current+1)+" / "+slides.length;
-    prevBtn.disabled=current===0;
+    prevBtn.disabled=navHistory.length===0;
     buildMenu();updateNotes();
     var revisit=slide.revisitMode||"reset";
     var saved=savedPlayheads[slide.id];
@@ -1214,8 +1233,11 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
   }
   if(ppBtn)ppBtn.onclick=function(){setPlaying(!playing)};
 
-  function goTo(idx){
+  /* Path taken, so Prev retraces it through branches (like Storyline). */
+  var navHistory=[];
+  function goTo(idx,back){
     if(idx<0||idx>=slides.length||idx===current)return;
+    if(!back){navHistory.push(current);if(navHistory.length>500)navHistory.shift()}
     var leaving=slides[current];if(leaving)savedPlayheads[leaving.id]=currentPlayhead();
     clearSlideTimer();stopAudio();
     var cs=(data.courseSettings&&data.courseSettings.transition)||{type:"fade",duration:1,color:"#000000"};
@@ -1227,8 +1249,8 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
     clearTransitionTimer();
     transitionTimer=setTimeout(function(){current=idx;render();void stage.offsetWidth;stage.classList.remove("fading")},halfMs);
   }
-  prevBtn.onclick=function(){if(current>0)goTo(current-1)};
-  nextBtn.onclick=function(){if(current<slides.length-1)goTo(current+1)};
+  prevBtn.onclick=function(){if(navHistory.length)goTo(navHistory.pop(),true)};
+  nextBtn.onclick=function(){goNext()};
 
   // ===== Captions =====
   var ccOverlay=document.getElementById("cc-overlay");

@@ -4,6 +4,7 @@
  * menu/notes sidebar, slide transitions, Prev/Play/Next/CC controls. Also owns
  * the quiz countdown timers (per-question and course-wide).
  */
+import { nextSlideIndex } from '@/lib/navigation';
 import { useCourse } from '@/context/CourseContext';
 import { Canvas } from './Canvas';
 import { ChevronLeft, ChevronRight, Play, Pause, Captions, CaptionsOff, Menu, FileText, Check, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
@@ -58,7 +59,8 @@ export function PlayerShell({ playerSettings, interactive = true }: PlayerShellP
 
   useEffect(() => () => clearTransition(), [clearTransition]);
 
-  const navigateToIndex = useCallback((nextIndex: number) => {
+  /** Go to a slide; with `back`, return along the path taken (Prev). */
+  const navigateToIndex = useCallback((nextIndex: number, back = false) => {
     if (!interactive || navLocked) return;
     if (nextIndex < 0 || nextIndex >= state.slides.length || nextIndex === state.activeSlideIndex) return;
 
@@ -67,7 +69,7 @@ export function PlayerShell({ playerSettings, interactive = true }: PlayerShellP
     if (transitionType === 'none' || transitionDuration <= 0) {
       setStagePhase('idle');
       setNavLocked(false);
-      dispatch({ type: 'SET_ACTIVE_SLIDE', index: nextIndex });
+      dispatch(back ? { type: 'PREVIEW_BACK' } : { type: 'SET_ACTIVE_SLIDE', index: nextIndex });
       return;
     }
 
@@ -77,7 +79,7 @@ export function PlayerShell({ playerSettings, interactive = true }: PlayerShellP
     setStagePhase('exit');
 
     timersRef.current.swap = window.setTimeout(() => {
-      dispatch({ type: 'SET_ACTIVE_SLIDE', index: nextIndex });
+      dispatch(back ? { type: 'PREVIEW_BACK' } : { type: 'SET_ACTIVE_SLIDE', index: nextIndex });
       setStagePhase('enter-from');
       timersRef.current.raf1 = requestAnimationFrame(() => {
         timersRef.current.raf2 = requestAnimationFrame(() => setStagePhase('enter-to'));
@@ -266,8 +268,13 @@ export function PlayerShell({ playerSettings, interactive = true }: PlayerShellP
     </aside>
   );
 
-  const isLast = state.activeSlideIndex === state.slides.length - 1;
-  const isFirst = state.activeSlideIndex === 0;
+  // Next follows the slide's connections (lib/navigation.ts); Prev retraces the path taken.
+  const nextIndex = nextSlideIndex(state.slides, state.activeSlideIndex);
+  const history = state.previewHistory ?? [];
+  const backIndex = history.length ? history[history.length - 1] : -1;
+  const goNext = () => navigateToIndex(nextIndex);
+  const isLast = nextIndex < 0;
+  const isFirst = backIndex < 0;
 
   const btnStyle: React.CSSProperties = {
     backgroundColor: ps.buttonColor,
@@ -310,7 +317,7 @@ export function PlayerShell({ playerSettings, interactive = true }: PlayerShellP
             transitionDuration={transitionDuration}
             transitionColor={transitionColor}
             phase={stagePhase}
-            onPreviewNext={() => navigateToIndex(state.activeSlideIndex + 1)}
+            onPreviewNext={goNext}
           />
         </div>
         {ps.sidebarPosition === 'right' && sidebar}
@@ -329,14 +336,14 @@ export function PlayerShell({ playerSettings, interactive = true }: PlayerShellP
             ⏱ {courseTimerDisplay}
           </div>
         )}
-        <QuizFeedbackOverlay onContinue={() => navigateToIndex(state.activeSlideIndex + 1)} />
+        <QuizFeedbackOverlay onContinue={goNext} />
       </div>
 
       {/* Bottom controls */}
       <footer className="h-14 shrink-0 flex items-center justify-center gap-2 px-5 border-t border-white/10 bg-black/40 backdrop-blur-sm">
         <button
           type="button"
-          onClick={() => navigateToIndex(state.activeSlideIndex - 1)}
+          onClick={() => navigateToIndex(backIndex, true)}
           disabled={isFirst || navLocked}
           className="text-white text-xs font-medium px-4 py-2 disabled:opacity-40"
           style={btnStyle}
@@ -359,7 +366,7 @@ export function PlayerShell({ playerSettings, interactive = true }: PlayerShellP
 
         <button
           type="button"
-          onClick={() => navigateToIndex(state.activeSlideIndex + 1)}
+          onClick={goNext}
           disabled={isLast || navLocked}
           className="text-white text-xs font-medium px-4 py-2 disabled:opacity-40"
           style={btnStyle}
