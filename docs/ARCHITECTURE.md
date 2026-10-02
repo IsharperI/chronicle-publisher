@@ -66,7 +66,7 @@ See `types/course.ts` for every field. Key points:
 - **Layers are the source of truth.** Each slide has `layers` (bottom to top; index 0 is the "Base Layer"). `slide.elements` is a **flattened copy of all layers' elements**, kept for older code paths. The reducer rebuilds it whenever layers change (`rebuildElements` / `mapElementsInSlide` in `CourseContext.tsx`). When you write code that edits elements, go through those helpers.
 - A layer's `visible` flag is its **starting state** during playback. Show Layer / Hide Layer triggers override it at runtime. That's how lightboxes (blueprint `reveal` slides) work: hidden layers that buttons reveal.
 - **Mixed time units:** slide `duration` and element `startTime`/`duration` are in **milliseconds**; audio `duration` and caption `startTime`/`endTime` are in **seconds**.
-- In the editor preview, an element appears when its timeline bar starts and disappears when it ends. An element whose bar reaches the end of the slide **stays visible after the timeline ends** (as in Storyline). **The exported player does not do this yet** (see *Known gaps*).
+- In the editor preview, an element appears when its timeline bar starts and disappears when it ends. An element whose bar reaches the end of the slide **stays visible after the timeline ends** (as in Storyline). The exported player (`applyTiming` in `player.ts`) and the video exporter (`elementAppearance` in `video.ts`) follow the same rules, including entrance and exit animations.
 - Colors can be hex values or theme references like `var(--theme-primary)` (see `lib/themeVars.ts`), so changing a theme color restyles every element that uses it.
 - Quiz and results slides are ordinary slides with `slideType: 'quiz' | 'results'` and a `quiz` / `results` config. The quiz card is drawn by the renderer, not built from elements.
 - Runtime-only fields (playhead, quiz answers, variable values, preview mode) live in `CourseState` too, but are never saved.
@@ -106,6 +106,8 @@ When you change how something looks or behaves (a new element property, text han
 
 Also in this folder: `compat.ts` (warnings shown in the Publish dialog), `word.ts` (Word storyboard export using `docx`) and `video.ts` (records slides with `MediaRecorder` into MP4).
 
+> **Video export notes.** `video.ts` plays the whole course once, in real time, painting frames on a timer (not `requestAnimationFrame`, which stalls in background tabs) while slide audio is routed into the recording. Remember the units: `slide.duration` and element times are **milliseconds**, audio durations and captions are **seconds** (mixing them up once made slide 1 "record" for 83 minutes). A silent oscillator keeps the audio track active, because an idle audio track makes Chrome cut the recording short.
+
 ## Course blueprints (`lib/blueprint.ts`)
 
 A blueprint is a compact JSON course description, usually written by an AI from a storyboard:
@@ -142,7 +144,7 @@ Narration is added through the `SET_SLIDE_NARRATION` reducer action, which repla
 
 Behaviors that differ between the editor preview and the exported course, or are unfinished:
 
-- **Element timing is ignored in the exported player.** `player.ts` shows every element as soon as its slide starts: entrance animations play immediately, and `startTime`/`duration` are only used for motion paths. Exit animations are recorded (`data-anim-out`) but never played. The in-app preview *does* honor timing, so a slide that builds up over time in preview appears all at once in a published course.
+- **Video export is simplified.** It draws text, shapes, images, captions, a static quiz card and fade/fly animations, but videos inside slides appear as a placeholder, and motion paths, layers opened by triggers and interactivity are not shown. It records in real time, so the tab must stay open.
 - **The "Web" publish target** is a "Coming soon" placeholder.
 
 ## Testing
