@@ -3,11 +3,15 @@
  * The model (~90 MB, quantized) downloads once from Hugging Face on first use
  * and is then cached by the browser. Runs off the main thread so the editor
  * stays responsive while speech is generated.
+ *
+ * Always runs on the CPU (WebAssembly), the same way MyCanary does. Kokoro's
+ * WebGPU path produces garbled speech on many laptop GPUs (Intel Iris Xe,
+ * AMD Radeon integrated graphics; see microsoft/onnxruntime#29807), while the
+ * WebAssembly path is clean everywhere.
  */
 import { KokoroTTS } from 'kokoro-js';
-import { sentenceStream } from './sentences';
 
-type Incoming = { type: 'generate'; id: number; text: string; voice: string; speed: number };
+type Incoming = { type: 'generate'; id: number; chunks: string[]; voice: string; speed: number };
 type Outgoing =
   | { type: 'status'; id: number; stage: 'loading'; progress: number | null }
   | { type: 'status'; id: number; stage: 'speaking'; done: number }
@@ -31,16 +35,14 @@ function load(): Promise<KokoroTTS> {
       ctx.postMessage({ type: 'status', id: loadingFor, stage: 'loading', progress: Math.round(p.progress) });
     }
   };
-  const hasWebGpu = typeof navigator !== 'undefined' && 'gpu' in navigator;
   ttsPromise = (async () => {
-    if (hasWebGpu) {
-      try {
-        return await KokoroTTS.from_pretrained(MODEL_ID, { dtype: 'fp32', device: 'webgpu', progress_callback });
-      } catch {
-        /* fall back to WebAssembly below */
-      }
+    try {
+      return await KokoroTTS.from_pretrained(MODEL_ID, { dtype: 'q8', device: 'wasm', progress_callback });
+    } catch {
+      // Some browsers can't create a session for the quantized model; retry at
+      // full precision (larger download, same voice).
+      return KokoroTTS.from_pretrained(MODEL_ID, { dtype: 'fp32', device: 'wasm', progress_callback });
     }
-    return KokoroTTS.from_pretrained(MODEL_ID, { dtype: 'q8', device: 'wasm', progress_callback });
   })();
   ttsPromise.catch(() => {
     ttsPromise = null; // allow a retry after e.g. a network failure
@@ -65,11 +67,11 @@ async function handle(msg: Incoming) {
     const tts = await load();
     const segments: { text: string; samples: Float32Array; sampleRate: number }[] = [];
     ctx.postMessage({ type: 'status', id, stage: 'speaking', done: 0 });
-    // Synthesize sentence by sentence (which also gives per-sentence caption
-    // timing). Pass a closed sentence stream: tts.stream(string) never closes
-    // its own splitter and hangs waiting for the last sentence.
-    for await (const part of tts.stream(sentenceStream(msg.text), { voice: msg.voice as never, speed: msg.speed })) {
-      segments.push({ text: part.text, samples: part.audio.audio as Float32Array, sampleRate: part.audio.sampling_rate });
+    // One generate() call per sentence-level chunk (split on the main thread),
+    // which also gives per-chunk caption timing.
+    for (const text of msg.chunks) {
+      const audio = await tts.generate(text, { voice: msg.voice as never, speed: msg.speed });
+      segments.push({ text, samples: audio.audio as Float32Array, sampleRate: audio.sampling_rate });
       ctx.postMessage({ type: 'status', id, stage: 'speaking', done: segments.length });
     }
     ctx.postMessage({ type: 'done', id, segments }, segments.map((s) => s.samples.buffer));
