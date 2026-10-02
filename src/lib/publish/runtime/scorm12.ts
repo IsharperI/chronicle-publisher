@@ -6,6 +6,7 @@
  *  - LMSCommit("") after every LMSSetValue.
  *  - Session timer: starts on init, formatted as hh:mm:ss and reported via cmi.core.session_time on finish.
  *  - LMSFinish("") on beforeunload / pagehide.
+ *  - getSuspend/setSuspend: cmi.suspend_data (the player saves hub progress there).
  *  - No score is written until a quiz is scored, so courses without quizzes
  *    don't show up in LMS reports as "0%".
  */
@@ -106,6 +107,9 @@ window.__LMS = (function(){
       if(typeof max==="number") set("cmi.core.score.max", String(max)); else set("cmi.core.score.max","100");
       if(typeof raw==="number") set("cmi.core.score.raw", String(Math.round(raw)));
     },
+    /* Saved progress (hub ticks), kept by the LMS between sessions. Max 4096 chars in SCORM 1.2. */
+    getSuspend: function(){ if(!API||!initialized) return ""; try{ return String(API.LMSGetValue("cmi.suspend_data")||""); }catch(e){ return ""; } },
+    setSuspend: function(v){ v=String(v||""); if(v.length<=4096) set("cmi.suspend_data", v); },
     commit: commit,
     finish: finish
   };

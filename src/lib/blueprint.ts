@@ -4,8 +4,13 @@
  *
  * - courseBlueprintSchema / validateBlueprint: the format and readable errors.
  * - blueprintToCourse: turns each layout (title, section, bullets, image-text,
- *   two-column, reveal, callout, quiz, results) into positioned elements and
+ *   two-column, reveal, callout, quiz, results, hub) into positioned elements and
  *   layers, designed at 1024×768 and scaled to the canvas.
+ *   - A hub lists its branches, each with its own slides. They are placed
+ *     right after the hub and wired up: branch buttons on the hub, each
+ *     branch's last slide leads back to the hub (or, for a "choice" hub, on to
+ *     the slide after it), and the hub's Continue goes to the slide after it.
+ *   - Each section slide starts a slide group named after it (course tree).
  * - prepareBlueprintLoad: validate → convert → sanitize; used by both the Load
  *   button and the Blueprint dialog.
  * - parseBlueprintText: tolerant parsing of pasted AI output (code fences,
@@ -68,8 +73,23 @@ const resultsSlide = z.object({
   passMessage: z.string().optional(), failMessage: z.string().optional(), ...common,
 });
 
-export const blueprintSlideSchema = z.discriminatedUnion('layout', [
+/** Any slide except a hub (hubs can't be nested inside a branch). */
+export const contentSlideSchema = z.discriminatedUnion('layout', [
   titleSlide, sectionSlide, bulletsSlide, imageTextSlide, twoColumnSlide, revealSlide, calloutSlide, quizSlide, resultsSlide,
+]);
+const hubBranch = z.object({
+  label: z.string().min(1, 'label is required'),
+  slides: z.array(contentSlideSchema).min(1, 'each branch needs at least 1 slide'),
+});
+const hubSlide = z.object({
+  layout: z.literal('hub'), title: z.string(), intro: z.string().optional(),
+  mode: z.enum(['required', 'explore', 'choice']).optional(),
+  branches: z.array(hubBranch).min(2, 'branches must have 2–6 entries').max(6, 'branches must have 2–6 entries'),
+  ...common,
+});
+
+export const blueprintSlideSchema = z.discriminatedUnion('layout', [
+  titleSlide, sectionSlide, bulletsSlide, imageTextSlide, twoColumnSlide, revealSlide, calloutSlide, quizSlide, resultsSlide, hubSlide,
 ]);
 
 export const courseBlueprintSchema = z.object({
@@ -83,6 +103,8 @@ export const courseBlueprintSchema = z.object({
 });
 
 export type BlueprintSlide = z.infer<typeof blueprintSlideSchema>;
+type ContentBlueprintSlide = z.infer<typeof contentSlideSchema>;
+type HubBlueprintSlide = z.infer<typeof hubSlide>;
 export type CourseBlueprint = z.infer<typeof courseBlueprintSchema>;
 
 export function isBlueprint(data: unknown): boolean {
@@ -92,13 +114,24 @@ export function isBlueprint(data: unknown): boolean {
 export function validateBlueprint(data: unknown): { ok: true; blueprint: CourseBlueprint } | { ok: false; errors: string[] } {
   const res = courseBlueprintSchema.safeParse(data);
   if (res.success) return { ok: true, blueprint: res.data };
-  const raw = data as { slides?: { layout?: string }[] };
+  type RawSlide = { layout?: string; branches?: { slides?: RawSlide[] }[] };
+  const raw = data as { slides?: RawSlide[] };
   const errors = res.error.issues.map((iss) => {
     const p = iss.path;
     if (p[0] === 'slides' && typeof p[1] === 'number') {
-      const layout = raw?.slides?.[p[1]]?.layout ?? 'unknown';
-      const field = p.slice(2).filter((x) => typeof x === 'string').join('.');
-      return `Slide ${p[1] + 1} (${layout}): ${field ? field + ' ' : ''}${iss.message}`.replace(/(\w+) \1 /, '$1 ');
+      const top = raw?.slides?.[p[1]];
+      let where = `Slide ${p[1] + 1} (${top?.layout ?? 'unknown'})`;
+      let rest = p.slice(2);
+      // Inside a hub: "Slide 3 (hub), branch 2, slide 1 (bullets)".
+      if (rest[0] === 'branches' && typeof rest[1] === 'number') {
+        where += `, branch ${rest[1] + 1}`;
+        if (rest[2] === 'slides' && typeof rest[3] === 'number') {
+          where += `, slide ${rest[3] + 1} (${top?.branches?.[rest[1]]?.slides?.[rest[3]]?.layout ?? 'unknown'})`;
+          rest = rest.slice(4);
+        } else rest = rest.slice(2);
+      }
+      const field = rest.filter((x) => typeof x === 'string').join('.');
+      return `${where}: ${field ? field + ' ' : ''}${iss.message}`.replace(/(\w+) \1 /, '$1 ');
     }
     return `${p.join('.') || 'blueprint'}: ${iss.message}`;
   });
@@ -107,6 +140,8 @@ export function validateBlueprint(data: unknown): { ok: true; blueprint: CourseB
 
 export interface BlueprintCourse {
   slides: Slide[];
+  /** The blueprint slide each course slide came from (same order), for narration. */
+  sources: BlueprintSlide[];
   masterSlides: Slide[];
   playerSettings: Partial<PlayerSettings>;
   courseSettings: Partial<CourseSettings>;
@@ -157,7 +192,7 @@ export function blueprintToCourse(bp: CourseBlueprint, canvas: CanvasDimensions 
     advanceMode: 'manual', slideType: 'content', notes: notesFor(s),
   });
 
-  const slides: Slide[] = bp.slides.map((s): Slide => {
+  const convert = (s: ContentBlueprintSlide): Slide => {
     switch (s.layout) {
       case 'section': {
         // Section divider: light background, primary accent bar, large title.
@@ -290,10 +325,81 @@ export function blueprintToCourse(bp: CourseBlueprint, canvas: CanvasDimensions 
           },
         };
     }
-  });
+  };
+
+  /** Hub slide: title bar, intro, and one branch button per branch (lib/navigation.ts auto buttons). */
+  const hubSlideFor = (s: HubBlueprintSlide, targets: string[]): Slide => {
+    const SECONDARY = colors[1];
+    const n = s.branches.length;
+    const cols = n <= 3 ? n : n === 4 ? 2 : 3;
+    const rows = Math.ceil(n / cols);
+    const gap = 24, areaX = 60, areaY = 240, areaW = 904, areaH = 440;
+    const bw = (areaW - gap * (cols - 1)) / cols;
+    const bh = Math.min(110, (areaH - gap * (rows - 1)) / rows);
+    const buttons = s.branches.map((b, i) => {
+      const r = Math.floor(i / cols), c = i % cols;
+      const inRow = r === rows - 1 ? n - r * cols : cols;
+      const rowW = inRow * bw + (inRow - 1) * gap;
+      const x = areaX + (areaW - rowW) / 2 + c * (bw + gap);
+      return shape(x, areaY + r * (bh + gap), bw, bh, PRIMARY, {
+        text: b.label, textColor: LIGHT, fontSize: b.label.length > 24 ? 18 : 22, hoverFillColor: SECONDARY, borderRadius: 12,
+        triggers: [{ event: 'onClick', action: 'jumpToSlide', targetId: targets[i] }],
+        autoBranchTarget: targets[i],
+      });
+    });
+    const mode = s.mode ?? 'required';
+    const intro = s.intro ?? (mode === 'choice' ? 'Choose an option.' : 'Select each topic to learn more.');
+    return {
+      ...content(s.title, [...titleBar(s.title), text(60, 140, 904, 80, intro, 22, DARK), ...buttons], s),
+      next: targets,
+      ...(mode === 'choice' ? {} : { branchMode: mode }),
+    };
+  };
+
+  // Lay out the slide list: hubs are followed by their branch slides. Links
+  // that point at "the slide after this hub" are filled in once it exists.
+  const slides: Slide[] = [];
+  const sources: BlueprintSlide[] = [];
+  let pending: ((nextId: string | undefined) => void)[] = [];
+  let group: string | undefined;
+  const push = (slide: Slide, src: BlueprintSlide, isTopLevel: boolean) => {
+    if (isTopLevel) {
+      const id = slide.id;
+      pending.forEach((fill) => fill(id));
+      pending = [];
+    }
+    if (group) slide.group = group;
+    slides.push(slide);
+    sources.push(src);
+  };
+  for (const s of bp.slides) {
+    if (s.layout === 'section') group = shortTitle(s.title, 60);
+    if (s.layout !== 'hub') {
+      push(convert(s), s, true);
+      continue;
+    }
+    const branchSlides = s.branches.map((b) => b.slides.map((bs) => ({ slide: convert(bs), src: bs as BlueprintSlide })));
+    const hub = hubSlideFor(s, branchSlides.map((b) => b[0].slide.id));
+    push(hub, s, true);
+    const mode = s.mode ?? 'required';
+    for (const branch of branchSlides) {
+      branch.forEach(({ slide, src }) => push(slide, src, false));
+      const last = branch[branch.length - 1].slide;
+      if (mode === 'choice') {
+        // A choice leads on to the slide after the hub (the paths rejoin), or ends the course.
+        last.next = [];
+        pending.push((nextId) => { last.next = nextId ? [nextId] : []; });
+      } else {
+        last.next = [hub.id];
+      }
+    }
+    if (mode !== 'choice') pending.push((nextId) => { if (nextId) hub.continueTo = nextId; });
+  }
+  pending.forEach((fill) => fill(undefined));
 
   return {
     slides,
+    sources,
     masterSlides: [],
     playerSettings: { courseTitle: bp.course.title },
     courseSettings: { themeColors: [...colors] },
@@ -331,7 +437,7 @@ export function prepareBlueprintLoad(
   if (res.ok === false) return { ok: false, errors: res.errors };
   const course = blueprintToCourse(res.blueprint, currentSettings.canvasDimensions);
   // Voice-over scripts to turn into audio after loading (slide ids survive sanitizing).
-  const narration: BlueprintNarration[] = res.blueprint.slides
+  const narration: BlueprintNarration[] = course.sources
     .map((bs, i) => ({ slideId: course.slides[i].id, title: course.slides[i].title ?? `Slide ${i + 1}`, script: bs.narration?.trim() ?? '' }))
     .filter((n) => n.script);
   return {
@@ -452,11 +558,23 @@ SLIDE LAYOUTS (choose one per slide with "layout")
 9. Results slide: put last when the course has quiz questions. passThreshold is 0 to 100
 { "layout": "results", "passThreshold": 80 }
 
+10. Hub (branching menu): a menu slide with 2 to 6 buttons; each button leads into its own branch of slides. Use it where the storyboard has a branching or menu slide (for example "Select each [Branch A / B / C] for more information") whose branches contain their own slides. Put each branch's slides inside it, in order, using layouts 1 to 9 (a hub can't contain another hub). label is the button text (under 30 characters).
+   mode:
+   - "required": the learner must complete every branch before continuing (the default)
+   - "explore": branches are optional; the learner can continue at any time
+   - "choice": the learner picks ONE path, as in a scenario decision; paths rejoin at the next slide
+   With "required" or "explore", the learner returns to the hub after each branch's last slide. Continue goes to the slide that follows the hub in the list. Do NOT add slides that link back to the hub; that happens automatically.
+{ "layout": "hub", "title": "Bus Systems", "intro": "Select each system for more information.", "mode": "required", "branches": [
+  { "label": "Brakes", "slides": [ { "layout": "bullets", "title": "Brake System Overview", "bullets": ["Point one", "Point two"] }, { "layout": "callout", "title": "Brake Safety", "tone": "warning", "message": "Chock the wheels first." } ] },
+  { "label": "Doors", "slides": [ { "layout": "image-text", "title": "Door Mechanism", "body": "Short text.", "imageDescription": "Door actuator diagram" } ] }
+] }
+
 GUIDANCE
 - If the source has a voice-over (VO) script, copy it into "narration" word for word; don't summarize it. It is turned into audio automatically.
 - In "narration" only, write numbers, symbols and formulas the way they should be spoken (for example "six point two four times ten to the eighteenth" rather than "6.24 × 10¹⁸", "P equals V times I" rather than "P = V × I"). Slide text keeps the normal notation.
 - Keep slide titles under 50 characters.
-- If the source is divided into sections, start each one with a section slide.
+- If the source is divided into sections, start each one with a section slide. Each section becomes a slide group in the authoring tool.
+- Use "reveal" for short pop-up details on one slide; use "hub" when each choice leads to one or more full slides.
 - A typical module: 1 title slide, 6 to 15 content slides, 3 to 5 quiz questions, 1 results slide.
 - Quiz questions must test content that appears on earlier slides.
 - Use "warning" callouts only for genuine safety-critical rules.`;
