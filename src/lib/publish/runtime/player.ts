@@ -542,6 +542,10 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
      back to the hub). Completed branches get a tick on their button. */
   function isHubSlide(s){return !!(s&&s.next&&s.next.length>=2&&(s.branchMode==="explore"||s.branchMode==="required"))}
   var branchDone={};var activeBranch=null;
+  /* Hub progress is saved in the LMS's suspend data, so ticks survive closing
+     and relaunching the course (SCORM; xAPI and plain web have no store here). */
+  try{var _sd=LMS.getSuspend?LMS.getSuspend():"";if(_sd){var _p=JSON.parse(_sd);if(_p&&_p.b&&typeof _p.b==="object")branchDone=_p.b}}catch(e){}
+  function saveProgress(){try{if(LMS.setSuspend)LMS.setSuspend(JSON.stringify({b:branchDone}))}catch(e){}}
   function hubLockedNow(){
     var s=slides[current];if(!isHubSlide(s)||s.branchMode!=="required")return false;
     var d=branchDone[s.id]||{};
@@ -1210,7 +1214,8 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
     if(activeBranch){
       if(slide.id===activeBranch.hub){activeBranch=null}
       else if(nextTargetIds(current).indexOf(activeBranch.hub)>=0){
-        (branchDone[activeBranch.hub]=branchDone[activeBranch.hub]||{})[activeBranch.target]=true;
+        var _hd=(branchDone[activeBranch.hub]=branchDone[activeBranch.hub]||{});
+        if(!_hd[activeBranch.target]){_hd[activeBranch.target]=true;saveProgress()}
       }
     }
     var masterEls=getMasterElements(slide);

@@ -115,7 +115,7 @@ Each slide's outgoing connections are stored in `slide.next`:
   - A branch is **completed** when the learner reaches its last slide, meaning a slide whose Next leads back to the hub (`completesBranch`).
   - A `required` hub keeps Continue locked until every branch is completed (`hubLocked`).
   - Completed branches get a ✓ on their button (`BranchTick` in `Canvas.tsx`; `.branch-tick` in the exported player).
-  - Progress is per session: `branchDone` / `previewBranch` in the preview, and `branchDone` / `activeBranch` in `player.ts`. It is not yet saved to the LMS (`suspend_data`).
+  - Progress is tracked in `branchDone` / `previewBranch` in the preview, and in `branchDone` / `activeBranch` in `player.ts`. The exported player saves it as `{"b": branchDone}` in SCORM `cmi.suspend_data` (`getSuspend`/`setSuspend` in the SCORM adapters), so ticks survive a relaunch. xAPI packages don't save it yet.
   - The panel warns about branches that never lead back to their hub (`branchesReturn`).
   - Branching slides never auto-advance.
 - **Prev retraces the path the learner took** (a history stack), not the slide list, in both the preview (`previewHistory`, `PREVIEW_BACK`) and the exported player (`navHistory`).
@@ -162,7 +162,15 @@ Also in this folder: `compat.ts` (warnings shown in the Publish dialog), `word.t
 
 A blueprint is a compact JSON course description, usually written by an AI from a storyboard:
 
-- `courseBlueprintSchema` (zod) defines the layouts: `title`, `section`, `bullets`, `image-text`, `two-column`, `reveal`, `callout`, `quiz`, `results`. Every slide may carry `narration` and `sourceRef`.
+- `courseBlueprintSchema` (zod) defines the layouts: `title`, `section`, `bullets`, `image-text`, `two-column`, `reveal`, `callout`, `quiz`, `results`, `hub`. Every slide may carry `narration` and `sourceRef`.
+- **`hub`** contains its branches, and each branch contains its own slides (any layout except `hub`). The converter:
+  - places the branch slides right after the hub;
+  - generates the hub's branch buttons (`autoBranchTarget`, labelled from the blueprint);
+  - points each branch's last slide back to the hub (or, for `mode: "choice"`, on to the slide after the hub);
+  - sets the hub's `continueTo` to the slide after it.
+
+  The AI never writes arrows itself.
+- Each `section` slide starts a **slide group** named after it. The slides that follow it, including hub branches, join that group.
 - `blueprintToCourse` converts each layout into real slides, elements and layers with fixed positions (designed for 1024×768 and scaled to the canvas). `reveal` builds one hidden layer per item, wired with Show/Hide Layer triggers.
 - `narration` and `sourceRef` go into slide notes (`Narration:` / `Source:`). Narration is also voiced automatically after loading.
 - `prepareBlueprintLoad` is the single path used by both the Load button and the Blueprint dialog: validate → convert → sanitize.

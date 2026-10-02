@@ -2,6 +2,7 @@
  *
  *  - Finds API_1484_11 in parent frames and calls Initialize("") on load.
  *  - Marks a new attempt "incomplete" so the LMS shows it as started.
+ *  - getSuspend/setSuspend: cmi.suspend_data (the player saves hub progress there).
  *  - On leaving: reports cmi.session_time (ISO 8601, e.g. PT1H5M30S), sets
  *    cmi.exit ("suspend" until complete, so the LMS keeps the bookmark), then
  *    Terminate("").
@@ -54,6 +55,9 @@ window.__LMS = (function(){
       if(typeof max==="number")set("cmi.score.max",String(max));
       commit();
     },
+    /* Saved progress (hub ticks), kept by the LMS between sessions. */
+    getSuspend:function(){if(!API||!initialized)return "";try{return String(API.GetValue("cmi.suspend_data")||"")}catch(e){return ""}},
+    setSuspend:function(v){v=String(v||"");if(v.length<=64000){set("cmi.suspend_data",v);commit()}},
     finish:finish
   };
 })();`;
