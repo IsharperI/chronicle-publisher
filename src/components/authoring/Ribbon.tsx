@@ -29,7 +29,8 @@ import { cn } from '@/lib/utils';
 import type { TextElement, ImageElement, ShapeElement, VideoElement, SlideAudio, SlideTransitionType, HotspotElement, CheckboxElement, SlideElement, TableElement, AnimationIn, AnimationOut } from '@/types/course';
 import { Separator } from '@/components/ui/separator';
 import { PlayerSettingsModal } from './PlayerSettingsModal';
-import { sanitizeSlides, sanitizePlayerSettings, sanitizeCourseSettings, sanitizeVariables } from '@/lib/sanitize';
+import { projectFileName, projectSnapshot, sanitizeProject } from '@/lib/project';
+import { AutosaveStatus } from './AutosaveManager';
 import { isBlueprint, parseBlueprintText, prepareBlueprintLoad } from '@/lib/blueprint';
 import { BlueprintDialog } from './BlueprintDialog';
 import { TextToSpeechDialog } from './TextToSpeechDialog';
@@ -65,14 +66,12 @@ export function Ribbon() {
   const videoInputRef = useRef<HTMLInputElement>(null);
 
   const saveProject = () => {
-    const json = JSON.stringify({ slides: state.slides, masterSlides: state.masterSlides, playerSettings: state.playerSettings, courseSettings: state.courseSettings, variables: state.variables }, null, 2);
+    const json = JSON.stringify(projectSnapshot(state), null, 2);
     const blob = new Blob([json], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    const rawName = (state.playerSettings?.courseTitle || '').trim();
-    const slug = rawName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60);
-    a.download = `${slug || 'course-project'}.json`;
+    a.download = projectFileName(state.playerSettings?.courseTitle);
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -118,25 +117,15 @@ export function Ribbon() {
           void startCourseNarration(res.narration, dispatch, getVoicePref());
           return;
         }
-        if (data && Array.isArray(data.slides)) {
+        const project = sanitizeProject(data);
+        if (project) {
           cancelNarration(); // a different course is being loaded
-          // Sanitize all imported data: validates colors, fonts, image URIs,
-          // numeric ranges, and enums to prevent CSS/HTML/JS injection when
-          // these values are later embedded in the SCORM export. See
-          // src/lib/sanitize.ts for details.
-          const slides = sanitizeSlides(data.slides);
-          const masterSlides = sanitizeSlides(data.masterSlides);
-          const playerSettings = sanitizePlayerSettings(data.playerSettings);
-          const courseSettings = sanitizeCourseSettings(data.courseSettings);
-          const variables = sanitizeVariables(data.variables);
-          dispatch({
-            type: 'LOAD_COURSE',
-            slides,
-            masterSlides,
-            playerSettings,
-            courseSettings,
-            variables,
-          });
+          // sanitizeProject runs everything through lib/sanitize.ts (colors,
+          // fonts, image URIs, numeric ranges, enums) to prevent CSS/HTML/JS
+          // injection when these values are later embedded in the SCORM export.
+          dispatch({ type: 'LOAD_COURSE', ...project });
+        } else {
+          toast.error("This isn't a Chronicle course file");
         }
       } catch {
         console.error('Invalid project file');
@@ -404,9 +393,12 @@ export function Ribbon() {
             </button>
           ))}
         </div>
-        {state.viewMode === 'master' && (
-          <span className="ml-auto text-xs font-medium text-primary">Editing Master Slide</span>
-        )}
+        <div className="ml-auto flex items-center gap-4">
+          {state.viewMode === 'master' && (
+            <span className="text-xs font-medium text-primary">Editing Master Slide</span>
+          )}
+          <AutosaveStatus />
+        </div>
       </div>
 
       {/* Ribbon content area */}

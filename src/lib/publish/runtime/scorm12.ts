@@ -6,7 +6,8 @@
  *  - LMSCommit("") after every LMSSetValue.
  *  - Session timer: starts on init, formatted as hh:mm:ss and reported via cmi.core.session_time on finish.
  *  - LMSFinish("") on beforeunload / pagehide.
- *  - Default score (0/0/100) reported on init so the LMS doesn't show "unknown".
+ *  - No score is written until a quiz is scored, so courses without quizzes
+ *    don't show up in LMS reports as "0%".
  */
 export function buildScorm12Runtime(): string {
   return `
@@ -63,15 +64,6 @@ window.__LMS = (function(){
       } else {
         initialized=true;
         sessionStart=Date.now();
-        // Default score so LMS doesn't show "unknown".
-        try{
-          var raw=API.LMSGetValue("cmi.core.score.raw");
-          if(!raw||raw===""){
-            set("cmi.core.score.min","0");
-            set("cmi.core.score.max","100");
-            set("cmi.core.score.raw","0");
-          }
-        }catch(e){}
         // Mark in-progress if still not attempted.
         try{
           var ls=API.LMSGetValue("cmi.core.lesson_status");
