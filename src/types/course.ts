@@ -183,6 +183,11 @@ export interface ShapeElement extends BaseElement {
   borderRadius?: number;
   /** Optional CSS box-shadow value, applied to rectangle/circle shapes. */
   boxShadow?: string;
+  /**
+   * Set on buttons Chronicle generates for a branching slide: the slide this
+   * button leads to. Managed by lib/navigation.ts (removed with its connection).
+   */
+  autoBranchTarget?: string;
 }
 
 /**
@@ -411,6 +416,12 @@ export interface Slide {
   advanceMode?: SlideAdvanceMode;
   /** When revisiting: 'reset' rewinds to 0, 'resume' keeps last playhead. */
   revisitMode?: SlideRevisitMode;
+  /**
+   * Where Next goes (slide ids). Omitted: the following slide in the list.
+   * Empty: no Next. Two or more: a branching slide with one button per target.
+   * See lib/navigation.ts.
+   */
+  next?: string[];
   /** Slide kind. Defaults to 'content' when omitted. */
   slideType?: SlideKind;
   /** Quiz configuration; only used when slideType === 'quiz'. */
@@ -520,6 +531,8 @@ export interface CourseState {
   selectedElementIds: string[];
   activeAudioId: string | null;
   previewMode: boolean;
+  /** Preview only: slides visited before the current one, for the Prev button. */
+  previewHistory?: number[];
   playheadTime: number;
   isPlaying: boolean;
   viewMode: ViewMode;

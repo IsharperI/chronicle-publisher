@@ -139,6 +139,10 @@ function safeString(value: unknown, fallback = '', max = 10_000): string {
   return value.slice(0, max);
 }
 
+function isSafeId(value: unknown): value is string {
+  return typeof value === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(value);
+}
+
 function safeId(value: unknown): string {
   if (typeof value === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(value)) return value;
   return (typeof crypto !== 'undefined' && 'randomUUID' in crypto)
@@ -265,6 +269,7 @@ function sanitizeElement(raw: any): SlideElement | null {
         !/[<>"'`\\]/.test(raw.boxShadow)
           ? raw.boxShadow
           : undefined,
+      autoBranchTarget: isSafeId(raw.autoBranchTarget) ? raw.autoBranchTarget : undefined,
     };
     return el;
   }
@@ -369,6 +374,7 @@ function sanitizeSlide(raw: any): Slide {
     transitionDuration: safeNumber(raw?.transitionDuration, 0.5, 0, 10),
     advanceMode: safeEnum(raw?.advanceMode, ['manual', 'auto'] as const, 'manual'),
     revisitMode: safeEnum(raw?.revisitMode, ['reset', 'resume'] as const, 'reset'),
+    next: Array.isArray(raw?.next) ? raw.next.filter(isSafeId).slice(0, 50) : undefined,
     layers: sanitizeLayers(raw?.layers),
     ...sanitizeSlideKind(raw),
   };

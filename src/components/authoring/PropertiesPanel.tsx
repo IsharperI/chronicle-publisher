@@ -13,6 +13,7 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { useCourse } from '@/context/CourseContext';
+import { NextSlideControl } from './NextSlideControl';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -620,6 +621,8 @@ export function PropertiesPanel() {
                   </Select>
                   <p className="text-xs text-muted-foreground">Behavior when navigating back to this slide.</p>
                 </div>
+
+                {!isMasterMode && <NextSlideControl />}
 
                 {!isMasterMode && (
                   <div className="space-y-1.5 pt-2 border-t">

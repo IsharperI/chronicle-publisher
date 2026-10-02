@@ -18,6 +18,7 @@
 import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import { Rnd } from 'react-rnd';
 import { TextLines } from './TextLines';
+import { nextSlideIndex } from '@/lib/navigation';
 import { useCourse } from '@/context/CourseContext';
 import type { SlideElement, TextElement, ShapeElement, AnimationIn, AnimationOut, TableElement, Slide, QuizConfig, QuizChoice, QuizMatchPair, QuizSortItem } from '@/types/course';
 import { isExtendedShapeType, resolveShapeSvg } from '@/lib/shapes';
@@ -570,7 +571,7 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
     const slideDur = activeSlide.duration ?? 5000;
     const revisit = activeSlide.revisitMode ?? 'reset';
     const advance = activeSlide.advanceMode ?? 'manual';
-    const isLastSlide = state.activeSlideIndex >= state.slides.length - 1;
+    const isLastSlide = nextSlideIndex(state.slides, state.activeSlideIndex) < 0;
 
     // Determine starting playhead based on revisit mode.
     const saved = savedPlayheadsRef.current.get(activeSlide.id);
@@ -1422,8 +1423,8 @@ function QuizSlideOverlay({ slide, isPreview }: { slide: Slide; isPreview: boole
           const inlineRetryShown = !isLocked && showRetryHint && quiz.incorrectFeedback.mode === 'inline';
 
           const advanceNext = () => {
-            const next = Math.min(state.activeSlideIndex + 1, state.slides.length - 1);
-            dispatch({ type: 'SET_ACTIVE_SLIDE', index: next });
+            const next = nextSlideIndex(state.slides, state.activeSlideIndex);
+            if (next >= 0) dispatch({ type: 'SET_ACTIVE_SLIDE', index: next });
           };
           const tryAgain = () => {
             // Clear selected answer and dismiss inline retry banner.
