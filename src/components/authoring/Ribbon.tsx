@@ -2,7 +2,7 @@
  * The Storyline-style ribbon across the top of the editor.
  *
  * Tabs: Home (Save, Load, Blueprint, Preview, Publish, Player settings,
- * Variables), Insert (text, images, shapes, audio, Text to Speech, video,
+ * Variables), Insert (text, images, image placeholders, shapes, audio, Text to Speech, video,
  * interactive elements, tables), Design (story size, theme colors, arrange,
  * grid, media library), Transitions, Animations (entrance/exit, motion paths),
  * View (preview, story view) and Quiz (quiz/results slides, quiz themes,
@@ -14,7 +14,7 @@
  */
 import React, { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Save, Upload, Play, X, Type, ImageIcon, Square, Eye, Settings, Music, Video as VideoIcon, AlignLeft, AlignCenter, AlignRight, AlignStartVertical, AlignCenterVertical, AlignEndVertical, AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter, Ban, Sparkles, ArrowUpFromLine, ArrowLeftFromLine, ZoomIn, CopyCheck, MousePointerClick, Target, CheckSquare, ChevronDown, Table as TableIcon, HelpCircle, Trophy, Layers, FolderOpen, Map as MapIcon, Spline, Palette, Library, Variable, ClipboardPaste, AudioLines } from 'lucide-react';
+import { Save, Upload, Play, X, Type, ImageIcon, Square, Eye, Settings, Music, Video as VideoIcon, AlignLeft, AlignCenter, AlignRight, AlignStartVertical, AlignCenterVertical, AlignEndVertical, AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter, Ban, Sparkles, ArrowUpFromLine, ArrowLeftFromLine, ZoomIn, CopyCheck, MousePointerClick, Target, CheckSquare, ChevronDown, Table as TableIcon, HelpCircle, Trophy, Layers, FolderOpen, Map as MapIcon, Spline, Palette, Library, Variable, ClipboardPaste, AudioLines, Images } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { MediaLibraryOverlay } from './MediaLibraryOverlay';
 import { StoryViewOverlay } from './StoryViewOverlay';
@@ -34,6 +34,7 @@ import { AutosaveStatus } from './AutosaveManager';
 import { isBlueprint, parseBlueprintText, prepareBlueprintLoad } from '@/lib/blueprint';
 import { BlueprintDialog } from './BlueprintDialog';
 import { TextToSpeechDialog } from './TextToSpeechDialog';
+import { ImagePlaceholdersDialog } from './ImagePlaceholdersDialog';
 import { NarrationProgress } from './NarrationProgress';
 import { cancelNarration, startCourseNarration } from '@/lib/tts/narrationJob';
 import { getVoicePref } from '@/lib/tts';
@@ -60,6 +61,7 @@ export function Ribbon() {
   const [variablesOpen, setVariablesOpen] = useState(false);
   const [blueprintOpen, setBlueprintOpen] = useState(false);
   const [ttsOpen, setTtsOpen] = useState(false);
+  const [imagesOpen, setImagesOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const audioInputRef = useRef<HTMLInputElement>(null);
@@ -435,6 +437,7 @@ export function Ribbon() {
             <RibbonGroup label="Elements">
               <RibbonButton icon={Type} label="Text" onClick={addText} />
               <RibbonButton icon={ImageIcon} label="Image" onClick={() => imageInputRef.current?.click()} />
+              <RibbonButton icon={Images} label="Image Placeholders" onClick={() => setImagesOpen(true)} />
               <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageFile} />
               <ShapePicker onPick={(t) => addShape(t)} />
             </RibbonGroup>
@@ -579,7 +582,8 @@ export function Ribbon() {
     <MediaLibraryOverlay open={mediaLibraryOpen} onClose={() => setMediaLibraryOpen(false)} />
     <StoryViewOverlay open={storyViewOpen} onClose={() => setStoryViewOpen(false)} />
     <PublishDialog open={publishOpen} onOpenChange={setPublishOpen} />
-    <BlueprintDialog open={blueprintOpen} onOpenChange={setBlueprintOpen} />
+    <BlueprintDialog open={blueprintOpen} onOpenChange={setBlueprintOpen} onOpenImages={() => setImagesOpen(true)} />
+    <ImagePlaceholdersDialog open={imagesOpen} onOpenChange={setImagesOpen} />
     <TextToSpeechDialog open={ttsOpen} onOpenChange={setTtsOpen} />
     <NarrationProgress />
     <QuizThemesOverlay open={quizThemesOpen} onClose={() => setQuizThemesOpen(false)} />

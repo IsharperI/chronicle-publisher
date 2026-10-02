@@ -176,6 +176,19 @@ A blueprint is a compact JSON course description, usually written by an AI from 
 - `prepareBlueprintLoad` is the single path used by both the Load button and the Blueprint dialog: validate → convert → sanitize.
 - **`BLUEPRINT_GUIDE`** is the text behind "Copy AI instructions". **Keep it in sync with the schema** whenever you add or change a layout.
 
+## Storyboard → prompt, and image placeholders
+
+- **`lib/storyboard.ts`**: Blueprint dialog → **Upload storyboard…** reads a Word storyboard in the browser (JSZip + DOMParser on `word/document.xml`, no server).
+  - Table rows become `cell | cell | cell` lines, so a storyboard's columns stay together.
+  - Pictures become `[Image N]` markers. The pictures themselves are kept in memory for this browser session.
+  - `buildStoryboardPrompt` joins `BLUEPRINT_GUIDE`, optional notes and the storyboard text into one prompt, which is copied to the clipboard or saved as .txt.
+  - `.txt` and `.md` files also work. A PDF or .doc must be saved as .docx first.
+- **`lib/imageMatching.ts`** and `ImagePlaceholdersDialog.tsx` (Insert → **Image Placeholders**, also offered after a blueprint loads):
+  - `findPlaceholders` lists the grey `IMAGE PLACEHOLDER` boxes, including those on pop-up layers.
+  - `matchImages` pairs them with images, in this order: storyboard `[Image N]` marker, then a 5+ digit stock number in the file name, then file-name words found in the description. Each image is used only once.
+  - The author can change any match. Placing swaps each placeholder for an image element (`REPLACE_SLIDE_ELEMENT`) that fits inside its box without stretching (`fitImage`). Added photos are scaled down to at most 1920 px.
+  - `BLUEPRINT_GUIDE` asks the AI to copy `[Image N]` markers and stock numbers into `imageDescription`.
+
 ## Text-to-speech (`lib/tts/`)
 
 | File | Role |
