@@ -12,7 +12,7 @@
  * - LOAD_COURSE fills defaults and migrates older files. Data must already have
  *   been through lib/sanitize.ts.
  */
-import { nextSlideIndex, reconcileBranching } from '@/lib/navigation';
+import { completesBranch, hubLocked, isHub, nextSlideIndex, reconcileBranching } from '@/lib/navigation';
 import React, { createContext, useContext, useReducer, type Dispatch } from 'react';
 import type { CourseState, Slide, SlideElement, SlideLayer, ViewMode, PlayerSettings, CourseSettings, SlideAudio, QuizConfig, ResultsConfig, SlideKind, CourseVariable } from '@/types/course';
 import { defaultPlayerSettings, defaultCourseSettings } from '@/types/course';
@@ -232,6 +232,12 @@ type Action =
   | { type: 'DUPLICATE_SLIDE'; index: number; newId?: string; treePos?: { x: number; y: number } }
   /** Update an element on any slide (UPDATE_ELEMENT only reaches the active slide). */
   | { type: 'UPDATE_SLIDE_ELEMENT'; slideId: string; elementId: string; updates: Partial<SlideElement> }
+  /** Update any slide by id (branch mode, continue target, …). undefined values remove the field. */
+  | { type: 'UPDATE_SLIDE_BY_ID'; slideId: string; updates: Partial<Slide> }
+  /** Put slides in a slide group (or take them out with group undefined). */
+  | { type: 'SET_SLIDE_GROUP'; slideIds: string[]; group: string | undefined }
+  /** Rename a slide group on every slide in it. */
+  | { type: 'RENAME_SLIDE_GROUP'; from: string; to: string }
   | { type: 'UPDATE_SLIDE'; index: number; updates: Partial<Slide> }
   | { type: 'SET_PLAYHEAD'; time: number }
   | { type: 'SET_PLAYING'; playing: boolean }
@@ -317,7 +323,9 @@ function withUpdatedActiveSlide(
  */
 export function courseReducer(state: CourseState, action: Action): CourseState {
   const next = baseReducer(state, action);
-  const before = state?.slides ?? [];
+  // A loaded course replaces everything: don't compare it with the old one
+  // (same slide ids would look like the author deleted branch buttons).
+  const before = action.type === 'LOAD_COURSE' ? [] : state?.slides ?? [];
   if (next.slides !== before) {
     const slides = reconcileBranching(before, next.slides, next.courseSettings.canvasDimensions);
     if (slides !== next.slides) return { ...next, slides };
@@ -351,7 +359,21 @@ function baseReducer(state: CourseState, action: Action): CourseState {
       const previewHistory = state.previewMode && action.index !== state.activeSlideIndex
         ? [...(state.previewHistory ?? []), state.activeSlideIndex].slice(-500)
         : state.previewHistory;
-      return { ...state, previewHistory, activeSlideIndex: action.index, activeElementId: null, selectedElementIds: [], activeAudioId: null, playheadTime: 0, isPlaying: false, activeLayerId: slideFirstLayerId(target) };
+      // Hub progress: entering a branch from its hub, and reaching the branch's last slide.
+      let previewBranch = state.previewBranch ?? null;
+      let branchDone = state.branchDone;
+      if (state.previewMode && state.viewMode === 'main' && target) {
+        const from = slides[state.activeSlideIndex];
+        if (isHub(from) && from.next!.includes(target.id)) previewBranch = { hub: from.id, target: target.id };
+        if (previewBranch && completesBranch(slides, action.index, previewBranch.hub)) {
+          const done = branchDone?.[previewBranch.hub] ?? [];
+          if (!done.includes(previewBranch.target)) {
+            branchDone = { ...(branchDone ?? {}), [previewBranch.hub]: [...done, previewBranch.target] };
+          }
+        }
+        if (previewBranch && target.id === previewBranch.hub) previewBranch = null;
+      }
+      return { ...state, previewHistory, previewBranch, branchDone, activeSlideIndex: action.index, activeElementId: null, selectedElementIds: [], activeAudioId: null, playheadTime: 0, isPlaying: false, activeLayerId: slideFirstLayerId(target) };
     }
     case 'MOVE_SLIDE': {
       const slides = getActiveSlides(state);
@@ -557,6 +579,8 @@ function baseReducer(state: CourseState, action: Action): CourseState {
         ...state,
         previewMode: action.enabled,
         previewHistory: [],
+        previewBranch: null,
+        branchDone: {},
         activeElementId: null,
         selectedElementIds: [],
         activeSlideIndex: action.enabled ? 0 : state.activeSlideIndex,
@@ -572,7 +596,8 @@ function baseReducer(state: CourseState, action: Action): CourseState {
       };
     case 'PREVIEW_NEXT': {
       const target = nextSlideIndex(state.slides, state.activeSlideIndex);
-      if (target < 0) return state;
+      const here = state.slides[state.activeSlideIndex];
+      if (target < 0 || hubLocked(here, state.branchDone?.[here?.id ?? ''])) return state;
       return baseReducer(state, { type: 'SET_ACTIVE_SLIDE', index: target });
     }
     case 'PREVIEW_BACK': {
@@ -580,6 +605,32 @@ function baseReducer(state: CourseState, action: Action): CourseState {
       if (!hist.length) return state;
       const back = baseReducer(state, { type: 'SET_ACTIVE_SLIDE', index: hist[hist.length - 1] });
       return { ...back, previewHistory: hist.slice(0, -1) };
+    }
+    case 'UPDATE_SLIDE_BY_ID': {
+      const slides = state.slides.map((s) => {
+        if (s.id !== action.slideId) return s;
+        const copy = { ...s, ...action.updates } as Slide & Record<string, unknown>;
+        for (const [k, v] of Object.entries(action.updates)) if (v === undefined) delete copy[k];
+        return copy as Slide;
+      });
+      return { ...state, slides };
+    }
+    case 'SET_SLIDE_GROUP': {
+      const ids = new Set(action.slideIds);
+      const name = action.group?.trim().slice(0, 60) || undefined;
+      const slides = state.slides.map((s) => {
+        if (!ids.has(s.id)) return s;
+        const copy = { ...s };
+        if (name) copy.group = name;
+        else delete copy.group;
+        return copy;
+      });
+      return { ...state, slides };
+    }
+    case 'RENAME_SLIDE_GROUP': {
+      const to = action.to.trim().slice(0, 60);
+      if (!to) return state;
+      return { ...state, slides: state.slides.map((s) => (s.group === action.from ? { ...s, group: to } : s)) };
     }
     case 'SET_TREE_POSITIONS': {
       const slides = state.slides.map((s) => {

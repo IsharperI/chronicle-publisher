@@ -10,6 +10,14 @@
  *              Removing connections removes their buttons; dropping back to one
  *              connection removes all of them and Next works again.
  *
+ * Branching slides have a `branchMode`:
+ * - 'choice' (default): pick one path; Next stays off.
+ * - 'explore': a hub. Branches lead back to it; Next goes to `continueTo`.
+ * - 'required': a hub whose Next stays locked until every branch is
+ *   completed. A branch is completed when the learner reaches its last slide,
+ *   i.e. a slide whose Next leads back to the hub. Completed branches get a
+ *   tick on their button.
+ *
  * reconcileBranching() keeps the buttons in step with the connections after
  * every change (it runs inside the course reducer). If the author deletes an
  * auto-generated button on the canvas, that connection is removed too.
@@ -29,15 +37,76 @@ export function resolveNext(slides: Slide[], index: number): string[] {
   return s.next.filter((id) => ids.has(id));
 }
 
-/** Index Next goes to, or -1 when Next is unavailable (end point or branching slide). */
+/**
+ * Index Next goes to, or -1 when Next is unavailable (an end point, or a
+ * branching slide that isn't a hub with a Continue target). Doesn't check a
+ * required hub's lock; see hubLocked().
+ */
 export function nextSlideIndex(slides: Slide[], index: number): number {
+  const s = slides[index];
+  if (isBranchingSlide(s)) {
+    if (!isHub(s) || !s!.continueTo) return -1;
+    return slides.findIndex((x) => x.id === s!.continueTo);
+  }
   const targets = resolveNext(slides, index);
   if (targets.length !== 1) return -1;
-  return slides.findIndex((s) => s.id === targets[0]);
+  return slides.findIndex((x) => x.id === targets[0]);
 }
 
 export function isBranchingSlide(slide: Slide | undefined): boolean {
   return !!slide && Array.isArray(slide.next) && slide.next.length >= 2;
+}
+
+/** A branching slide whose branches lead back to it (explore or required). */
+export function isHub(slide: Slide | undefined): boolean {
+  return isBranchingSlide(slide) && (slide!.branchMode === 'explore' || slide!.branchMode === 'required');
+}
+
+/** True while a required hub still has branches to complete. */
+export function hubLocked(slide: Slide | undefined, done: string[] | undefined): boolean {
+  if (!isHub(slide) || slide!.branchMode !== 'required') return false;
+  const finished = new Set(done ?? []);
+  return slide!.next!.some((t) => !finished.has(t));
+}
+
+/**
+ * For each branch of a hub: does following the arrows from it lead back to
+ * the hub? A branch that never returns can't be completed (a required hub
+ * would stay locked), so the panel warns about it.
+ */
+export function branchesReturn(slides: Slide[], hubId: string): Record<string, boolean> {
+  const hub = slides.find((s) => s.id === hubId);
+  const out: Record<string, boolean> = {};
+  if (!hub?.next) return out;
+  const index = new Map(slides.map((s, i) => [s.id, i]));
+  for (const start of hub.next) {
+    const seen = new Set<string>([hubId]);
+    const queue = [start];
+    let found = false;
+    while (queue.length && !found) {
+      const id = queue.shift()!;
+      if (seen.has(id)) continue;
+      seen.add(id);
+      const i = index.get(id);
+      if (i === undefined) continue;
+      const targets = [...resolveNext(slides, i)];
+      const c = slides[i].continueTo;
+      if (isHub(slides[i]) && c) targets.push(c);
+      if (targets.includes(hubId)) found = true;
+      queue.push(...targets);
+    }
+    out[start] = found;
+  }
+  return out;
+}
+
+/**
+ * Called when the learner arrives at slide `index` while inside a hub's
+ * branch: true if this is the branch's last slide (its Next leads back to the hub).
+ */
+export function completesBranch(slides: Slide[], index: number, hubId: string): boolean {
+  if (slides[index]?.id === hubId) return false;
+  return resolveNext(slides, index).includes(hubId);
 }
 
 /** Label for a target slide: its title, or "Slide N". */
@@ -234,8 +303,12 @@ export function reconcileBranching(prev: Slide[], next: Slide[], canvas: { width
   let changed = false;
   const out = next.map((s) => {
     const before = prevById.get(s.id);
-    if (s.next === undefined && (!before || before === s) && !autoButtons(s).length) return s;
+    if (s.next === undefined && !s.continueTo && (!before || before === s) && !autoButtons(s).length) return s;
     let slide = s;
+    if (slide.continueTo && (!ids.has(slide.continueTo) || slide.continueTo === slide.id)) {
+      slide = { ...slide };
+      delete slide.continueTo;
+    }
     if (slide.next) {
       let targets = slide.next.filter((id) => ids.has(id) && id !== slide.id);
       if (before && before !== s) {

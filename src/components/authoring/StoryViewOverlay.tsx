@@ -23,11 +23,12 @@ import {
   NODE_W, NODE_H, ROW_GAP, autoLayout, buildEdges, connectNext, disconnectNext, edgeGeometry, freeSpot,
   nodeShape, retargetNext, treePositions, type NodeShape, type Pos, type TreeEdge,
 } from '@/lib/courseTree';
-import { isBranchingSlide } from '@/lib/navigation';
+import { isBranchingSlide, isHub } from '@/lib/navigation';
 import type { Slide } from '@/types/course';
 
 const EDGE = 'hsl(220 10% 35%)';
 const SELECT = 'hsl(217 91% 55%)';
+const CONTINUE = 'hsl(142 60% 35%)';
 const snap = (v: number) => Math.round(v / 10) * 10;
 
 function boundsOf(pos: Record<string, Pos>) {
@@ -43,11 +44,22 @@ function boundsOf(pos: Record<string, Pos>) {
 
 type Drag =
   | { kind: 'pan'; sx: number; sy: number; px: number; py: number }
-  | { kind: 'node'; id: string; sx: number; sy: number; ox: number; oy: number; moved: boolean }
+  /** Moving one box, a multi-selection, or a whole slide group. */
+  | { kind: 'node'; ids: string[]; sx: number; sy: number; orig: Record<string, Pos>; moved: boolean }
   | { kind: 'connect'; from: string }
   | { kind: 'retarget'; edge: TreeEdge };
 
-interface Menu { x: number; y: number; slideId: string }
+interface Menu { x: number; y: number; slideId: string; sub?: 'continue' | 'group'; group?: string }
+
+const GROUP_PREFIX = 'group:';
+const GROUP_COLORS = ['hsl(199 80% 45%)', 'hsl(262 60% 55%)', 'hsl(330 65% 50%)', 'hsl(24 85% 50%)', 'hsl(160 60% 35%)', 'hsl(45 85% 42%)'];
+function groupColor(name: string): string {
+  let h = 0;
+  for (const ch of name) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return GROUP_COLORS[h % GROUP_COLORS.length];
+}
+const FRAME_PAD = 24;
+const FRAME_TOP = 34;
 
 export function StoryViewOverlay({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { state, dispatch } = useCourse();
@@ -69,12 +81,43 @@ export function StoryViewOverlay({ open, onClose }: { open: boolean; onClose: ()
   const [editLabel, setEditLabel] = useState<{ edge: TreeEdge; text: string; at: Pos } | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [hint, setHint] = useState<string | null>(null);
+  /** Shift+click selection (for grouping and moving several boxes). */
+  const [multi, setMulti] = useState<string[]>([]);
+  /** Collapsed slide groups (view only, not saved). */
+  const [collapsed, setCollapsed] = useState<string[]>([]);
+  const [groupEdit, setGroupEdit] = useState<{ name: string; text: string; at: Pos } | null>(null);
+  const [newGroup, setNewGroup] = useState<string | null>(null);
   const drag = useRef<Drag | null>(null);
   const [dragKind, setDragKind] = useState<Drag['kind'] | null>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
 
   const indexOf = (id: string) => slides.findIndex((s) => s.id === id);
   const slideById = (id: string): Slide | undefined => slides.find((s) => s.id === id);
+
+  // Slide groups: members per name, frames around them, and collapsed boxes.
+  const groups = useMemo(() => {
+    const m = new Map<string, string[]>();
+    for (const s of slides) if (s.group) m.set(s.group, [...(m.get(s.group) ?? []), s.id]);
+    return m;
+  }, [slides]);
+  const frameOf = (name: string) => {
+    const ps = (groups.get(name) ?? []).map((id) => pos[id]).filter(Boolean);
+    if (!ps.length) return null;
+    const x = Math.min(...ps.map((p) => p.x)) - FRAME_PAD, y = Math.min(...ps.map((p) => p.y)) - FRAME_TOP;
+    return { x, y, w: Math.max(...ps.map((p) => p.x)) + NODE_W + FRAME_PAD - x, h: Math.max(...ps.map((p) => p.y)) + NODE_H + FRAME_PAD - y };
+  };
+  const collapsedSet = new Set(collapsed.filter((g) => groups.has(g)));
+  /** The box an arrow end attaches to: the slide, or its collapsed group. */
+  const shownAs = (id: string) => {
+    const g = slideById(id)?.group;
+    return g && collapsedSet.has(g) ? GROUP_PREFIX + g : id;
+  };
+  const dpos: Record<string, Pos> = { ...pos };
+  for (const g of collapsedSet) {
+    const f = frameOf(g);
+    if (f) dpos[GROUP_PREFIX + g] = { x: f.x + FRAME_PAD, y: f.y + FRAME_TOP };
+  }
+  const groupMembersPos = (name: string) => Object.fromEntries((groups.get(name) ?? []).filter((id) => pos[id]).map((id) => [id, pos[id]]));
 
   const bounds = useMemo(() => boundsOf(pos), [pos]);
 
@@ -102,10 +145,12 @@ export function StoryViewOverlay({ open, onClose }: { open: boolean; onClose: ()
     return { x: (clientX - r.left - pan.x) / zoom, y: (clientY - r.top - pan.y) / zoom };
   };
   const nodeAt = (p: Pos, except?: string): string | null => {
+    const inBox = (q: Pos | undefined) => !!q && p.x >= q.x && p.x <= q.x + NODE_W && p.y >= q.y && p.y <= q.y + NODE_H;
+    for (const g of collapsedSet) if (inBox(dpos[GROUP_PREFIX + g])) return GROUP_PREFIX + g;
     for (let i = slides.length - 1; i >= 0; i--) {
       const s = slides[i];
-      const q = pos[s.id];
-      if (s.id !== except && q && p.x >= q.x && p.x <= q.x + NODE_W && p.y >= q.y && p.y <= q.y + NODE_H) return s.id;
+      if (s.id === except || shownAs(s.id) !== s.id) continue;
+      if (inBox(pos[s.id])) return s.id;
     }
     return null;
   };
@@ -144,7 +189,7 @@ export function StoryViewOverlay({ open, onClose }: { open: boolean; onClose: ()
 
   const startPan = (e: ReactPointerEvent) => {
     if (e.button !== 0) return;
-    setMenu(null); setSelectedEdge(null); setSelectedNode(null); setEditLabel(null); setHint(null);
+    setMenu(null); setSelectedEdge(null); setSelectedNode(null); setEditLabel(null); setHint(null); setMulti([]);
     drag.current = { kind: 'pan', sx: e.clientX, sy: e.clientY, px: pan.x, py: pan.y };
     setDragKind('pan');
   };
@@ -152,10 +197,30 @@ export function StoryViewOverlay({ open, onClose }: { open: boolean; onClose: ()
     if (e.button !== 0) return;
     e.stopPropagation();
     setMenu(null); setSelectedEdge(null); setEditLabel(null); setHint(null);
+    if (e.shiftKey) {
+      // Shift+click: add to / remove from the selection.
+      const base = multi.length ? multi : selectedNode ? [selectedNode] : [];
+      setMulti(base.includes(id) ? base.filter((x) => x !== id) : [...base, id]);
+      setSelectedNode(id);
+      return;
+    }
+    const ids = multi.includes(id) ? multi : [id];
+    if (!multi.includes(id)) setMulti([]);
     setSelectedNode(id);
+    startMove(e, ids);
+  };
+  /** Drag the given boxes together (one slide, a selection or a group). */
+  const startMove = (e: ReactPointerEvent, ids: string[]) => {
     const w = toWorld(e.clientX, e.clientY);
-    drag.current = { kind: 'node', id, sx: w.x, sy: w.y, ox: pos[id].x, oy: pos[id].y, moved: false };
+    const orig = Object.fromEntries(ids.filter((x) => pos[x]).map((x) => [x, pos[x]]));
+    drag.current = { kind: 'node', ids, sx: w.x, sy: w.y, orig, moved: false };
     setDragKind('node');
+  };
+  const startGroupDrag = (e: ReactPointerEvent, name: string) => {
+    if (e.button !== 0) return;
+    e.stopPropagation();
+    setMenu(null); setSelectedEdge(null); setSelectedNode(null); setMulti([]); setHint(null);
+    startMove(e, Object.keys(groupMembersPos(name)));
   };
   const startConnect = (e: ReactPointerEvent, from: string) => {
     if (e.button !== 0) return;
@@ -182,10 +247,11 @@ export function StoryViewOverlay({ open, onClose }: { open: boolean; onClose: ()
         setPan({ x: d.px + e.clientX - d.sx, y: d.py + e.clientY - d.sy });
       } else if (d.kind === 'node') {
         const w = toWorld(e.clientX, e.clientY);
-        const nx = snap(d.ox + w.x - d.sx), ny = snap(d.oy + w.y - d.sy);
         if (!d.moved && Math.abs(w.x - d.sx) + Math.abs(w.y - d.sy) < 4) return;
         d.moved = true;
-        setLivePos((lp) => ({ ...(lp ?? saved), [d.id]: { x: nx, y: ny } }));
+        const dx = snap(w.x - d.sx), dy = snap(w.y - d.sy);
+        const moved = Object.fromEntries(Object.entries(d.orig).map(([id, o]) => [id, { x: o.x + dx, y: o.y + dy }]));
+        setLivePos((lp) => ({ ...(lp ?? saved), ...moved }));
       } else {
         const w = toWorld(e.clientX, e.clientY);
         setPointer(w);
@@ -204,10 +270,19 @@ export function StoryViewOverlay({ open, onClose }: { open: boolean; onClose: ()
         const target = nodeAt(toWorld(e.clientX, e.clientY), d.kind === 'connect' ? d.from : d.edge.from);
         setPointer(null);
         if (!target) return;
+        if (target.startsWith(GROUP_PREFIX)) {
+          setHint('Expand the slide group first (double-click it) to connect to a slide inside it.');
+          return;
+        }
         if (d.kind === 'connect') {
           const next = connectNext(slides, d.from, target);
           if (next === null) setHint('Those slides are already connected.');
           else setNext(d.from, next);
+        } else if (d.edge.continue) {
+          const hub = slideById(d.edge.from);
+          if (hub?.next?.includes(target)) setHint('That slide is already one of this hub’s branches.');
+          else dispatch({ type: 'UPDATE_SLIDE_BY_ID', slideId: d.edge.from, updates: { continueTo: target } });
+          setSelectedEdge(null);
         } else {
           setNext(d.edge.from, retargetNext(slides, d.edge.from, d.edge.to, target));
           setSelectedEdge(null);
@@ -228,14 +303,14 @@ export function StoryViewOverlay({ open, onClose }: { open: boolean; onClose: ()
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (editLabel || confirmDelete) return;
+      if (editLabel || confirmDelete || groupEdit || newGroup !== null) return;
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA') return;
       if ((e.key === 'Delete' || e.key === 'Backspace') && selectedEdge !== null) {
         e.preventDefault();
         removeEdge(edges[selectedEdge]);
       } else if (e.key === 'Escape') {
-        if (menu || selectedEdge !== null || selectedNode) { setMenu(null); setSelectedEdge(null); setSelectedNode(null); }
+        if (menu || selectedEdge !== null || selectedNode || multi.length) { setMenu(null); setSelectedEdge(null); setSelectedNode(null); setMulti([]); }
         else onClose();
       }
     };
@@ -249,7 +324,8 @@ export function StoryViewOverlay({ open, onClose }: { open: boolean; onClose: ()
       setHint('Dashed arrows are Jump to Slide triggers. Remove them from the trigger on the slide.');
       return;
     }
-    setNext(edge.from, disconnectNext(slides, edge.from, edge.to));
+    if (edge.continue) dispatch({ type: 'UPDATE_SLIDE_BY_ID', slideId: edge.from, updates: { continueTo: undefined } });
+    else setNext(edge.from, disconnectNext(slides, edge.from, edge.to));
     setSelectedEdge(null);
   };
 
@@ -311,6 +387,16 @@ export function StoryViewOverlay({ open, onClose }: { open: boolean; onClose: ()
     setSelectedNode(null);
   };
 
+  /** Slides the context-menu acts on: the selection if the clicked box is in it. */
+  const menuTargets = (id: string) => (multi.includes(id) ? multi : [id]);
+  const setGroup = (ids: string[], group: string | undefined) => {
+    if (group && slides.some((s) => !s.treePos)) savePositions(pos);
+    dispatch({ type: 'SET_SLIDE_GROUP', slideIds: ids, group });
+    setMulti([]);
+  };
+  const toggleCollapsed = (name: string) =>
+    setCollapsed((c) => (c.includes(name) ? c.filter((x) => x !== name) : [...c, name]));
+
   const tidy = () => {
     const laid = autoLayout(slides, edges);
     savePositions(laid);
@@ -320,17 +406,20 @@ export function StoryViewOverlay({ open, onClose }: { open: boolean; onClose: ()
   // ---- drawing ------------------------------------------------------------------
 
   // Parallel arrows between the same two boxes get a small offset.
-  const bends = useMemo(() => {
+  if (!open) return null;
+
+  // Arrow ends as drawn (members of a collapsed group attach to the group's box).
+  const shownEdges = edges.map((e) => ({ from: shownAs(e.from), to: shownAs(e.to) }));
+  const bends = (() => {
     const seen = new Map<string, number>();
-    return edges.map((e) => {
+    return shownEdges.map((e) => {
       const key = [e.from, e.to].sort().join('|');
       const k = seen.get(key) ?? 0;
       seen.set(key, k + 1);
       return k === 0 ? 0 : (k % 2 ? 1 : -1) * Math.ceil(k / 2) * 14;
     });
-  }, [edges]);
-
-  if (!open) return null;
+  })();
+  const edgeVisible = (i: number) => shownEdges[i].from !== shownEdges[i].to && !!dpos[shownEdges[i].from] && !!dpos[shownEdges[i].to];
 
   const renderNode = (s: Slide, i: number) => {
     const p = pos[s.id];
@@ -339,7 +428,7 @@ export function StoryViewOverlay({ open, onClose }: { open: boolean; onClose: ()
     const title = s.title?.trim() || `Slide ${i + 1}`;
     const cx = p.x + NODE_W / 2, cy = p.y + NODE_H / 2;
     const num = String(i + 1).padStart(2, '0');
-    const isSel = selectedNode === s.id;
+    const isSel = selectedNode === s.id || multi.includes(s.id);
     const isDrop = (dragKind === 'connect' || dragKind === 'retarget') && hoverNode === s.id;
     const isActive = i === state.activeSlideIndex && state.viewMode === 'main';
     const ring = isDrop ? 'hsl(142 70% 40%)' : isSel ? SELECT : null;
@@ -395,6 +484,8 @@ export function StoryViewOverlay({ open, onClose }: { open: boolean; onClose: ()
           e.preventDefault(); e.stopPropagation();
           const r = viewportRef.current!.getBoundingClientRect();
           setSelectedNode(s.id); setSelectedEdge(null);
+          if (!multi.includes(s.id)) setMulti([]);
+          setNewGroup(null);
           setMenu({ x: e.clientX - r.left, y: e.clientY - r.top, slideId: s.id });
         }}
       >
@@ -430,7 +521,7 @@ export function StoryViewOverlay({ open, onClose }: { open: boolean; onClose: ()
         <h2 className="text-lg font-semibold text-foreground">Course Tree</h2>
         <span className="text-xs text-muted-foreground">· {slides.length} slides</span>
         <span className="text-xs text-muted-foreground hidden lg:inline">
-          · Drag boxes to arrange · drag the blue dot onto a slide to connect · right-click for more
+          · Drag boxes to arrange · drag the blue dot onto a slide to connect · Shift+click to select several · right-click for more
         </span>
         <div className="flex-1" />
         <Button variant="outline" size="sm" onClick={tidy} title="Re-arrange the whole tree neatly">
@@ -461,15 +552,39 @@ export function StoryViewOverlay({ open, onClose }: { open: boolean; onClose: ()
               </marker>
             </defs>
 
+            {/* Slide group frames (behind everything) */}
+            {[...groups.keys()].filter((g) => !collapsedSet.has(g)).map((g) => {
+              const f = frameOf(g);
+              if (!f) return null;
+              const c = groupColor(g);
+              const tabW = Math.max(80, g.length * 7.5 + 28);
+              return (
+                <g key={`grp-${g}`} data-tree-group={g}>
+                  <rect x={f.x} y={f.y} width={f.w} height={f.h} rx={12} fill={c} fillOpacity={0.06} stroke={c} strokeOpacity={0.6} strokeWidth={1.5} strokeDasharray="8 5" pointerEvents="none" />
+                  <g style={{ cursor: 'grab' }} onPointerDown={(e) => startGroupDrag(e, g)}
+                    onDoubleClick={(e) => { e.stopPropagation(); setGroupEdit({ name: g, text: g, at: { x: f.x + 8, y: f.y + 4 } }); }}
+                    onContextMenu={(e) => {
+                      e.preventDefault(); e.stopPropagation();
+                      const r = viewportRef.current!.getBoundingClientRect();
+                      setMenu({ x: e.clientX - r.left, y: e.clientY - r.top, slideId: '', group: g });
+                    }}>
+                    <rect x={f.x + 8} y={f.y + 6} width={tabW} height={22} rx={6} fill={c} />
+                    <text x={f.x + 18} y={f.y + 17} dominantBaseline="central" fontSize={12} fontWeight={600} fill="white">{g}</text>
+                    <title>Drag to move the group · double-click to rename · right-click for more</title>
+                  </g>
+                </g>
+              );
+            })}
+
             {/* Arrows */}
             {edges.map((e, i) => {
-              const a = pos[e.from], b = pos[e.to];
-              if (!a || !b) return null;
+              if (!edgeVisible(i)) return null;
+              const a = dpos[shownEdges[i].from], b = dpos[shownEdges[i].to];
               const g = edgeGeometry(a, b, bends[i]);
               const sel = selectedEdge === i;
               return (
                 <g key={`e-${i}`} data-tree-edge={`${e.from}>${e.to}`}>
-                  <path d={g.d} fill="none" stroke={sel ? SELECT : EDGE} strokeWidth={sel ? 2.5 : 1.5}
+                  <path d={g.d} fill="none" stroke={sel ? SELECT : e.continue ? CONTINUE : EDGE} strokeWidth={sel ? 2.5 : e.continue ? 2.5 : 1.5}
                     strokeDasharray={e.kind === 'jump' ? '6 4' : undefined} markerEnd={sel ? 'url(#treeArrowSel)' : 'url(#treeArrow)'} />
                   <path d={g.d} fill="none" stroke="transparent" strokeWidth={14} style={{ cursor: 'pointer' }}
                     onPointerDown={(ev) => { ev.stopPropagation(); setMenu(null); setSelectedNode(null); setHint(e.kind === 'jump' ? 'Dashed arrows are Jump to Slide triggers. Edit them on the slide.' : null); setSelectedEdge(i); }} />
@@ -478,20 +593,46 @@ export function StoryViewOverlay({ open, onClose }: { open: boolean; onClose: ()
             })}
 
             {/* Rubber band while connecting / re-pointing */}
-            {dragFrom && pointer && pos[dragFrom] && (
+            {dragFrom && pointer && pos[dragFrom] && shownAs(dragFrom) === dragFrom && (
               <path d={`M ${pos[dragFrom].x + NODE_W / 2} ${pos[dragFrom].y + NODE_H} L ${pointer.x} ${pointer.y}`}
                 stroke={SELECT} strokeWidth={2} strokeDasharray="5 4" fill="none" markerEnd="url(#treeArrowSel)" pointerEvents="none" />
             )}
 
-            {/* Boxes */}
-            {slides.map(renderNode)}
+            {/* Boxes (members of collapsed groups are hidden) */}
+            {slides.map((sl, i) => (shownAs(sl.id) === sl.id ? renderNode(sl, i) : null))}
+
+            {/* Collapsed slide groups */}
+            {[...collapsedSet].map((g) => {
+              const p = dpos[GROUP_PREFIX + g];
+              if (!p) return null;
+              const c = groupColor(g);
+              const n = groups.get(g)?.length ?? 0;
+              const drop = (dragKind === 'connect' || dragKind === 'retarget') && hoverNode === GROUP_PREFIX + g;
+              return (
+                <g key={`cg-${g}`} data-tree-collapsed={g} style={{ cursor: 'grab' }}
+                  onPointerDown={(e) => startGroupDrag(e, g)}
+                  onDoubleClick={(e) => { e.stopPropagation(); toggleCollapsed(g); }}
+                  onContextMenu={(e) => {
+                    e.preventDefault(); e.stopPropagation();
+                    const r = viewportRef.current!.getBoundingClientRect();
+                    setMenu({ x: e.clientX - r.left, y: e.clientY - r.top, slideId: '', group: g });
+                  }}>
+                  <rect x={p.x + 6} y={p.y + 6} width={NODE_W} height={NODE_H} rx={8} fill="white" stroke={c} strokeOpacity={0.5} strokeWidth={1.5} />
+                  <rect x={p.x} y={p.y} width={NODE_W} height={NODE_H} rx={8} fill="white" stroke={drop ? 'hsl(0 70% 50%)' : c} strokeWidth={2.5} />
+                  <rect x={p.x} y={p.y} width={NODE_W} height={8} rx={4} fill={c} />
+                  <text x={p.x + NODE_W / 2} y={p.y + NODE_H / 2} textAnchor="middle" dominantBaseline="central" fontSize={12.5} fontWeight={600} fill="hsl(var(--foreground))">
+                    <title>Double-click to expand</title>
+                    <tspan x={p.x + NODE_W / 2} dy="-4">{g.length > 22 ? g.slice(0, 22) + '…' : g}</tspan>
+                    <tspan x={p.x + NODE_W / 2} dy="16" fontSize={11} fontWeight={400} fill="hsl(var(--muted-foreground))">{n} slide{n === 1 ? '' : 's'}</tspan>
+                  </text>
+                </g>
+              );
+            })}
 
             {/* Labels on top */}
             {edges.map((e, i) => {
-              if (!e.label) return null;
-              const a = pos[e.from], b = pos[e.to];
-              if (!a || !b) return null;
-              const { mid } = edgeGeometry(a, b, bends[i]);
+              if (!e.label || !edgeVisible(i)) return null;
+              const { mid } = edgeGeometry(dpos[shownEdges[i].from], dpos[shownEdges[i].to], bends[i]);
               const w = Math.max(24, e.label.length * 6.2 + 12);
               const editable = !!e.buttonId;
               return (
@@ -510,8 +651,8 @@ export function StoryViewOverlay({ open, onClose }: { open: boolean; onClose: ()
             })}
 
             {/* End handle on the selected arrow: drag it onto another slide to re-point */}
-            {selEdge && selEdge.kind === 'next' && pos[selEdge.from] && pos[selEdge.to] && dragKind === null && (() => {
-              const g = edgeGeometry(pos[selEdge.from], pos[selEdge.to], bends[selectedEdge!]);
+            {selEdge && selEdge.kind === 'next' && edgeVisible(selectedEdge!) && dragKind === null && (() => {
+              const g = edgeGeometry(dpos[shownEdges[selectedEdge!].from], dpos[shownEdges[selectedEdge!].to], bends[selectedEdge!]);
               return (
                 <circle cx={g.end.x} cy={g.end.y} r={7} fill="white" stroke={SELECT} strokeWidth={2.5} style={{ cursor: 'move' }}
                   data-tree-edge-handle onPointerDown={(e) => startRetarget(e, selEdge)}>
@@ -546,10 +687,58 @@ export function StoryViewOverlay({ open, onClose }: { open: boolean; onClose: ()
           />
         )}
 
-        {/* Context menu */}
-        {menu && (() => {
+        {/* Inline rename of a slide group */}
+        {groupEdit && (
+          <input
+            autoFocus
+            aria-label="Group name"
+            className="absolute z-10 h-7 px-2 text-xs border rounded shadow bg-white text-slate-800"
+            style={{ left: pan.x + groupEdit.at.x * zoom, top: pan.y + groupEdit.at.y * zoom, width: 200 }}
+            value={groupEdit.text}
+            maxLength={60}
+            onChange={(e) => setGroupEdit({ ...groupEdit, text: e.target.value })}
+            onPointerDown={(e) => e.stopPropagation()}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+              if (e.key === 'Escape') setGroupEdit(null);
+            }}
+            onBlur={() => {
+              const t = groupEdit.text.trim();
+              if (t && t !== groupEdit.name) {
+                dispatch({ type: 'RENAME_SLIDE_GROUP', from: groupEdit.name, to: t });
+                setCollapsed((c) => c.map((x) => (x === groupEdit.name ? t : x)));
+              }
+              setGroupEdit(null);
+            }}
+          />
+        )}
+
+        {/* Context menu for a slide group */}
+        {menu && menu.group && (() => {
+          const g = menu.group;
+          const f = frameOf(g);
+          const item = (label: string, fn: () => void, danger = false) => (
+            <button key={label} type="button"
+              className={`block w-full text-left px-3 py-1.5 text-sm rounded hover:bg-muted ${danger ? 'text-red-600' : 'text-foreground'}`}
+              onClick={() => { setMenu(null); fn(); }}>{label}</button>
+          );
+          return (
+            <div role="menu" className="absolute z-20 min-w-[200px] bg-card border border-border rounded-md shadow-lg p-1"
+              style={{ left: menu.x, top: menu.y }} onPointerDown={(e) => e.stopPropagation()}>
+              <div className="px-3 py-1 text-xs font-semibold text-muted-foreground">Slide group: {g}</div>
+              {item('Rename…', () => f && setGroupEdit({ name: g, text: g, at: { x: f.x + 8, y: f.y + 4 } }))}
+              {item(collapsedSet.has(g) ? 'Expand' : 'Collapse', () => toggleCollapsed(g))}
+              {item('Ungroup (keep the slides)', () => setGroup(groups.get(g) ?? [], undefined), true)}
+            </div>
+          );
+        })()}
+
+        {/* Context menu for a slide */}
+        {menu && !menu.group && (() => {
           const s = slideById(menu.slideId);
           if (!s) return null;
+          const targets = menuTargets(s.id);
+          const inGroup = targets.some((id) => slideById(id)?.group);
           const branching = isBranchingSlide(s);
           const item = (label: string, fn: () => void, opts: { danger?: boolean; disabled?: boolean; title?: string } = {}) => (
             <button
@@ -564,7 +753,43 @@ export function StoryViewOverlay({ open, onClose }: { open: boolean; onClose: ()
               {item('Open slide', () => openSlide(s.id))}
               {item('Add slide after', () => addSlideAfter(s.id), { disabled: branching, title: branching ? 'Branching slide: use Add branch' : undefined })}
               {item('Add branch', () => addBranch(s.id))}
+              {isHub(s) && (
+                <button type="button" className="block w-full text-left px-3 py-1.5 text-sm rounded hover:bg-muted text-foreground"
+                  onClick={() => setMenu({ ...menu, sub: menu.sub === 'continue' ? undefined : 'continue' })}>
+                  Set Continue to… ›
+                </button>
+              )}
+              {menu.sub === 'continue' && (
+                <div className="ml-2 pl-2 border-l border-border max-h-56 overflow-auto">
+                  {slides.filter((o) => o.id !== s.id && !s.next?.includes(o.id)).map((o) =>
+                    item(`${String(indexOf(o.id) + 1).padStart(2, '0')}  ${o.title?.trim() || `Slide ${indexOf(o.id) + 1}`}`,
+                      () => dispatch({ type: 'UPDATE_SLIDE_BY_ID', slideId: s.id, updates: { continueTo: o.id } })))}
+                </div>
+              )}
               {item('Duplicate', () => duplicate(s.id))}
+              <div className="my-1 border-t border-border" />
+              <button type="button" className="block w-full text-left px-3 py-1.5 text-sm rounded hover:bg-muted text-foreground"
+                onClick={() => setMenu({ ...menu, sub: menu.sub === 'group' ? undefined : 'group' })}>
+                {targets.length > 1 ? `Add ${targets.length} slides to group… ›` : 'Add to slide group… ›'}
+              </button>
+              {menu.sub === 'group' && (
+                <div className="ml-2 pl-2 border-l border-border max-h-56 overflow-auto">
+                  {[...groups.keys()].map((g) => item(g, () => setGroup(targets, g)))}
+                  {newGroup === null ? (
+                    <button type="button" className="block w-full text-left px-3 py-1.5 text-sm rounded hover:bg-muted text-foreground"
+                      onClick={() => setNewGroup('')}>New group…</button>
+                  ) : (
+                    <input autoFocus aria-label="New group name" placeholder="Group name" maxLength={60}
+                      className="m-1 h-7 w-[180px] px-2 text-xs border rounded bg-white text-slate-800"
+                      value={newGroup} onChange={(e) => setNewGroup(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && newGroup.trim()) { setGroup(targets, newGroup.trim()); setNewGroup(null); setMenu(null); }
+                        if (e.key === 'Escape') { setNewGroup(null); setMenu(null); }
+                      }} />
+                  )}
+                </div>
+              )}
+              {inGroup && item('Remove from group', () => setGroup(targets, undefined))}
               <div className="my-1 border-t border-border" />
               {item('Delete slide…', () => setConfirmDelete(s.id), { danger: true, disabled: slides.length <= 1 })}
             </div>
@@ -607,6 +832,10 @@ export function StoryViewOverlay({ open, onClose }: { open: boolean; onClose: ()
             <div className="flex items-center gap-2">
               <svg width="22" height="8"><line x1="1" y1="4" x2="21" y2="4" stroke={EDGE} strokeWidth="1.5" strokeDasharray="4 3" /></svg>
               <span className="text-muted-foreground">Trigger jump</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <svg width="22" height="8"><line x1="1" y1="4" x2="21" y2="4" stroke={CONTINUE} strokeWidth="2.5" /></svg>
+              <span className="text-muted-foreground">Hub: Continue</span>
             </div>
           </div>
         </div>

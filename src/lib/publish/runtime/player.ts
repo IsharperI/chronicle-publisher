@@ -99,6 +99,7 @@ body{background-color:${ps.backgroundColor};${ps.backgroundImage ? `background-i
 #cc-overlay{position:absolute;left:5%;right:5%;bottom:6%;text-align:center;pointer-events:none;z-index:50;font-family:${ps.fontFamily}}
 #cc-overlay span{display:inline-block;background:rgba(0,0,0,0.75);color:#fff;padding:8px 16px;border-radius:6px;font-size:clamp(12px,2.4vw,28px);line-height:1.3;max-width:90%;white-space:pre-wrap}
 .el{position:absolute;transition:all .2s ease}
+.branch-tick{position:absolute;top:-10px;right:-10px;width:26px;height:26px;border-radius:50%;background:#16a34a;color:#fff;font:700 16px/26px system-ui,sans-serif;text-align:center;box-shadow:0 2px 6px rgba(0,0,0,.3);pointer-events:none;z-index:2}
 @keyframes anim-fade-in{from{opacity:0}to{opacity:1}}
 @keyframes anim-fade-out{from{opacity:1}to{opacity:0}}
 @keyframes anim-fly-in-left{from{opacity:0;transform:translateX(-100%)}to{opacity:1;transform:translateX(0)}}
@@ -335,6 +336,7 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
     d.style.left=el.x+"px";d.style.top=el.y+"px";
     d.style.width=el.width+"px";d.style.height=el.height+"px";
     if(el.id){d.setAttribute("data-el-id",el.id);}
+    if(el.autoBranchTarget){d.setAttribute("data-branch-target",el.autoBranchTarget);}
     if(el.motionPath){
       d.setAttribute("data-motion-path","1");
       d.setAttribute("data-mp-start",el.startTime||0);
@@ -534,18 +536,37 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
   /* Where Next goes (same rules as lib/navigation.ts resolveNext): slide.next
      omitted = the following slide; [] = no Next; 2+ ids = a branching slide
      (Next disabled, the slide's own buttons lead on). Returns an index or -1. */
+  /* Hubs (lib/navigation.ts): a branching slide with branchMode "explore" or
+     "required". Next goes to continueTo; a required hub keeps it locked until
+     every branch is completed (the learner reached a slide whose Next leads
+     back to the hub). Completed branches get a tick on their button. */
+  function isHubSlide(s){return !!(s&&s.next&&s.next.length>=2&&(s.branchMode==="explore"||s.branchMode==="required"))}
+  var branchDone={};var activeBranch=null;
+  function hubLockedNow(){
+    var s=slides[current];if(!isHubSlide(s)||s.branchMode!=="required")return false;
+    var d=branchDone[s.id]||{};
+    for(var k=0;k<s.next.length;k++){if(!d[s.next[k]])return true}
+    return false;
+  }
+  function nextTargetIds(i){var s=slides[i];if(!s)return [];if(s.next)return s.next;return i+1<slides.length?[slides[i+1].id]:[]}
   function nextIndexOf(i){
     var s=slides[i];if(!s)return -1;
+    if(s.next&&s.next.length>=2){
+      if(!isHubSlide(s)||!s.continueTo)return -1;
+      for(var c=0;c<slides.length;c++){if(slides[c].id===s.continueTo)return c}
+      return -1;
+    }
     if(!s.next)return i+1<slides.length?i+1:-1;
     var found=[];
     for(var k=0;k<s.next.length;k++){for(var j=0;j<slides.length;j++){if(slides[j].id===s.next[k]){found.push(j);break}}}
     return found.length===1?found[0]:-1;
   }
-  function goNext(){var n=nextIndexOf(current);if(n>=0)goTo(n)}
+  function goNext(){if(hubLockedNow())return;var n=nextIndexOf(current);if(n>=0)goTo(n)}
   var hasBranching=false;
   for(var hb=0;hb<slides.length;hb++){if(slides[hb].next&&slides[hb].next.length>=2){hasBranching=true;break}}
   function setNavLock(locked){
-    var noNext=nextIndexOf(current)<0;
+    var noNext=nextIndexOf(current)<0||hubLockedNow();
+    nextBtn.title=hubLockedNow()?"Complete every section to continue":"";
     if(navMode!=="restricted"){nextBtn.disabled=noNext;return}
     nextBtn.disabled=locked||noNext;
   }
@@ -585,7 +606,7 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
     slideTimer=setTimeout(function(){
       slideTimerRunning=false;slideTimerOffset=dur;savedPlayheads[slide.id]=dur;
       if(navMode==="restricted"){unlocked=true;setNavLock(false)}
-      if(advance==="auto"&&nextIndexOf(current)>=0){goNext()}
+      if(advance==="auto"&&nextIndexOf(current)>=0&&!(slide.next&&slide.next.length>=2)){goNext()}
       else{setPlaying(false)}
     },remaining);
   }
@@ -1186,6 +1207,12 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
     if(current<0||current>=slides.length)return;
     var slide=slides[current];
     visited[slide.id]=true;
+    if(activeBranch){
+      if(slide.id===activeBranch.hub){activeBranch=null}
+      else if(nextTargetIds(current).indexOf(activeBranch.hub)>=0){
+        (branchDone[activeBranch.hub]=branchDone[activeBranch.hub]||{})[activeBranch.target]=true;
+      }
+    }
     var masterEls=getMasterElements(slide);
     masterEls.forEach(function(el){stage.appendChild(renderElement(el))});
     var _layers=slide.layers;
@@ -1216,6 +1243,14 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
     if(revisit==="reset")savedPlayheads[slide.id]=0;
     startAudio(slide);setPlaying(true);startSlideTimer(startMs);scaleStage();
     applyTiming(startMs);tickTiming(); /* first pass before paint avoids a flash of later elements */
+    if(isHubSlide(slide)){
+      var bd=branchDone[slide.id]||{};
+      var bnodes=stage.querySelectorAll("[data-branch-target]");
+      for(var bi=0;bi<bnodes.length;bi++){
+        if(bd[bnodes[bi].getAttribute("data-branch-target")]){var tk=document.createElement("div");tk.className="branch-tick";tk.textContent="\u2713";tk.setAttribute("aria-label","Completed");bnodes[bi].appendChild(tk)}
+      }
+      setNavLock(!unlocked);
+    }
     startMotionTracksFor(slide);
     startTriggersFor(slide);
     try{LMS.setLocation(current)}catch(e){}
@@ -1238,6 +1273,8 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
   function goTo(idx,back){
     if(idx<0||idx>=slides.length||idx===current)return;
     if(!back){navHistory.push(current);if(navHistory.length>500)navHistory.shift()}
+    var from=slides[current];
+    if(isHubSlide(from)&&from.next.indexOf(slides[idx].id)>=0)activeBranch={hub:from.id,target:slides[idx].id};
     var leaving=slides[current];if(leaving)savedPlayheads[leaving.id]=currentPlayhead();
     clearSlideTimer();stopAudio();
     var cs=(data.courseSettings&&data.courseSettings.transition)||{type:"fade",duration:1,color:"#000000"};

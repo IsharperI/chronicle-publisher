@@ -4,7 +4,7 @@
  * menu/notes sidebar, slide transitions, Prev/Play/Next/CC controls. Also owns
  * the quiz countdown timers (per-question and course-wide).
  */
-import { nextSlideIndex } from '@/lib/navigation';
+import { hubLocked, nextSlideIndex } from '@/lib/navigation';
 import { useCourse } from '@/context/CourseContext';
 import { Canvas } from './Canvas';
 import { ChevronLeft, ChevronRight, Play, Pause, Captions, CaptionsOff, Menu, FileText, Check, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
@@ -272,8 +272,12 @@ export function PlayerShell({ playerSettings, interactive = true }: PlayerShellP
   const nextIndex = nextSlideIndex(state.slides, state.activeSlideIndex);
   const history = state.previewHistory ?? [];
   const backIndex = history.length ? history[history.length - 1] : -1;
-  const goNext = () => navigateToIndex(nextIndex);
-  const isLast = nextIndex < 0;
+
+  const here = state.slides[state.activeSlideIndex];
+  // Required hubs keep Next locked until every branch is completed.
+  const locked = hubLocked(here, state.branchDone?.[here?.id ?? '']);
+  const isLast = nextIndex < 0 || locked;
+  const goNext = () => { if (!locked) navigateToIndex(nextIndex); };
   const isFirst = backIndex < 0;
 
   const btnStyle: React.CSSProperties = {
@@ -368,6 +372,7 @@ export function PlayerShell({ playerSettings, interactive = true }: PlayerShellP
           type="button"
           onClick={goNext}
           disabled={isLast || navLocked}
+          title={locked ? 'Complete every section to continue' : undefined}
           className="text-white text-xs font-medium px-4 py-2 disabled:opacity-40"
           style={btnStyle}
         >

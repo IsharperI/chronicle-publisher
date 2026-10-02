@@ -18,7 +18,7 @@
 import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import { Rnd } from 'react-rnd';
 import { TextLines } from './TextLines';
-import { nextSlideIndex } from '@/lib/navigation';
+import { isBranchingSlide, nextSlideIndex } from '@/lib/navigation';
 import { useCourse } from '@/context/CourseContext';
 import type { SlideElement, TextElement, ShapeElement, AnimationIn, AnimationOut, TableElement, Slide, QuizConfig, QuizChoice, QuizMatchPair, QuizSortItem } from '@/types/course';
 import { isExtendedShapeType, resolveShapeSvg } from '@/lib/shapes';
@@ -90,6 +90,23 @@ function ShapeText({ se, isPreview }: { se: ShapeElement; isPreview?: boolean })
  * renderers that must stay in sync: SlidePanel.tsx (ThumbElement) and the
  * exported player (lib/publish/runtime/player.ts, renderElement).
  */
+/** Green tick on a hub's branch button once that branch is completed (preview). */
+function BranchTick({ target }: { target?: string }) {
+  const { state } = useCourse();
+  const hub = state.slides[state.activeSlideIndex];
+  if (!target || !state.previewMode || !hub || !state.branchDone?.[hub.id]?.includes(target)) return null;
+  return (
+    <div
+      aria-label="Completed"
+      style={{
+        position: 'absolute', top: -10, right: -10, width: 26, height: 26, borderRadius: '50%',
+        background: '#16a34a', color: '#fff', fontSize: 16, fontWeight: 700, lineHeight: '26px', textAlign: 'center',
+        boxShadow: '0 2px 6px rgba(0,0,0,.3)', pointerEvents: 'none', zIndex: 2,
+      }}
+    >✓</div>
+  );
+}
+
 function ElementRenderer({ element, isPreview }: { element: SlideElement; isPreview?: boolean }) {
   const [hovered, setHovered] = useState(false);
   const { dispatch } = useCourse();
@@ -152,6 +169,7 @@ function ElementRenderer({ element, isPreview }: { element: SlideElement; isPrev
           }}
         >
           <ShapeText se={se} isPreview={isPreview} />
+          {isPreview && <BranchTick target={se.autoBranchTarget} />}
         </div>
       );
     }
@@ -170,6 +188,7 @@ function ElementRenderer({ element, isPreview }: { element: SlideElement; isPrev
             />
           </svg>
           <ShapeText se={se} isPreview={isPreview} />
+          {isPreview && <BranchTick target={se.autoBranchTarget} />}
         </div>
       );
     }
@@ -184,6 +203,7 @@ function ElementRenderer({ element, isPreview }: { element: SlideElement; isPrev
             dangerouslySetInnerHTML={{ __html: svgInner }}
           />
           <ShapeText se={se} isPreview={isPreview} />
+          {isPreview && <BranchTick target={se.autoBranchTarget} />}
         </div>
       );
     }
@@ -201,6 +221,7 @@ function ElementRenderer({ element, isPreview }: { element: SlideElement; isPrev
         }}
       >
         <ShapeText se={se} isPreview={isPreview} />
+        {isPreview && <BranchTick target={se.autoBranchTarget} />}
       </div>
     );
   }
@@ -571,7 +592,8 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
     const slideDur = activeSlide.duration ?? 5000;
     const revisit = activeSlide.revisitMode ?? 'reset';
     const advance = activeSlide.advanceMode ?? 'manual';
-    const isLastSlide = nextSlideIndex(state.slides, state.activeSlideIndex) < 0;
+    // Branching slides (and hubs) wait for the learner; never auto-advance.
+    const isLastSlide = nextSlideIndex(state.slides, state.activeSlideIndex) < 0 || isBranchingSlide(activeSlide);
 
     // Determine starting playhead based on revisit mode.
     const saved = savedPlayheadsRef.current.get(activeSlide.id);

@@ -422,6 +422,16 @@ export interface Slide {
    * See lib/navigation.ts.
    */
   next?: string[];
+  /**
+   * For branching slides: 'choice' (pick one path, the default), 'explore'
+   * (a hub: branches return here, Next goes to continueTo) or 'required' (a
+   * hub whose Next unlocks once every branch is completed).
+   */
+  branchMode?: 'choice' | 'explore' | 'required';
+  /** Hubs: where Next (Continue) goes. */
+  continueTo?: string;
+  /** Slide group name (like a Storyline scene); shown as a frame in the course tree. */
+  group?: string;
   /** Position of this slide's box in the course tree (View → Course Tree). */
   treePos?: { x: number; y: number };
   /** Slide kind. Defaults to 'content' when omitted. */
@@ -535,6 +545,10 @@ export interface CourseState {
   previewMode: boolean;
   /** Preview only: slides visited before the current one, for the Prev button. */
   previewHistory?: number[];
+  /** Preview only: the hub branch the learner is in. */
+  previewBranch?: { hub: string; target: string } | null;
+  /** Preview only: completed branches per hub (hub id → branch target ids). */
+  branchDone?: Record<string, string[]>;
   playheadTime: number;
   isPlaying: boolean;
   viewMode: ViewMode;
