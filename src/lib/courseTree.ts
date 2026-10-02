@@ -12,7 +12,7 @@
  *   author has arranged the tree.
  */
 import type { ShapeElement, Slide, SlideElement } from '@/types/course';
-import { autoButtons, isBranchingSlide, resolveNext } from './navigation';
+import { autoButtons, isBranchingSlide, isHub, resolveNext } from './navigation';
 
 export const NODE_W = 180;
 export const NODE_H = 90;
@@ -30,6 +30,8 @@ export interface TreeEdge {
   label?: string;
   /** For branch edges: the auto button that carries this connection. */
   buttonId?: string;
+  /** A hub's Continue arrow (where its Next button goes). */
+  continue?: boolean;
 }
 
 const elementsOf = (s: Slide): SlideElement[] =>
@@ -69,6 +71,9 @@ export function buildEdges(slides: Slide[]): TreeEdge[] {
       for (const t of resolveNext(slides, i)) {
         const b = buttons.get(t);
         edges.push({ from: s.id, to: t, kind: 'next', label: b?.text?.trim() || undefined, buttonId: b?.id });
+      }
+      if (isHub(s) && s.continueTo && ids.has(s.continueTo)) {
+        edges.push({ from: s.id, to: s.continueTo, kind: 'next', continue: true, label: s.branchMode === 'required' ? 'Continue (after all branches)' : 'Continue' });
       }
     } else {
       for (const t of resolveNext(slides, i)) edges.push({ from: s.id, to: t, kind: 'next' });
