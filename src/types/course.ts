@@ -422,6 +422,8 @@ export interface Slide {
    * See lib/navigation.ts.
    */
   next?: string[];
+  /** Position of this slide's box in the course tree (View → Course Tree). */
+  treePos?: { x: number; y: number };
   /** Slide kind. Defaults to 'content' when omitted. */
   slideType?: SlideKind;
   /** Quiz configuration; only used when slideType === 'quiz'. */

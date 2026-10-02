@@ -1,511 +1,436 @@
 /**
- * "Story View": a flowchart of the course. Shows each slide as a node and draws
- * arrows for jump-to-slide triggers found on any element (including elements on
- * layers).
+ * View → Course Tree: an editable flowchart of the course (like Storyline's
+ * story view). Layout, arrows and editing rules live in lib/courseTree.ts.
+ *
+ * - Drag a box to move it (positions are saved with the course).
+ * - Drag from the dot under a box onto another box to connect them. Two or
+ *   more connections make a branching slide with a button per branch
+ *   (lib/navigation.ts).
+ * - Click an arrow to select it: Delete removes it; drag its end dot onto
+ *   another box to re-point it. Double-click a branch label to rename the button.
+ * - Double-click a box to open the slide; right-click for more.
+ * - Dashed arrows are Jump to Slide triggers on the slide; edit those there.
  */
-import { useMemo, useRef, useState, useEffect, WheelEvent, MouseEvent } from 'react';
-import { useCourse } from '@/context/CourseContext';
-import { isBranchingSlide, resolveNext } from '@/lib/navigation';
+import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type WheelEvent } from 'react';
+import { X, Maximize2, Wand2 } from 'lucide-react';
+import { useCourse, createSlide } from '@/context/CourseContext';
 import { Button } from '@/components/ui/button';
-import { X, Maximize2 } from 'lucide-react';
-import type { Slide, SlideElement } from '@/types/course';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
+  NODE_W, NODE_H, ROW_GAP, autoLayout, buildEdges, connectNext, disconnectNext, edgeGeometry, freeSpot,
+  nodeShape, retargetNext, treePositions, type NodeShape, type Pos, type TreeEdge,
+} from '@/lib/courseTree';
+import { isBranchingSlide } from '@/lib/navigation';
+import type { Slide } from '@/types/course';
 
-type NodeShape = 'rect' | 'diamond' | 'circle' | 'results';
+const EDGE = 'hsl(220 10% 35%)';
+const SELECT = 'hsl(217 91% 55%)';
+const snap = (v: number) => Math.round(v / 10) * 10;
 
-interface FlowNode {
-  slide: Slide;
-  index: number;
-  shape: NodeShape;
-  title: string;
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-  col: number; // 0 = main, negative = left, positive = right
-  row: number;
+function boundsOf(pos: Record<string, Pos>) {
+  const ps = Object.values(pos);
+  if (!ps.length) return { minX: 0, minY: 0, maxX: 800, maxY: 600 };
+  return {
+    minX: Math.min(...ps.map((p) => p.x)) - 80,
+    minY: Math.min(...ps.map((p) => p.y)) - 80,
+    maxX: Math.max(...ps.map((p) => p.x)) + NODE_W + 80,
+    maxY: Math.max(...ps.map((p) => p.y)) + NODE_H + 80,
+  };
 }
 
-interface FlowEdge {
-  fromIndex: number;
-  toIndex: number;
-  label?: string;
-  kind: 'sequential' | 'branch';
-  /** Which side of the source the edge exits from. */
-  exit: 'top' | 'bottom' | 'left' | 'right';
-}
+type Drag =
+  | { kind: 'pan'; sx: number; sy: number; px: number; py: number }
+  | { kind: 'node'; id: string; sx: number; sy: number; ox: number; oy: number; moved: boolean }
+  | { kind: 'connect'; from: string }
+  | { kind: 'retarget'; edge: TreeEdge };
 
-const NODE_W = 180;
-const NODE_H = 90;
-const COL_GAP = 100;
-const ROW_GAP = 80;
-const PAD = 80;
-
-function elementLabel(el: SlideElement | undefined, idx: number): string {
-  if (!el) return `Element ${idx + 1}`;
-  if (el.type === 'text' && (el as any).content) {
-    const t = String((el as any).content).replace(/<[^>]+>/g, '').trim();
-    if (t) return t.length > 24 ? t.slice(0, 24) + '…' : t;
-  }
-  if (el.type === 'shape') {
-    const t = String((el as any).text ?? '').trim();
-    if (t) return t.length > 24 ? t.slice(0, 24) + '…' : t;
-    return `Shape ${idx + 1}`;
-  }
-  if (el.type === 'image') return `Image ${idx + 1}`;
-  if (el.type === 'video') return `Video ${idx + 1}`;
-  if (el.type === 'hotspot') return `Hotspot ${idx + 1}`;
-  if (el.type === 'checkbox') return (el as any).label || `Checkbox ${idx + 1}`;
-  return `Element ${idx + 1}`;
-}
+interface Menu { x: number; y: number; slideId: string }
 
 export function StoryViewOverlay({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { state } = useCourse();
+  const { state, dispatch } = useCourse();
+  const slides = state.slides;
 
-  const { nodes, edges, width, height } = useMemo(() => {
-    const slides = state.slides;
-    const idToIndex = new Map(slides.map((s, i) => [s.id, i]));
+  const edges = useMemo(() => buildEdges(slides), [slides]);
+  const saved = useMemo(() => treePositions(slides, edges), [slides, edges]);
+  // Live positions while a box is being dragged.
+  const [livePos, setLivePos] = useState<Record<string, Pos> | null>(null);
+  const pos = livePos ?? saved;
 
-    // Outgoing jumps per slide
-    const jumpsBySlide: { toIndex: number; label: string }[][] = slides.map((slide) => {
-      const out: { toIndex: number; label: string }[] = [];
-      const allElements: SlideElement[] = [
-        ...slide.elements,
-        ...(slide.layers?.flatMap((l) => l.elements) ?? []),
-      ];
-      allElements.forEach((el, ei) => {
-        for (const t of el.triggers ?? []) {
-          if (t.action === 'jumpToSlide' && t.targetId) {
-            const idx = idToIndex.get(t.targetId);
-            if (idx !== undefined) out.push({ toIndex: idx, label: elementLabel(el, ei) });
-          }
-        }
-      });
-      const q: any = slide.quiz;
-      if (q?.feedbackMode === 'jumpToSlide' && q?.targetSlideId) {
-        const idx = idToIndex.get(q.targetSlideId as string);
-        if (idx !== undefined) out.push({ toIndex: idx, label: 'Quiz' });
-      }
-      return out;
-    });
-    // Where Next goes (lib/navigation.ts). Branching slides' Next is off (their
-    // auto buttons are already counted as jumps above).
-    const nextOf = slides.map((slide, i) =>
-      isBranchingSlide(slide) ? [] : resolveNext(slides, i).map((id) => idToIndex.get(id)!).filter((x) => x !== undefined));
-
-    const shapeFor = (slide: Slide, hasJumps: boolean): NodeShape => {
-      if (slide.slideType === 'results') return 'results';
-      if (slide.slideType === 'quiz') return 'circle';
-      if (hasJumps || isBranchingSlide(slide)) return 'diamond';
-      return 'rect';
-    };
-
-    // A slide is "branch-only" when no sequential arrow lands on it
-    // (i.e., the previous slide is a diamond) yet a jump targets it.
-    const inBranchOnly = new Set<number>();
-    slides.forEach((_, i) => {
-      if (i === 0) return;
-      const prev = i - 1;
-      const sequentiallyReached = nextOf[prev].includes(i) && jumpsBySlide[prev].length === 0;
-      if (sequentiallyReached) return;
-      const inbound = jumpsBySlide.some((arr) => arr.some((j) => j.toIndex === i));
-      if (inbound) inBranchOnly.add(i);
-    });
-
-    // Assign rows: main-flow slides take consecutive rows. Branch-only slides
-    // share their parent diamond's row.
-    const parentDiamondOf = new Map<number, number>(); // branch-only idx -> source diamond idx
-    slides.forEach((_, i) => {
-      if (!inBranchOnly.has(i)) return;
-      // find first diamond that jumps to i
-      for (let s = 0; s < slides.length; s++) {
-        if (jumpsBySlide[s].some((j) => j.toIndex === i)) {
-          parentDiamondOf.set(i, s);
-          break;
-        }
-      }
-    });
-
-    const rowOfIndex = new Map<number, number>();
-    let mainRow = 0;
-    slides.forEach((_, i) => {
-      if (inBranchOnly.has(i)) return;
-      rowOfIndex.set(i, mainRow++);
-    });
-    // branch-only: same row as parent diamond
-    slides.forEach((_, i) => {
-      if (!inBranchOnly.has(i)) return;
-      const parent = parentDiamondOf.get(i);
-      const r = parent !== undefined ? rowOfIndex.get(parent) ?? 0 : 0;
-      rowOfIndex.set(i, r);
-    });
-
-    // Assign columns: main-flow = 0. Branch-only siblings of the same diamond
-    // get distributed: first to the right (+1), then left (-1), then +2, -2.
-    const colOfIndex = new Map<number, number>();
-    slides.forEach((_, i) => { if (!inBranchOnly.has(i)) colOfIndex.set(i, 0); });
-
-    const branchChildrenByParent = new Map<number, number[]>();
-    inBranchOnly.forEach((i) => {
-      const p = parentDiamondOf.get(i);
-      if (p === undefined) return;
-      const list = branchChildrenByParent.get(p) ?? [];
-      list.push(i);
-      branchChildrenByParent.set(p, list);
-    });
-    branchChildrenByParent.forEach((children) => {
-      children.sort((a, b) => a - b);
-      children.forEach((child, k) => {
-        // 0 -> +1, 1 -> -1, 2 -> +2, 3 -> -2 ...
-        const step = Math.floor(k / 2) + 1;
-        const sign = k % 2 === 0 ? 1 : -1;
-        colOfIndex.set(child, sign * step);
-      });
-    });
-
-    // Determine bounds
-    let minCol = 0, maxCol = 0, maxRow = 0;
-    slides.forEach((_, i) => {
-      const c = colOfIndex.get(i) ?? 0;
-      const r = rowOfIndex.get(i) ?? 0;
-      if (c < minCol) minCol = c;
-      if (c > maxCol) maxCol = c;
-      if (r > maxRow) maxRow = r;
-    });
-
-    const colToX = (c: number) => PAD + (c - minCol) * (NODE_W + COL_GAP);
-    const rowToY = (r: number) => PAD + r * (NODE_H + ROW_GAP);
-
-    const nodes: FlowNode[] = slides.map((slide, i) => {
-      const hasJumps = jumpsBySlide[i].length > 0;
-      const col = colOfIndex.get(i) ?? 0;
-      const row = rowOfIndex.get(i) ?? 0;
-      return {
-        slide, index: i,
-        shape: shapeFor(slide, hasJumps),
-        title: slide.title?.trim() || `Slide ${i + 1}`,
-        x: colToX(col), y: rowToY(row),
-        w: NODE_W, h: NODE_H,
-        col, row,
-      };
-    });
-
-    // Build edges with thoughtful exit-side assignment.
-    const edges: FlowEdge[] = [];
-    const mainOrder: number[] = [];
-    slides.forEach((_, i) => { if (!inBranchOnly.has(i)) mainOrder.push(i); });
-
-    // Sequential main-flow edges: between consecutive entries in mainOrder,
-    // unless the source has its own jump triggers (in which case sequential is
-    // implicit only if there's no jump to the next index — keep both but mark
-    // sequential coming out of bottom).
-    for (let m = 0; m < mainOrder.length - 1; m++) {
-      const fromIdx = mainOrder[m];
-      const toIdx = mainOrder[m + 1];
-      // Solid arrow only where Next really goes there; jumps are dashed.
-      if (nextOf[fromIdx].includes(toIdx) && !jumpsBySlide[fromIdx].some((j) => j.toIndex === toIdx)) {
-        edges.push({ fromIndex: fromIdx, toIndex: toIdx, kind: 'sequential', exit: 'bottom' });
-      }
-    }
-
-    // Branch edges from diamonds.
-    slides.forEach((_, i) => {
-      const jumps = jumpsBySlide[i];
-      if (jumps.length === 0) return;
-      // Sort jumps so the one matching the next main slide uses the bottom exit;
-      // the others use right/left/top depending on target column relative to source.
-      const sourceCol = colOfIndex.get(i) ?? 0;
-      const sourceRow = rowOfIndex.get(i) ?? 0;
-      // Track exits used to avoid duplicates.
-      const usedExits = new Set<FlowEdge['exit']>();
-      // First pass: assign bottom to a target that sits directly below in the main column.
-      for (const j of jumps) {
-        const tCol = colOfIndex.get(j.toIndex) ?? 0;
-        const tRow = rowOfIndex.get(j.toIndex) ?? 0;
-        if (tCol === sourceCol && tRow > sourceRow && !usedExits.has('bottom')) {
-          edges.push({ fromIndex: i, toIndex: j.toIndex, label: j.label, kind: 'branch', exit: 'bottom' });
-          usedExits.add('bottom');
-          (j as any)._assigned = true;
-        }
-      }
-      // Second pass: assign right/left for side branches by column sign.
-      for (const j of jumps) {
-        if ((j as any)._assigned) continue;
-        const tCol = colOfIndex.get(j.toIndex) ?? 0;
-        let exit: FlowEdge['exit'];
-        if (tCol > sourceCol && !usedExits.has('right')) exit = 'right';
-        else if (tCol < sourceCol && !usedExits.has('left')) exit = 'left';
-        else if (!usedExits.has('right')) exit = 'right';
-        else if (!usedExits.has('left')) exit = 'left';
-        else if (!usedExits.has('top')) exit = 'top';
-        else exit = 'bottom';
-        usedExits.add(exit);
-        edges.push({ fromIndex: i, toIndex: j.toIndex, label: j.label, kind: 'branch', exit });
-      }
-    });
-
-    // Any Next connection not drawn yet (e.g. from a branch's last slide back
-    // to its hub, or between slides placed in different columns): solid arrow.
-    slides.forEach((_, i) => {
-      for (const t of nextOf[i]) {
-        if (edges.some((e) => e.fromIndex === i && e.toIndex === t)) continue;
-        const dc = (colOfIndex.get(t) ?? 0) - (colOfIndex.get(i) ?? 0);
-        const dr = (rowOfIndex.get(t) ?? 0) - (rowOfIndex.get(i) ?? 0);
-        const exit: FlowEdge['exit'] = dc > 0 ? 'right' : dc < 0 ? 'left' : dr < 0 ? 'top' : 'bottom';
-        edges.push({ fromIndex: i, toIndex: t, kind: 'sequential', exit, label: 'Next' });
-      }
-    });
-
-    const colsCount = maxCol - minCol + 1;
-    const width = PAD * 2 + colsCount * NODE_W + Math.max(0, colsCount - 1) * COL_GAP;
-    const height = PAD * 2 + (maxRow + 1) * NODE_H + maxRow * ROW_GAP;
-
-    return { nodes, edges, width, height };
-  }, [state.slides]);
-
-  // Pan & zoom
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
-  const panState = useRef<{ x: number; y: number; px: number; py: number } | null>(null);
+  const [selectedNode, setSelectedNode] = useState<string | null>(null);
+  const [selectedEdge, setSelectedEdge] = useState<number | null>(null);
+  const [hoverNode, setHoverNode] = useState<string | null>(null);
+  const [pointer, setPointer] = useState<Pos | null>(null);
+  const [menu, setMenu] = useState<Menu | null>(null);
+  const [editLabel, setEditLabel] = useState<{ edge: TreeEdge; text: string; at: Pos } | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [hint, setHint] = useState<string | null>(null);
+  const drag = useRef<Drag | null>(null);
+  const [dragKind, setDragKind] = useState<Drag['kind'] | null>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
 
+  const indexOf = (id: string) => slides.findIndex((s) => s.id === id);
+  const slideById = (id: string): Slide | undefined => slides.find((s) => s.id === id);
+
+  const bounds = useMemo(() => boundsOf(pos), [pos]);
+
+  /** Zoom and scroll so the whole tree (or the given positions) fits on screen. */
+  const fitView = (positions?: Record<string, Pos>) => {
+    const vp = viewportRef.current?.getBoundingClientRect();
+    if (!vp) return;
+    const bb = positions ? boundsOf(positions) : bounds;
+    const w = bb.maxX - bb.minX, h = bb.maxY - bb.minY;
+    const z = Math.min(1, Math.max(0.25, Math.min(vp.width / w, vp.height / h)));
+    setZoom(z);
+    setPan({ x: (vp.width - w * z) / 2 - bb.minX * z, y: Math.max(0, (vp.height - h * z) / 2) - bb.minY * z });
+  };
+
   useEffect(() => {
-    if (open) { setZoom(1); setPan({ x: 0, y: 0 }); }
+    if (!open) return;
+    setSelectedEdge(null); setSelectedNode(null); setMenu(null); setEditLabel(null); setHint(null);
+    requestAnimationFrame(() => fitView());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
+  // Screen → tree coordinates.
+  const toWorld = (clientX: number, clientY: number): Pos => {
+    const r = viewportRef.current!.getBoundingClientRect();
+    return { x: (clientX - r.left - pan.x) / zoom, y: (clientY - r.top - pan.y) / zoom };
+  };
+  const nodeAt = (p: Pos, except?: string): string | null => {
+    for (let i = slides.length - 1; i >= 0; i--) {
+      const s = slides[i];
+      const q = pos[s.id];
+      if (s.id !== except && q && p.x >= q.x && p.x <= q.x + NODE_W && p.y >= q.y && p.y <= q.y + NODE_H) return s.id;
+    }
+    return null;
+  };
+
   const zoomBy = (factor: number) => {
+    const vp = viewportRef.current?.getBoundingClientRect();
     setZoom((z) => {
       const next = Math.min(2, Math.max(0.25, z * factor));
-      if (viewportRef.current) {
-        // Keep the center of the viewport stable
-        const rect = viewportRef.current.getBoundingClientRect();
-        const cx = rect.width / 2;
-        const cy = rect.height / 2;
-        setPan((p) => ({
-          x: cx - ((cx - p.x) / z) * next,
-          y: cy - ((cy - p.y) / z) * next,
-        }));
+      if (vp) {
+        const cx = vp.width / 2, cy = vp.height / 2;
+        setPan((p) => ({ x: cx - ((cx - p.x) / z) * next, y: cy - ((cy - p.y) / z) * next }));
       }
       return next;
     });
   };
-
   const onWheel = (e: WheelEvent) => {
-    if (!e.ctrlKey && !e.metaKey) return;
-    e.preventDefault();
-    zoomBy(e.deltaY < 0 ? 1.1 : 0.9);
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      zoomBy(e.deltaY < 0 ? 1.1 : 0.9);
+    } else {
+      setPan((p) => ({ x: p.x - e.deltaX, y: p.y - e.deltaY }));
+    }
   };
 
-  const onMouseDown = (e: MouseEvent) => {
+  const setNext = (slideId: string, next: string[] | undefined | null) => {
+    if (next === null) return;
+    dispatch({ type: 'SET_SLIDE_NEXT', slideId, next });
+  };
+
+  /** Save every box's position (freezes the auto layout the first time). */
+  const savePositions = (positions: Record<string, Pos>) => {
+    dispatch({ type: 'SET_TREE_POSITIONS', positions });
+  };
+
+  // ---- pointer handling ---------------------------------------------------
+
+  const startPan = (e: ReactPointerEvent) => {
     if (e.button !== 0) return;
-    panState.current = { x: e.clientX, y: e.clientY, px: pan.x, py: pan.y };
+    setMenu(null); setSelectedEdge(null); setSelectedNode(null); setEditLabel(null); setHint(null);
+    drag.current = { kind: 'pan', sx: e.clientX, sy: e.clientY, px: pan.x, py: pan.y };
+    setDragKind('pan');
   };
-  const onMouseMove = (e: MouseEvent) => {
-    if (!panState.current) return;
-    setPan({
-      x: panState.current.px + (e.clientX - panState.current.x),
-      y: panState.current.py + (e.clientY - panState.current.y),
+  const startNodeDrag = (e: ReactPointerEvent, id: string) => {
+    if (e.button !== 0) return;
+    e.stopPropagation();
+    setMenu(null); setSelectedEdge(null); setEditLabel(null); setHint(null);
+    setSelectedNode(id);
+    const w = toWorld(e.clientX, e.clientY);
+    drag.current = { kind: 'node', id, sx: w.x, sy: w.y, ox: pos[id].x, oy: pos[id].y, moved: false };
+    setDragKind('node');
+  };
+  const startConnect = (e: ReactPointerEvent, from: string) => {
+    if (e.button !== 0) return;
+    e.stopPropagation();
+    setMenu(null); setSelectedEdge(null); setHint(null);
+    drag.current = { kind: 'connect', from };
+    setPointer(toWorld(e.clientX, e.clientY));
+    setDragKind('connect');
+  };
+  const startRetarget = (e: ReactPointerEvent, edge: TreeEdge) => {
+    if (e.button !== 0) return;
+    e.stopPropagation();
+    drag.current = { kind: 'retarget', edge };
+    setPointer(toWorld(e.clientX, e.clientY));
+    setDragKind('retarget');
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    const move = (e: PointerEvent) => {
+      const d = drag.current;
+      if (!d) return;
+      if (d.kind === 'pan') {
+        setPan({ x: d.px + e.clientX - d.sx, y: d.py + e.clientY - d.sy });
+      } else if (d.kind === 'node') {
+        const w = toWorld(e.clientX, e.clientY);
+        const nx = snap(d.ox + w.x - d.sx), ny = snap(d.oy + w.y - d.sy);
+        if (!d.moved && Math.abs(w.x - d.sx) + Math.abs(w.y - d.sy) < 4) return;
+        d.moved = true;
+        setLivePos((lp) => ({ ...(lp ?? saved), [d.id]: { x: nx, y: ny } }));
+      } else {
+        const w = toWorld(e.clientX, e.clientY);
+        setPointer(w);
+        setHoverNode(nodeAt(w, d.kind === 'connect' ? d.from : d.edge.from));
+      }
+    };
+    const up = (e: PointerEvent) => {
+      const d = drag.current;
+      drag.current = null;
+      setDragKind(null);
+      if (!d) return;
+      if (d.kind === 'node') {
+        if (d.moved && livePosRef.current) savePositions(livePosRef.current);
+        setLivePos(null);
+      } else if (d.kind === 'connect' || d.kind === 'retarget') {
+        const target = nodeAt(toWorld(e.clientX, e.clientY), d.kind === 'connect' ? d.from : d.edge.from);
+        setPointer(null);
+        if (!target) return;
+        if (d.kind === 'connect') {
+          const next = connectNext(slides, d.from, target);
+          if (next === null) setHint('Those slides are already connected.');
+          else setNext(d.from, next);
+        } else {
+          setNext(d.edge.from, retargetNext(slides, d.edge.from, d.edge.to, target));
+          setSelectedEdge(null);
+        }
+      }
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+    return () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+    };
+  });
+  const livePosRef = useRef(livePos);
+  livePosRef.current = livePos;
+
+  // Keyboard: Delete removes the selected arrow; Escape clears / closes.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (editLabel || confirmDelete) return;
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedEdge !== null) {
+        e.preventDefault();
+        removeEdge(edges[selectedEdge]);
+      } else if (e.key === 'Escape') {
+        if (menu || selectedEdge !== null || selectedNode) { setMenu(null); setSelectedEdge(null); setSelectedNode(null); }
+        else onClose();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  });
+
+  const removeEdge = (edge: TreeEdge | undefined) => {
+    if (!edge) return;
+    if (edge.kind === 'jump') {
+      setHint('Dashed arrows are Jump to Slide triggers. Remove them from the trigger on the slide.');
+      return;
+    }
+    setNext(edge.from, disconnectNext(slides, edge.from, edge.to));
+    setSelectedEdge(null);
+  };
+
+  // ---- slide actions (context menu) ------------------------------------------
+
+  const openSlide = (id: string) => {
+    const i = indexOf(id);
+    if (i < 0) return;
+    if (state.viewMode !== 'main') dispatch({ type: 'SET_VIEW_MODE', mode: 'main' });
+    dispatch({ type: 'SET_ACTIVE_SLIDE', index: i });
+    onClose();
+  };
+
+  /** New slide placed in the tree below `anchor`, saving the current layout first. */
+  const placeBelow = (anchorId: string, newId: string, column = 0): Record<string, Pos> => {
+    const a = pos[anchorId];
+    const spot = freeSpot({ x: a.x + column * (NODE_W + 60), y: a.y + NODE_H + ROW_GAP }, Object.values(pos));
+    return { ...pos, [newId]: spot };
+  };
+
+  const addSlideAfter = (id: string) => {
+    const i = indexOf(id);
+    const s = slides[i];
+    const n = createSlide();
+    const positions = placeBelow(id, n.id);
+    if (s.next === undefined) {
+      dispatch({ type: 'INSERT_SLIDE', index: i + 1, slide: n });
+    } else {
+      // Keep the flow: this slide → new slide → wherever this slide went before.
+      dispatch({ type: 'INSERT_SLIDE', index: i + 1, slide: { ...n, next: [...s.next] } });
+      dispatch({ type: 'SET_SLIDE_NEXT', slideId: id, next: [n.id] });
+    }
+    savePositions(positions);
+  };
+
+  const addBranch = (id: string) => {
+    const n = { ...createSlide(), title: 'New branch', next: [] as string[] };
+    const kids = edges.filter((e) => e.from === id && e.kind === 'next').length;
+    const positions = placeBelow(id, n.id, kids);
+    dispatch({ type: 'INSERT_SLIDE', index: slides.length, slide: n });
+    // The new slide isn't in `slides` yet, so build the connection list directly.
+    const current = edges.filter((e) => e.from === id && e.kind === 'next').map((e) => e.to);
+    dispatch({ type: 'SET_SLIDE_NEXT', slideId: id, next: [...current, n.id] });
+    savePositions(positions);
+  };
+
+  const duplicate = (id: string) => {
+    const newId = crypto.randomUUID();
+    const spot = freeSpot({ x: pos[id].x + NODE_W + 60, y: pos[id].y }, Object.values(pos));
+    savePositions(pos);
+    dispatch({ type: 'DUPLICATE_SLIDE', index: indexOf(id), newId, treePos: spot });
+  };
+
+  const deleteSlide = (id: string) => {
+    const i = indexOf(id);
+    if (i < 0 || slides.length <= 1) return;
+    if (state.viewMode !== 'main') dispatch({ type: 'SET_VIEW_MODE', mode: 'main' });
+    dispatch({ type: 'DELETE_SLIDE', index: i });
+    setSelectedNode(null);
+  };
+
+  const tidy = () => {
+    const laid = autoLayout(slides, edges);
+    savePositions(laid);
+    fitView(laid);
+  };
+
+  // ---- drawing ------------------------------------------------------------------
+
+  // Parallel arrows between the same two boxes get a small offset.
+  const bends = useMemo(() => {
+    const seen = new Map<string, number>();
+    return edges.map((e) => {
+      const key = [e.from, e.to].sort().join('|');
+      const k = seen.get(key) ?? 0;
+      seen.set(key, k + 1);
+      return k === 0 ? 0 : (k % 2 ? 1 : -1) * Math.ceil(k / 2) * 14;
     });
-  };
-  const endPan = () => { panState.current = null; };
+  }, [edges]);
 
   if (!open) return null;
 
-  const anchorOnNode = (n: FlowNode, side: 'right' | 'left' | 'top' | 'bottom') => {
-    // For diamond, anchor at the actual diamond points (which align with rect mid sides).
-    switch (side) {
-      case 'right': return { x: n.x + n.w, y: n.y + n.h / 2 };
-      case 'left': return { x: n.x, y: n.y + n.h / 2 };
-      case 'top': return { x: n.x + n.w / 2, y: n.y };
-      case 'bottom': return { x: n.x + n.w / 2, y: n.y + n.h };
-    }
-  };
+  const renderNode = (s: Slide, i: number) => {
+    const p = pos[s.id];
+    if (!p) return null;
+    const shape: NodeShape = nodeShape(s);
+    const title = s.title?.trim() || `Slide ${i + 1}`;
+    const cx = p.x + NODE_W / 2, cy = p.y + NODE_H / 2;
+    const num = String(i + 1).padStart(2, '0');
+    const isSel = selectedNode === s.id;
+    const isDrop = (dragKind === 'connect' || dragKind === 'retarget') && hoverNode === s.id;
+    const isActive = i === state.activeSlideIndex && state.viewMode === 'main';
+    const ring = isDrop ? 'hsl(142 70% 40%)' : isSel ? SELECT : null;
+    const clip = (t: string, n: number) => (t.length > n ? t.slice(0, n) + '…' : t);
 
-  /**
-   * Compute an orthogonal path from source's chosen exit to the target's
-   * nearest face, with a small per-edge offset so parallel arrows don't overlap.
-   */
-  const edgePath = (e: FlowEdge, parallelOffset: number) => {
-    const from = nodes[e.fromIndex];
-    const to = nodes[e.toIndex];
-    if (!from || !to) return { d: '', mid: { x: 0, y: 0 } };
-
-    const a = anchorOnNode(from, e.exit);
-    // Choose target entry side based on geometry relative to exit direction.
-    let toSide: 'top' | 'bottom' | 'left' | 'right';
-    if (e.exit === 'bottom') {
-      if (to.y + to.h < from.y) {
-        // Back-arrow to a slide above: enter from the side based on horizontal position.
-        const centerX = from.x + from.w / 2;
-        toSide = to.x + to.w / 2 < centerX ? 'right' : 'left';
-      } else {
-        toSide = to.y >= from.y + from.h ? 'top' : (to.x > from.x ? 'left' : 'right');
-      }
-    }
-    else if (e.exit === 'top') toSide = to.y + to.h <= from.y ? 'bottom' : (to.x > from.x ? 'left' : 'right');
-    else if (e.exit === 'right') toSide = to.x >= from.x + from.w ? 'left' : (to.y > from.y ? 'top' : 'bottom');
-    else toSide = to.x + to.w <= from.x ? 'right' : (to.y > from.y ? 'top' : 'bottom');
-    const b = anchorOnNode(to, toSide);
-
-    const off = parallelOffset;
-
-    // Same column straight vertical
-    if (e.exit === 'bottom' && toSide === 'top' && a.x === b.x) {
-      return { d: `M ${a.x} ${a.y} L ${b.x} ${b.y}`, mid: { x: a.x, y: (a.y + b.y) / 2 } };
-    }
-    if (e.exit === 'top' && toSide === 'bottom' && a.x === b.x) {
-      return { d: `M ${a.x} ${a.y} L ${b.x} ${b.y}`, mid: { x: a.x, y: (a.y + b.y) / 2 } };
-    }
-    // Same row straight horizontal
-    if ((e.exit === 'right' || e.exit === 'left') && a.y === b.y) {
-      return { d: `M ${a.x} ${a.y} L ${b.x} ${b.y}`, mid: { x: (a.x + b.x) / 2, y: a.y } };
-    }
-
-    // Orthogonal: exit out, then along, then in.
-    const STUB = 24 + off;
-    if (e.exit === 'bottom') {
-      const midY = a.y + STUB;
-      return {
-        d: `M ${a.x} ${a.y} L ${a.x} ${midY} L ${b.x} ${midY} L ${b.x} ${b.y}`,
-        mid: { x: (a.x + b.x) / 2, y: midY },
-      };
-    }
-    if (e.exit === 'top') {
-      const midY = a.y - STUB;
-      return {
-        d: `M ${a.x} ${a.y} L ${a.x} ${midY} L ${b.x} ${midY} L ${b.x} ${b.y}`,
-        mid: { x: (a.x + b.x) / 2, y: midY },
-      };
-    }
-    if (e.exit === 'right') {
-      const midX = a.x + STUB;
-      return {
-        d: `M ${a.x} ${a.y} L ${midX} ${a.y} L ${midX} ${b.y} L ${b.x} ${b.y}`,
-        mid: { x: midX, y: (a.y + b.y) / 2 },
-      };
-    }
-    // left
-    const midX = a.x - STUB;
-    return {
-      d: `M ${a.x} ${a.y} L ${midX} ${a.y} L ${midX} ${b.y} L ${b.x} ${b.y}`,
-      mid: { x: midX, y: (a.y + b.y) / 2 },
-    };
-  };
-
-  // Per-source parallel offsets so multiple branches from same diamond don't overlap.
-  const offsetByEdge = new Map<number, number>();
-  const seenBySource = new Map<number, number>();
-  edges.forEach((e, i) => {
-    const k = seenBySource.get(e.fromIndex) ?? 0;
-    seenBySource.set(e.fromIndex, k + 1);
-    offsetByEdge.set(i, k * 6);
-  });
-
-  const renderNodeShape = (n: FlowNode) => {
-    const cx = n.x + n.w / 2;
-    const cy = n.y + n.h / 2;
-
-    if (n.shape === 'circle') {
-      const r = Math.min(n.w, n.h) / 2 - 4;
-      const titleText = n.title.length > 24 ? n.title.slice(0, 24) + '…' : n.title;
-      const titleW = Math.max(40, titleText.length * 6.5 + 12);
-      return (
+    let body: JSX.Element;
+    if (shape === 'circle') {
+      const r = Math.min(NODE_W, NODE_H) / 2 - 4;
+      body = (
         <g>
-          {/* solid white background to clip arrows behind */}
-          <circle cx={cx} cy={cy} r={r + 1} fill="hsl(0 0% 100%)" />
-          <circle
-            cx={cx} cy={cy} r={r}
-            fill="hsl(270 90% 96%)"
-            stroke="hsl(270 70% 55%)" strokeWidth={2}
-          />
-          <text
-            x={cx} y={cy} textAnchor="middle" dominantBaseline="central"
-            fontSize={28} fontWeight={700} fill="hsl(270 70% 40%)"
-          >?</text>
-          <rect
-            x={cx - titleW / 2} y={n.y + n.h + 4}
-            width={titleW} height={18} rx={3}
-            fill="hsl(0 0% 100%)"
-          />
-          <text
-            x={cx} y={n.y + n.h + 16}
-            textAnchor="middle" fontSize={12} fill="hsl(var(--foreground))"
-          >{titleText}</text>
+          <circle cx={cx} cy={cy} r={r} fill="hsl(270 90% 96%)" stroke={ring ?? 'hsl(270 70% 55%)'} strokeWidth={ring ? 3 : 2} />
+          <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central" fontSize={28} fontWeight={700} fill="hsl(270 70% 40%)">?</text>
+          <text x={cx} y={p.y + NODE_H + 16} textAnchor="middle" fontSize={12} fill="hsl(var(--foreground))">{num} {clip(title, 22)}</text>
         </g>
       );
-    }
-
-    if (n.shape === 'diamond') {
-      const points = `${cx},${n.y} ${n.x + n.w},${cy} ${cx},${n.y + n.h} ${n.x},${cy}`;
-      return (
+    } else if (shape === 'diamond') {
+      const pts = `${cx},${p.y} ${p.x + NODE_W},${cy} ${cx},${p.y + NODE_H} ${p.x},${cy}`;
+      body = (
         <g>
-          {/* white backing same shape to clip arrows */}
-          <polygon points={points} fill="hsl(0 0% 100%)" />
-          <polygon
-            points={points}
-            fill="hsl(45 95% 92%)"
-            stroke="hsl(28 90% 55%)" strokeWidth={2}
-          />
-          <text
-            x={cx} y={cy} textAnchor="middle" dominantBaseline="central"
-            fontSize={12} fontWeight={500} fill="hsl(var(--foreground))"
-          >
-            <tspan x={cx} dy="-4">{String(n.index + 1).padStart(2, '0')}</tspan>
-            <tspan x={cx} dy="14">{n.title.length > 18 ? n.title.slice(0, 18) + '…' : n.title}</tspan>
+          <polygon points={pts} fill="hsl(45 95% 92%)" stroke={ring ?? 'hsl(28 90% 55%)'} strokeWidth={ring ? 3 : 2} />
+          <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central" fontSize={12} fontWeight={500} fill="hsl(var(--foreground))">
+            <tspan x={cx} dy="-4">{num}</tspan>
+            <tspan x={cx} dy="14">{clip(title, 18)}</tspan>
+          </text>
+        </g>
+      );
+    } else {
+      const results = shape === 'results';
+      body = (
+        <g>
+          <rect x={p.x} y={p.y} width={NODE_W} height={NODE_H} rx={results ? 8 : 6}
+            fill={results ? 'hsl(140 60% 92%)' : 'hsl(0 0% 100%)'}
+            stroke={ring ?? (results ? 'hsl(140 60% 40%)' : 'hsl(220 80% 55%)')} strokeWidth={ring ? 3 : 2} />
+          <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central" fontSize={12} fontWeight={results ? 600 : 500}
+            fill={results ? 'hsl(140 60% 25%)' : 'hsl(var(--foreground))'}>
+            <tspan x={cx} dy="-4">{num}{results ? ' · Results' : ''}</tspan>
+            <tspan x={cx} dy="16">{clip(title, 22)}</tspan>
           </text>
         </g>
       );
     }
-
-    if (n.shape === 'results') {
-      return (
-        <g>
-          <rect x={n.x} y={n.y} width={n.w} height={n.h} rx={8} fill="hsl(0 0% 100%)" />
-          <rect
-            x={n.x} y={n.y} width={n.w} height={n.h} rx={8}
-            fill="hsl(140 60% 92%)"
-            stroke="hsl(140 60% 40%)" strokeWidth={2}
-          />
-          <text
-            x={cx} y={cy} textAnchor="middle" dominantBaseline="central"
-            fontSize={12} fontWeight={600} fill="hsl(140 60% 25%)"
-          >
-            <tspan x={cx} dy="-4">{String(n.index + 1).padStart(2, '0')} · Results</tspan>
-            <tspan x={cx} dy="16">{n.title.length > 22 ? n.title.slice(0, 22) + '…' : n.title}</tspan>
-          </text>
-        </g>
-      );
-    }
-
+    const showPort = dragKind === null && (hoverNode === s.id || isSel);
     return (
-      <g>
-        <rect x={n.x} y={n.y} width={n.w} height={n.h} rx={6} fill="hsl(0 0% 100%)" />
-        <rect
-          x={n.x} y={n.y} width={n.w} height={n.h} rx={6}
-          fill="hsl(0 0% 100%)"
-          stroke="hsl(220 80% 55%)" strokeWidth={2}
-        />
-        <text
-          x={cx} y={cy} textAnchor="middle" dominantBaseline="central"
-          fontSize={12} fontWeight={500} fill="hsl(var(--foreground))"
-        >
-          <tspan x={cx} dy="-4">{String(n.index + 1).padStart(2, '0')}</tspan>
-          <tspan x={cx} dy="16">{n.title.length > 22 ? n.title.slice(0, 22) + '…' : n.title}</tspan>
-        </text>
+      <g
+        key={s.id}
+        data-tree-node={s.id}
+        style={{ cursor: dragKind === 'node' ? 'grabbing' : 'grab' }}
+        onPointerDown={(e) => startNodeDrag(e, s.id)}
+        onPointerEnter={() => dragKind === null && setHoverNode(s.id)}
+        onPointerLeave={() => dragKind === null && setHoverNode((h) => (h === s.id ? null : h))}
+        onDoubleClick={(e) => { e.stopPropagation(); openSlide(s.id); }}
+        onContextMenu={(e) => {
+          e.preventDefault(); e.stopPropagation();
+          const r = viewportRef.current!.getBoundingClientRect();
+          setSelectedNode(s.id); setSelectedEdge(null);
+          setMenu({ x: e.clientX - r.left, y: e.clientY - r.top, slideId: s.id });
+        }}
+      >
+        {/* invisible hit area covering the whole box, including diamond corners */}
+        <rect x={p.x} y={p.y} width={NODE_W} height={NODE_H} fill="transparent" />
+        {body}
+        {isActive && <circle cx={p.x + 10} cy={p.y + 10} r={4} fill={SELECT}><title>Slide open in the editor</title></circle>}
+        {showPort && (
+          <g onPointerDown={(e) => startConnect(e, s.id)} style={{ cursor: 'crosshair' }} data-tree-port={s.id}>
+            <circle cx={cx} cy={p.y + NODE_H + (shape === 'circle' ? 0 : 0)} r={14} fill="transparent" />
+            <circle cx={cx} cy={p.y + NODE_H} r={7} fill={SELECT} stroke="white" strokeWidth={2} />
+            <title>Drag onto another slide to connect</title>
+          </g>
+        )}
       </g>
     );
   };
 
+  const selEdge = selectedEdge !== null ? edges[selectedEdge] : null;
+  const dragFrom = dragKind === 'connect' && drag.current?.kind === 'connect' ? drag.current.from
+    : dragKind === 'retarget' && drag.current?.kind === 'retarget' ? drag.current.edge.from : null;
+
+  const viewW = Math.max(bounds.maxX, 2000), viewH = Math.max(bounds.maxY, 1500);
+
   return (
-    <div
-      className="fixed inset-0 z-[200] bg-background/95 backdrop-blur-sm flex flex-col"
-      role="dialog" aria-modal="true" aria-label="Course Tree"
-    >
-      <div className="h-14 border-b border-border flex items-center px-6 shrink-0">
+    <div className="fixed inset-0 z-[200] bg-background/95 backdrop-blur-sm flex flex-col" role="dialog" aria-modal="true" aria-label="Course Tree">
+      <div className="h-14 border-b border-border flex items-center px-6 shrink-0 gap-3">
         <h2 className="text-lg font-semibold text-foreground">Course Tree</h2>
-        <span className="ml-3 text-xs text-muted-foreground">
-          · {state.slides.length} slides · read-only
+        <span className="text-xs text-muted-foreground">· {slides.length} slides</span>
+        <span className="text-xs text-muted-foreground hidden lg:inline">
+          · Drag boxes to arrange · drag the blue dot onto a slide to connect · right-click for more
         </span>
         <div className="flex-1" />
+        <Button variant="outline" size="sm" onClick={tidy} title="Re-arrange the whole tree neatly">
+          <Wand2 className="h-4 w-4 mr-1.5" />Tidy up
+        </Button>
         <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close course tree">
           <X className="h-5 w-5" />
         </Button>
@@ -513,99 +438,144 @@ export function StoryViewOverlay({ open, onClose }: { open: boolean; onClose: ()
 
       <div
         ref={viewportRef}
-        className="flex-1 relative overflow-hidden bg-muted/30"
+        className="flex-1 relative overflow-hidden bg-muted/30 select-none"
         onWheel={onWheel}
-        onMouseDown={onMouseDown}
-        onMouseMove={onMouseMove}
-        onMouseUp={endPan}
-        onMouseLeave={endPan}
-        style={{ cursor: panState.current ? 'grabbing' : 'grab' }}
+        onPointerDown={startPan}
+        onContextMenu={(e) => e.preventDefault()}
+        style={{ cursor: dragKind === 'pan' ? 'grabbing' : dragKind === 'connect' || dragKind === 'retarget' ? 'crosshair' : 'default', touchAction: 'none' }}
+        data-testid="course-tree"
       >
-        {state.slides.length === 0 ? (
-          <div className="h-full flex items-center justify-center text-sm text-muted-foreground">
-            No slides in this course.
-          </div>
-        ) : (
-          <div
-            style={{
-              transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
-              transformOrigin: '0 0',
-              width, height,
+        <div style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`, transformOrigin: '0 0', width: viewW, height: viewH }}>
+          <svg width={viewW} height={viewH} style={{ display: 'block', overflow: 'visible' }}>
+            <defs>
+              <marker id="treeArrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                <path d="M 0 0 L 10 5 L 0 10 z" fill={EDGE} />
+              </marker>
+              <marker id="treeArrowSel" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                <path d="M 0 0 L 10 5 L 0 10 z" fill={SELECT} />
+              </marker>
+            </defs>
+
+            {/* Arrows */}
+            {edges.map((e, i) => {
+              const a = pos[e.from], b = pos[e.to];
+              if (!a || !b) return null;
+              const g = edgeGeometry(a, b, bends[i]);
+              const sel = selectedEdge === i;
+              return (
+                <g key={`e-${i}`} data-tree-edge={`${e.from}>${e.to}`}>
+                  <path d={g.d} fill="none" stroke={sel ? SELECT : EDGE} strokeWidth={sel ? 2.5 : 1.5}
+                    strokeDasharray={e.kind === 'jump' ? '6 4' : undefined} markerEnd={sel ? 'url(#treeArrowSel)' : 'url(#treeArrow)'} />
+                  <path d={g.d} fill="none" stroke="transparent" strokeWidth={14} style={{ cursor: 'pointer' }}
+                    onPointerDown={(ev) => { ev.stopPropagation(); setMenu(null); setSelectedNode(null); setHint(e.kind === 'jump' ? 'Dashed arrows are Jump to Slide triggers. Edit them on the slide.' : null); setSelectedEdge(i); }} />
+                </g>
+              );
+            })}
+
+            {/* Rubber band while connecting / re-pointing */}
+            {dragFrom && pointer && pos[dragFrom] && (
+              <path d={`M ${pos[dragFrom].x + NODE_W / 2} ${pos[dragFrom].y + NODE_H} L ${pointer.x} ${pointer.y}`}
+                stroke={SELECT} strokeWidth={2} strokeDasharray="5 4" fill="none" markerEnd="url(#treeArrowSel)" pointerEvents="none" />
+            )}
+
+            {/* Boxes */}
+            {slides.map(renderNode)}
+
+            {/* Labels on top */}
+            {edges.map((e, i) => {
+              if (!e.label) return null;
+              const a = pos[e.from], b = pos[e.to];
+              if (!a || !b) return null;
+              const { mid } = edgeGeometry(a, b, bends[i]);
+              const w = Math.max(24, e.label.length * 6.2 + 12);
+              const editable = !!e.buttonId;
+              return (
+                <g key={`l-${i}`} style={{ cursor: editable ? 'text' : 'pointer' }}
+                  onPointerDown={(ev) => { ev.stopPropagation(); setSelectedEdge(i); setSelectedNode(null); setMenu(null); }}
+                  onDoubleClick={(ev) => {
+                    ev.stopPropagation();
+                    if (editable) setEditLabel({ edge: e, text: e.label ?? '', at: mid });
+                  }}>
+                  <rect x={mid.x - w / 2} y={mid.y - 9} width={w} height={18} rx={4} fill="white"
+                    stroke={selectedEdge === i ? SELECT : 'hsl(220 15% 85%)'} strokeWidth={selectedEdge === i ? 1.5 : 0.75} />
+                  <text x={mid.x} y={mid.y} textAnchor="middle" dominantBaseline="central" fontSize={10.5} fill="hsl(var(--muted-foreground))">{e.label}</text>
+                  {editable && <title>Double-click to rename this button</title>}
+                </g>
+              );
+            })}
+
+            {/* End handle on the selected arrow: drag it onto another slide to re-point */}
+            {selEdge && selEdge.kind === 'next' && pos[selEdge.from] && pos[selEdge.to] && dragKind === null && (() => {
+              const g = edgeGeometry(pos[selEdge.from], pos[selEdge.to], bends[selectedEdge!]);
+              return (
+                <circle cx={g.end.x} cy={g.end.y} r={7} fill="white" stroke={SELECT} strokeWidth={2.5} style={{ cursor: 'move' }}
+                  data-tree-edge-handle onPointerDown={(e) => startRetarget(e, selEdge)}>
+                  <title>Drag onto another slide to re-point this arrow</title>
+                </circle>
+              );
+            })()}
+          </svg>
+        </div>
+
+        {/* Inline rename of a branch button */}
+        {editLabel && (
+          <input
+            autoFocus
+            aria-label="Button text"
+            className="absolute z-10 h-7 px-2 text-xs border rounded shadow bg-white text-slate-800"
+            style={{ left: pan.x + editLabel.at.x * zoom - 80, top: pan.y + editLabel.at.y * zoom - 14, width: 160 }}
+            value={editLabel.text}
+            onChange={(e) => setEditLabel({ ...editLabel, text: e.target.value })}
+            onPointerDown={(e) => e.stopPropagation()}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+              if (e.key === 'Escape') setEditLabel(null);
             }}
-          >
-            <svg width={width} height={height} style={{ display: 'block' }}>
-              <defs>
-                <marker
-                  id="flowArrow" viewBox="0 0 10 10"
-                  refX="9" refY="5" markerWidth="7" markerHeight="7"
-                  orient="auto-start-reverse"
-                >
-                  <path d="M 0 0 L 10 5 L 0 10 z" fill="hsl(220 10% 35%)" />
-                </marker>
-              </defs>
+            onBlur={() => {
+              const t = editLabel.text.trim();
+              if (t && editLabel.edge.buttonId) {
+                dispatch({ type: 'UPDATE_SLIDE_ELEMENT', slideId: editLabel.edge.from, elementId: editLabel.edge.buttonId, updates: { text: t } });
+              }
+              setEditLabel(null);
+            }}
+          />
+        )}
 
-              {/* Edges (rendered first, beneath nodes) */}
-              {edges.map((e, i) => {
-                const { d } = edgePath(e, offsetByEdge.get(i) ?? 0);
-                if (!d) return null;
-                const isBranch = e.kind === 'branch';
-                return (
-                  <path
-                    key={`edge-${i}`}
-                    d={d} fill="none"
-                    stroke="hsl(220 10% 35%)" strokeWidth={1.5}
-                    strokeDasharray={isBranch ? '6 4' : undefined}
-                    markerEnd="url(#flowArrow)"
-                  />
-                );
-              })}
+        {/* Context menu */}
+        {menu && (() => {
+          const s = slideById(menu.slideId);
+          if (!s) return null;
+          const branching = isBranchingSlide(s);
+          const item = (label: string, fn: () => void, opts: { danger?: boolean; disabled?: boolean; title?: string } = {}) => (
+            <button
+              key={label} type="button" disabled={opts.disabled} title={opts.title}
+              className={`block w-full text-left px-3 py-1.5 text-sm rounded hover:bg-muted disabled:opacity-40 disabled:hover:bg-transparent ${opts.danger ? 'text-red-600' : 'text-foreground'}`}
+              onClick={() => { setMenu(null); fn(); }}
+            >{label}</button>
+          );
+          return (
+            <div role="menu" className="absolute z-20 min-w-[200px] bg-card border border-border rounded-md shadow-lg p-1"
+              style={{ left: menu.x, top: menu.y }} onPointerDown={(e) => e.stopPropagation()}>
+              {item('Open slide', () => openSlide(s.id))}
+              {item('Add slide after', () => addSlideAfter(s.id), { disabled: branching, title: branching ? 'Branching slide: use Add branch' : undefined })}
+              {item('Add branch', () => addBranch(s.id))}
+              {item('Duplicate', () => duplicate(s.id))}
+              <div className="my-1 border-t border-border" />
+              {item('Delete slide…', () => setConfirmDelete(s.id), { danger: true, disabled: slides.length <= 1 })}
+            </div>
+          );
+        })()}
 
-              {/* Nodes */}
-              {nodes.map((n) => (
-                <g key={n.slide.id}>{renderNodeShape(n)}</g>
-              ))}
-
-              {/* Edge labels rendered LAST so they sit above arrows and nodes */}
-              {edges.map((e, i) => {
-                if (!e.label) return null;
-                const { d, mid } = edgePath(e, offsetByEdge.get(i) ?? 0);
-                if (!d) return null;
-                const text = e.label;
-                const w = Math.max(24, text.length * 6.2 + 10);
-                return (
-                  <g key={`label-${i}`}>
-                    <rect
-                      x={mid.x - w / 2} y={mid.y - 8}
-                      width={w} height={16} rx={3}
-                      fill="hsl(0 0% 100%)"
-                      stroke="hsl(220 15% 85%)" strokeWidth={0.5}
-                    />
-                    <text
-                      x={mid.x} y={mid.y} textAnchor="middle" dominantBaseline="central"
-                      fontSize={10} fill="hsl(var(--muted-foreground))"
-                    >{text}</text>
-                  </g>
-                );
-              })}
-
-              {/* Re-render the "?" glyph for quiz circles on top so it's never covered */}
-              {nodes.filter((n) => n.shape === 'circle').map((n) => {
-                const cx = n.x + n.w / 2;
-                const cy = n.y + n.h / 2;
-                return (
-                  <text
-                    key={`q-${n.slide.id}`}
-                    x={cx} y={cy} textAnchor="middle" dominantBaseline="central"
-                    fontSize={28} fontWeight={700} fill="hsl(270 70% 40%)"
-                    pointerEvents="none"
-                  >?</text>
-                );
-              })}
-            </svg>
+        {/* Hint / status */}
+        {(hint || selEdge) && (
+          <div className="absolute bottom-4 left-4 max-w-md bg-card border border-border rounded-md shadow-sm px-3 py-2 text-xs text-muted-foreground">
+            {hint ?? (selEdge?.kind === 'next'
+              ? 'Press Delete to remove this arrow, or drag its end dot onto another slide.' + (selEdge.buttonId ? ' Double-click the label to rename the button.' : '')
+              : '')}
           </div>
         )}
 
-        {/* Legend (top right) */}
+        {/* Legend */}
         <div className="absolute top-4 right-4 bg-card border border-border rounded-md shadow-sm p-3 text-xs space-y-2 pointer-events-none">
           <div className="font-semibold text-foreground mb-1">Legend</div>
           <div className="flex items-center gap-2">
@@ -624,27 +594,50 @@ export function StoryViewOverlay({ open, onClose }: { open: boolean; onClose: ()
             <svg width="22" height="14"><rect x="1" y="1" width="20" height="12" rx="2" fill="hsl(140 60% 92%)" stroke="hsl(140 60% 40%)" strokeWidth="1.5" /></svg>
             <span className="text-muted-foreground">Results</span>
           </div>
+          <div className="pt-1 border-t border-border space-y-1.5">
+            <div className="flex items-center gap-2">
+              <svg width="22" height="8"><line x1="1" y1="4" x2="21" y2="4" stroke={EDGE} strokeWidth="1.5" /></svg>
+              <span className="text-muted-foreground">Next / branch</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <svg width="22" height="8"><line x1="1" y1="4" x2="21" y2="4" stroke={EDGE} strokeWidth="1.5" strokeDasharray="4 3" /></svg>
+              <span className="text-muted-foreground">Trigger jump</span>
+            </div>
+          </div>
         </div>
 
-        {/* Zoom controls (bottom right) */}
-        <div className="absolute bottom-4 right-4 bg-card border border-border rounded-md shadow-sm flex items-center gap-1 p-1">
+        {/* Zoom controls */}
+        <div className="absolute bottom-4 right-4 bg-card border border-border rounded-md shadow-sm flex items-center gap-1 p-1" onPointerDown={(e) => e.stopPropagation()}>
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => zoomBy(0.9)} aria-label="Zoom out">
             <span className="text-base font-semibold">−</span>
           </Button>
-          <span className="text-xs tabular-nums w-10 text-center text-muted-foreground">
-            {Math.round(zoom * 100)}%
-          </span>
+          <span className="text-xs tabular-nums w-10 text-center text-muted-foreground">{Math.round(zoom * 100)}%</span>
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => zoomBy(1.1)} aria-label="Zoom in">
             <span className="text-base font-semibold">+</span>
           </Button>
-          <Button variant="ghost" size="sm" className="h-8 px-2 text-xs" onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }}>
-            Reset
-          </Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }} aria-label="Reset view">
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => fitView()} aria-label="Fit to screen" title="Fit to screen">
             <Maximize2 className="h-4 w-4" />
           </Button>
         </div>
       </div>
+
+      <AlertDialog open={confirmDelete !== null} onOpenChange={(o) => !o && setConfirmDelete(null)}>
+        <AlertDialogContent className="z-[300]">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this slide?</AlertDialogTitle>
+            <AlertDialogDescription>
+              “{confirmDelete ? (slideById(confirmDelete)?.title?.trim() || `Slide ${indexOf(confirmDelete) + 1}`) : ''}” and everything on it will be
+              deleted. Arrows into it are removed too.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction className="bg-red-600 hover:bg-red-700" onClick={() => { if (confirmDelete) deleteSlide(confirmDelete); setConfirmDelete(null); }}>
+              Delete slide
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

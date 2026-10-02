@@ -26,7 +26,7 @@ const createBaseLayer = (elements: SlideElement[] = []): SlideLayer => ({
   elements,
 });
 
-const createSlide = (): Slide => {
+export const createSlide = (): Slide => {
   const baseLayer = createBaseLayer([]);
   return {
     id: crypto.randomUUID(),
@@ -35,6 +35,39 @@ const createSlide = (): Slide => {
     layers: [baseLayer],
   };
 };
+
+/**
+ * Deep copy of a slide with fresh ids for the slide, its layers and elements.
+ * Triggers that point at elements or layers on the same slide are re-pointed
+ * at the copies. Connections (`next`) and branch buttons are kept.
+ */
+function duplicateSlide(slide: Slide): Slide {
+  const idMap = new Map<string, string>();
+  const fresh = (old: string) => {
+    if (!idMap.has(old)) idMap.set(old, crypto.randomUUID());
+    return idMap.get(old)!;
+  };
+  for (const l of slide.layers ?? []) {
+    fresh(l.id);
+    for (const e of l.elements) fresh(e.id);
+  }
+  for (const e of slide.elements) fresh(e.id);
+  const copyEl = (e: SlideElement): SlideElement => ({
+    ...structuredClone(e),
+    id: fresh(e.id),
+    triggers: (e.triggers ?? []).map((t) => ({ ...t, targetId: idMap.get(t.targetId) ?? t.targetId })),
+  } as SlideElement);
+  const layers = slide.layers?.map((l) => ({ ...l, id: fresh(l.id), elements: l.elements.map(copyEl) }));
+  const copy: Slide = {
+    ...structuredClone({ ...slide, layers: undefined, elements: [] }),
+    id: crypto.randomUUID(),
+    title: slide.title ? `${slide.title} (copy)`.slice(0, 30) : undefined,
+    layers,
+    elements: layers ? layers.flatMap((l) => l.elements) : slide.elements.map(copyEl),
+    treePos: slide.treePos ? { x: slide.treePos.x + 40, y: slide.treePos.y + 40 } : undefined,
+  };
+  return copy;
+}
 
 /** Ensure the slide has a layers array; migrate slide.elements into a Base Layer if not. */
 function ensureLayers(slide: Slide): Slide {
@@ -191,6 +224,14 @@ type Action =
   | { type: 'SET_SLIDE_NEXT'; slideId: string; next: string[] | undefined }
   /** Preview: go back to the slide visited before this one. */
   | { type: 'PREVIEW_BACK' }
+  /** Course tree: save box positions (slide id → position). */
+  | { type: 'SET_TREE_POSITIONS'; positions: Record<string, { x: number; y: number }> }
+  /** Insert a slide into the main slide list at `index`. */
+  | { type: 'INSERT_SLIDE'; index: number; slide: Slide; select?: boolean }
+  /** Copy a slide (new ids) and insert the copy right after it. */
+  | { type: 'DUPLICATE_SLIDE'; index: number; newId?: string; treePos?: { x: number; y: number } }
+  /** Update an element on any slide (UPDATE_ELEMENT only reaches the active slide). */
+  | { type: 'UPDATE_SLIDE_ELEMENT'; slideId: string; elementId: string; updates: Partial<SlideElement> }
   | { type: 'UPDATE_SLIDE'; index: number; updates: Partial<Slide> }
   | { type: 'SET_PLAYHEAD'; time: number }
   | { type: 'SET_PLAYING'; playing: boolean }
@@ -539,6 +580,38 @@ function baseReducer(state: CourseState, action: Action): CourseState {
       if (!hist.length) return state;
       const back = baseReducer(state, { type: 'SET_ACTIVE_SLIDE', index: hist[hist.length - 1] });
       return { ...back, previewHistory: hist.slice(0, -1) };
+    }
+    case 'SET_TREE_POSITIONS': {
+      const slides = state.slides.map((s) => {
+        const p = action.positions[s.id];
+        return p && (s.treePos?.x !== p.x || s.treePos?.y !== p.y) ? { ...s, treePos: { x: p.x, y: p.y } } : s;
+      });
+      return { ...state, slides };
+    }
+    case 'INSERT_SLIDE': {
+      const index = Math.max(0, Math.min(action.index, state.slides.length));
+      const slides = [...state.slides.slice(0, index), ensureLayers(action.slide), ...state.slides.slice(index)];
+      let activeSlideIndex = state.activeSlideIndex >= index ? state.activeSlideIndex + 1 : state.activeSlideIndex;
+      if (action.select) activeSlideIndex = index;
+      return { ...state, slides, activeSlideIndex: Math.min(activeSlideIndex, slides.length - 1), activeElementId: null, selectedElementIds: [] };
+    }
+    case 'DUPLICATE_SLIDE': {
+      const src = state.slides[action.index];
+      if (!src) return state;
+      const copy = duplicateSlide(ensureLayers(src));
+      if (action.newId) copy.id = action.newId;
+      if (action.treePos) copy.treePos = { ...action.treePos };
+      const slides = [...state.slides.slice(0, action.index + 1), copy, ...state.slides.slice(action.index + 1)];
+      const activeSlideIndex = state.activeSlideIndex > action.index ? state.activeSlideIndex + 1 : state.activeSlideIndex;
+      return { ...state, slides, activeSlideIndex };
+    }
+    case 'UPDATE_SLIDE_ELEMENT': {
+      const slides = state.slides.map((s) =>
+        s.id === action.slideId
+          ? mapElementsInSlide(ensureLayers(s), (el) => (el.id === action.elementId ? ({ ...el, ...action.updates } as SlideElement) : el))
+          : s,
+      );
+      return { ...state, slides };
     }
     case 'SET_SLIDE_NEXT': {
       const slides = state.slides.map((s) => {

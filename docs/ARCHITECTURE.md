@@ -31,6 +31,7 @@ User edits ──► dispatch(action) ──► courseReducer ──► CourseSt
 | `lib/blueprint.ts` | Course blueprints: schema, validation, layout → slide conversion, JSON repair, and the AI instructions text. |
 | `lib/tts/` | Text-to-speech narration (Kokoro). See *Text-to-speech* below. |
 | `lib/transcribe.ts` | Whisper speech-to-text for "Auto-Generate Captions" on imported audio. |
+| `lib/courseTree.ts` | The course tree (View → Course Tree): arrows, auto layout (Tidy up), saved box positions and the connect / disconnect / re-point rules. |
 | `lib/navigation.ts` | Where Next goes (`slide.next`), branching slides and their auto-generated buttons. See *Navigation and branching*. |
 | `lib/project.ts` | What a saved project contains (`projectSnapshot`) and how saved data becomes a `LOAD_COURSE` payload (`sanitizeProject`). Used by Save/Load and autosave. |
 | `lib/autosave.ts` | Autosave storage (IndexedDB) and the saving/saved status shown in the ribbon. |
@@ -113,7 +114,15 @@ Each slide's outgoing connections are stored in `slide.next`:
 - **Prev retraces the path the learner took** (a history stack), not the slide list, in both the preview (`previewHistory`, `PREVIEW_BACK`) and the exported player (`navHistory`).
 - The exported player has an ES5 copy of `resolveNext` (`nextIndexOf` in `player.ts`). **Keep the two in sync.**
 - In a course with branching slides, a learner can't see every slide, so for "percent of slides viewed" completion, reaching an end point (a slide with no Next) also counts as complete.
-- UI: Slide Properties → **Next Button Goes To / Branches** (`NextSlideControl.tsx`). The course tree draws these connections; dragging connections in the tree is planned.
+- UI: Slide Properties → **Next Button Goes To / Branches** (`NextSlideControl.tsx`), or the **course tree** (`StoryViewOverlay.tsx`):
+  - drag boxes to arrange (positions saved in `slide.treePos`);
+  - drag the blue dot under a box onto another box to connect;
+  - select an arrow, then press Delete or drag its end dot to re-point it;
+  - double-click a branch label to rename its button, or a box to open the slide;
+  - right-click a box to add a slide after it, add a branch, duplicate or delete;
+  - **Tidy up** re-runs the automatic layout.
+
+  Dashed arrows are Jump to Slide triggers and are read-only in the tree. A connection to the following slide is stored as the default (no `next`), so it keeps following the slide list when slides are reordered.
 
 ## Autosave
 

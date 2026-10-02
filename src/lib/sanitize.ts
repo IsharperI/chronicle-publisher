@@ -375,6 +375,9 @@ function sanitizeSlide(raw: any): Slide {
     advanceMode: safeEnum(raw?.advanceMode, ['manual', 'auto'] as const, 'manual'),
     revisitMode: safeEnum(raw?.revisitMode, ['reset', 'resume'] as const, 'reset'),
     next: Array.isArray(raw?.next) ? raw.next.filter(isSafeId).slice(0, 50) : undefined,
+    treePos: raw?.treePos && typeof raw.treePos === 'object'
+      ? { x: safeNumber(raw.treePos.x, 0, -100_000, 100_000), y: safeNumber(raw.treePos.y, 0, -100_000, 100_000) }
+      : undefined,
     layers: sanitizeLayers(raw?.layers),
     ...sanitizeSlideKind(raw),
   };
