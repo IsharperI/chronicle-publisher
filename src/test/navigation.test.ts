@@ -104,3 +104,57 @@ describe('preview Prev retraces the path', () => {
     expect(courseReducer(s, { type: 'PREVIEW_BACK' })).toBe(s); // nothing further back
   });
 });
+
+describe('re-pointing a branch (reported bug: third button vanished)', () => {
+  it('reuses the same button in place, relabelled, instead of stacking a new one', () => {
+    let s = setNext(course('s1', 's2', 'hub', 's4', 's5', 's6'), 'hub', ['s4', 's5', 's6']);
+    const before = autoButtons(get(s, 'hub'));
+    const b5 = before.find((b) => b.autoBranchTarget === 's5')!;
+    s = setNext(s, 'hub', ['s4', 's2', 's6']); // the arrow to s5 dragged onto s2
+    const after = autoButtons(get(s, 'hub'));
+    expect(after).toHaveLength(3);
+    const moved = after.find((b) => b.autoBranchTarget === 's2')!;
+    expect(moved.id).toBe(b5.id);
+    expect([moved.x, moved.y]).toEqual([b5.x, b5.y]);
+    expect(moved.text).toBe('s2');
+    expect(moved.triggers[0].targetId).toBe('s2');
+    // no two buttons share a spot
+    expect(new Set(after.map((b) => `${b.x},${b.y}`)).size).toBe(3);
+  });
+
+  it('keeps a renamed label when re-pointed', () => {
+    let s = setNext(course('hub', 'a', 'b', 'c'), 'hub', ['a', 'b']);
+    const a = autoButtons(get(s, 'hub'))[0];
+    s = courseReducer(s, { type: 'UPDATE_ELEMENT', id: a.id, updates: { text: 'Brakes' } });
+    s = setNext(s, 'hub', ['c', 'b']);
+    expect(autoButtons(get(s, 'hub')).find((b) => b.id === a.id)).toMatchObject({ text: 'Brakes', autoBranchTarget: 'c' });
+  });
+
+  it('places a new button clear of buttons the author moved', () => {
+    let s = setNext(course('hub', 'a', 'b', 'c', 'd'), 'hub', ['a', 'b']);
+    const [a, b] = autoButtons(get(s, 'hub'));
+    // Author drags button b to where the next new button would wrap to.
+    s = courseReducer(s, { type: 'UPDATE_ELEMENT', id: a.id, updates: { x: 524, y: 354 } });
+    s = courseReducer(s, { type: 'UPDATE_ELEMENT', id: b.id, updates: { x: 20, y: 438 } });
+    s = setNext(s, 'hub', ['a', 'b', 'c', 'd']);
+    const all = autoButtons(get(s, 'hub'));
+    expect(all).toHaveLength(4);
+    for (const p of all) for (const q of all) {
+      if (p === q) continue;
+      const overlap = p.x < q.x + q.width && p.x + p.width > q.x && p.y < q.y + q.height && p.y + p.height > q.y;
+      expect(overlap).toBe(false);
+    }
+  });
+});
+
+describe('repairing files saved by the earlier version', () => {
+  it('separates branch buttons stacked on the same spot when the course is opened', () => {
+    let s = setNext(course('hub', 'a', 'b', 'c'), 'hub', ['a', 'b', 'c']);
+    const [, b, c] = autoButtons(get(s, 'hub'));
+    s = courseReducer(s, { type: 'UPDATE_ELEMENT', id: c.id, updates: { x: b.x, y: b.y } });
+    const saved = JSON.parse(JSON.stringify({ slides: s.slides }));
+    const loaded = courseReducer(s, { type: 'LOAD_COURSE', ...sanitizeProject(saved)! });
+    const all = autoButtons(get(loaded, 'hub'));
+    expect(new Set(all.map((x) => `${x.x},${x.y}`)).size).toBe(3);
+  });
+});

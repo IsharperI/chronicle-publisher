@@ -95,15 +95,25 @@ function placeButtons(count: number, existing: ShapeElement[], canvas: { width: 
     }
     return out;
   }
+  // Continue after the right-most button, wrapping to new rows, and never on
+  // top of another button (the author may have moved them anywhere).
+  const taken: { x: number; y: number; w: number; h: number }[] = existing.map((e) => ({ x: e.x, y: e.y, w: e.width, h: e.height }));
+  const free = (x: number, y: number) => !taken.some((r) => x < r.x + r.w + 8 && x + w + 8 > r.x && y < r.y + r.h + 8 && y + h + 8 > r.y);
   const last = existing.reduce((a, b) => (b.x > a.x ? b : a));
   let x = last.x + last.width + gap;
   let y = last.y;
   for (let i = 0; i < count; i++) {
-    if (x + w > canvas.width - 20) {
-      x = Math.max(20, Math.round(canvas.width / 2 - w / 2));
-      y += h + gap;
+    for (let guard = 0; guard < 2000; guard++) {
+      if (x + w > canvas.width - 20) {
+        x = 20;
+        y += h + gap;
+        if (y + h > canvas.height) y = 20;
+      }
+      if (free(x, y)) break;
+      x += 20;
     }
-    out.push({ x, y: Math.min(y, canvas.height - h) });
+    out.push({ x, y });
+    taken.push({ x, y, w, h });
     x += w + gap;
   }
   return out;
@@ -129,7 +139,14 @@ function withButtonsAdded(s: Slide, buttons: ShapeElement[]): Slide {
   return { ...s, elements: [...s.elements, ...buttons] };
 }
 
-/** Make one slide's auto buttons match its connections. Returns the same object when nothing changes. */
+/**
+ * Make one slide's auto buttons match its connections. Returns the same object
+ * when nothing changes.
+ *
+ * When a connection is re-pointed (one target swapped for another in the same
+ * change), the existing button is reused: same position and style, new
+ * target, and a new label unless the author renamed it.
+ */
 export function syncBranchButtons(s: Slide, slides: Slide[], canvas: { width: number; height: number }): Slide {
   const targets = isBranchingSlide(s) ? s.next! : [];
   const existing = autoButtons(s);
@@ -137,19 +154,71 @@ export function syncBranchButtons(s: Slide, slides: Slide[], canvas: { width: nu
 
   const wanted = new Set(targets);
   const seen = new Set<string>();
-  // Drop buttons whose connection is gone (and duplicates).
-  let out = withoutButtons(s, (b) => {
-    const dup = seen.has(b.autoBranchTarget!);
+  const duplicates = new Set<string>();
+  for (const b of existing) {
+    if (seen.has(b.autoBranchTarget!)) duplicates.add(b.id);
     seen.add(b.autoBranchTarget!);
-    return !wanted.has(b.autoBranchTarget!) || dup;
-  });
+  }
+  const covered = new Set(existing.filter((b) => !duplicates.has(b.id) && wanted.has(b.autoBranchTarget!)).map((b) => b.autoBranchTarget!));
+  const missing = targets.filter((t) => !covered.has(t));
+  const orphans = existing.filter((b) => !duplicates.has(b.id) && !wanted.has(b.autoBranchTarget!));
+  if (missing.length === 0 && orphans.length === 0 && duplicates.size === 0) return unstackButtons(s, canvas);
+
+  // Re-point orphaned buttons at the new targets, in order.
+  const reuse = new Map<string, string>(); // button id → new target
+  orphans.slice(0, missing.length).forEach((b, i) => reuse.set(b.id, missing[i]));
+  const stillMissing = missing.slice(reuse.size);
+
+  const update = (e: SlideElement): SlideElement => {
+    const nt = reuse.get(e.id);
+    if (!nt) return e;
+    const b = e as ShapeElement;
+    const old = b.autoBranchTarget!;
+    const renamed = (b.text ?? '').trim() !== slideLabel(slides, old);
+    return {
+      ...b,
+      autoBranchTarget: nt,
+      text: renamed ? b.text : slideLabel(slides, nt),
+      triggers: b.triggers.map((t) => (t.action === 'jumpToSlide' && t.targetId === old ? { ...t, targetId: nt } : t)),
+    };
+  };
+  let out: Slide = s.layers && s.layers.length
+    ? (() => {
+        const layers = s.layers!.map((l) => ({ ...l, elements: l.elements.map(update) }));
+        return { ...s, layers, elements: layers.flatMap((l) => l.elements) };
+      })()
+    : { ...s, elements: s.elements.map(update) };
+
+  // Drop duplicates and buttons whose connection is gone.
+  out = withoutButtons(out, (b) => duplicates.has(b.id) || (!reuse.has(b.id) && !wanted.has(b.autoBranchTarget!)));
   const kept = autoButtons(out);
-  const have = new Set(kept.map((b) => b.autoBranchTarget));
-  const missing = targets.filter((t) => !have.has(t));
-  const spots = placeButtons(missing.length, kept, canvas);
-  out = withButtonsAdded(out, missing.map((t, i) => makeButton(t, slideLabel(slides, t), spots[i].x, spots[i].y, s.duration ?? 5000)));
-  if (missing.length === 0 && kept.length === existing.length) return s;
-  return out;
+  const spots = placeButtons(stillMissing.length, kept, canvas);
+  return unstackButtons(withButtonsAdded(out, stillMissing.map((t, i) => makeButton(t, slideLabel(slides, t), spots[i].x, spots[i].y, s.duration ?? 5000))), canvas);
+}
+
+/**
+ * Branch buttons sitting exactly on top of each other hide one another (an
+ * older version could stack them). Move all but the first to a free spot.
+ */
+function unstackButtons(s: Slide, canvas: { width: number; height: number }): Slide {
+  const buttons = autoButtons(s);
+  const seen = new Set<string>();
+  const stacked: ShapeElement[] = [];
+  for (const b of buttons) {
+    const key = `${Math.round(b.x)},${Math.round(b.y)}`;
+    if (seen.has(key)) stacked.push(b);
+    seen.add(key);
+  }
+  if (!stacked.length) return s;
+  const fixedIds = new Set(stacked.map((b) => b.id));
+  const spots = placeButtons(stacked.length, buttons.filter((b) => !fixedIds.has(b.id)), canvas);
+  const moveTo = new Map(stacked.map((b, i) => [b.id, spots[i]]));
+  const move = (e: SlideElement): SlideElement => (moveTo.has(e.id) ? ({ ...e, ...moveTo.get(e.id)! } as SlideElement) : e);
+  if (s.layers && s.layers.length) {
+    const layers = s.layers.map((l) => ({ ...l, elements: l.elements.map(move) }));
+    return { ...s, layers, elements: layers.flatMap((l) => l.elements) };
+  }
+  return { ...s, elements: s.elements.map(move) };
 }
 
 /**
