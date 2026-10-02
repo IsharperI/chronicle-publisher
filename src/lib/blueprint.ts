@@ -577,4 +577,5 @@ GUIDANCE
 - Use "reveal" for short pop-up details on one slide; use "hub" when each choice leads to one or more full slides.
 - A typical module: 1 title slide, 6 to 15 content slides, 3 to 5 quiz questions, 1 results slide.
 - Quiz questions must test content that appears on earlier slides.
-- Use "warning" callouts only for genuine safety-critical rules.`;
+- Use "warning" callouts only for genuine safety-critical rules.
+- Pictures in the source may appear as markers like [Image 3]. When a slide uses that picture (image-text, or a reveal item's imageDescription), copy the marker into its imageDescription, for example "Brake caliper close-up [Image 3]". If a storyboard gives a stock photo number, include it too.`;
