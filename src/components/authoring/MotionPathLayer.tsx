@@ -1,3 +1,8 @@
+/**
+ * Motion-path editor overlay on the Canvas: draws each element's cubic-bezier
+ * path and lets the author drag its start, end and control points. Path math
+ * lives in lib/motionPath.ts.
+ */
 import { useEffect, useState } from 'react';
 import { useCourse } from '@/context/CourseContext';
 import { defaultMotionPath, motionPathToSvgD } from '@/lib/motionPath';

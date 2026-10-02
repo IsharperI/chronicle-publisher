@@ -1,3 +1,7 @@
+/**
+ * Options passed from the Publish dialog to publish(): format, metadata,
+ * completion/reporting rules and xAPI LRS settings.
+ */
 export type PublishFormat = 'scorm12' | 'scorm2004' | 'xapi';
 export type ReportStatus = 'passed-incomplete' | 'passed-failed' | 'completed-incomplete';
 export type CompletionMode = 'percent' | 'quiz' | 'triggers';

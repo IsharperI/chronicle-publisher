@@ -1,3 +1,6 @@
+/**
+ * Quiz theme storage and style resolution (see the comment below).
+ */
 import type { QuizQuestionType, QuizStyleOverrides } from '@/types/course';
 
 /**

@@ -1,3 +1,9 @@
+/**
+ * Preview-mode player frame around the Canvas (also used as a live preview in
+ * PlayerSettingsModal). Mirrors what the exported player looks like: title bar,
+ * menu/notes sidebar, slide transitions, Prev/Play/Next/CC controls. Also owns
+ * the quiz countdown timers (per-question and course-wide).
+ */
 import { useCourse } from '@/context/CourseContext';
 import { Canvas } from './Canvas';
 import { ChevronLeft, ChevronRight, Play, Pause, Captions, CaptionsOff, Menu, FileText, Check, PanelLeftClose, PanelLeftOpen } from 'lucide-react';

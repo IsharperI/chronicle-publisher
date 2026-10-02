@@ -1,3 +1,8 @@
+/**
+ * Video export: paints each slide onto an off-screen <canvas> (a simplified,
+ * fourth renderer), mixes slide audio, and records it with MediaRecorder as one
+ * MP4 or one MP4 per slide (zipped).
+ */
 import JSZip from 'jszip';
 import type { CourseState, Slide, SlideElement, SlideLayer } from '@/types/course';
 

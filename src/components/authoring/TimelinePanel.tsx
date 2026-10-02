@@ -1,3 +1,8 @@
+/**
+ * Bottom timeline panel: one track per element on the active slide (drag or
+ * resize to change start time and duration), the playhead and play/pause, and a
+ * "States" tab for editing hover colors. Times are in milliseconds.
+ */
 import { useCourse } from '@/context/CourseContext';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Button } from '@/components/ui/button';

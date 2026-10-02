@@ -1,3 +1,6 @@
+/**
+ * tincan.xml for xAPI packages.
+ */
 export interface TinCanOpts {
   identifier: string;
   title: string;

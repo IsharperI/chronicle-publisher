@@ -1,3 +1,8 @@
+/**
+ * xAPI (Tin Can) adapter script for the exported player: sends initialized,
+ * progressed, scored, completed, passed, failed and exited statements to the
+ * configured LRS. Returns a JS string injected into index.html as window.__LMS.
+ */
 export interface XapiRuntimeOpts {
   endpoint: string;
   actorName: string;

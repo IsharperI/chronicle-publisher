@@ -1,3 +1,7 @@
+/**
+ * UNUSED: not imported anywhere. An earlier element toolbox, replaced by the
+ * Ribbon's Insert tab (Ribbon.tsx).
+ */
 import { useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Type, ImageIcon, Square, Plus, Trash2 } from 'lucide-react';

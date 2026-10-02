@@ -1,3 +1,17 @@
+/**
+ * The course store: one React context + useReducer holding the entire
+ * CourseState (types/course.ts).
+ *
+ * - Every change goes through `courseReducer` via dispatch({ type, ... }).
+ * - Slides store elements in `layers`, the source of truth. `slide.elements` is
+ *   a flattened copy rebuilt by the helpers below (ensureLayers,
+ *   rebuildElements, mapElementsInSlide, addElementToLayer). Use them when
+ *   editing elements so the two stay consistent.
+ * - The state also holds runtime-only data (preview playhead, quiz answers,
+ *   variable values), which is never saved.
+ * - LOAD_COURSE fills defaults and migrates older files. Data must already have
+ *   been through lib/sanitize.ts.
+ */
 import React, { createContext, useContext, useReducer, type Dispatch } from 'react';
 import type { CourseState, Slide, SlideElement, SlideLayer, ViewMode, PlayerSettings, CourseSettings, SlideAudio, QuizConfig, ResultsConfig, SlideKind, CourseVariable } from '@/types/course';
 import { defaultPlayerSettings, defaultCourseSettings } from '@/types/course';

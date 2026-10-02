@@ -1,3 +1,8 @@
+/**
+ * "Story View": a flowchart of the course. Shows each slide as a node and draws
+ * arrows for jump-to-slide triggers found on any element (including elements on
+ * layers).
+ */
 import { useMemo, useRef, useState, useEffect, WheelEvent, MouseEvent } from 'react';
 import { useCourse } from '@/context/CourseContext';
 import { Button } from '@/components/ui/button';

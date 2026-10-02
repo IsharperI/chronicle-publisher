@@ -1,3 +1,7 @@
+/**
+ * Full-screen overlays for the Quiz tab's library: quiz themes
+ * (QuizTemplatesTab) and the question bank (QuestionBankPanel).
+ */
 import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { TemplatesGallery } from './QuizTemplatesTab';

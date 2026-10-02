@@ -1,3 +1,9 @@
+/**
+ * Home → Blueprint: paste an AI-written course blueprint and build the course
+ * from it (lib/blueprint.ts). Also offers "Copy AI instructions" (the blueprint
+ * format guide for any AI chat) and starts background narration of the
+ * blueprint's voice-over scripts (lib/tts/narrationJob.ts).
+ */
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { Copy, AlertTriangle } from 'lucide-react';

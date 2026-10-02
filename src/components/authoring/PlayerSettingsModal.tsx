@@ -1,3 +1,8 @@
+/**
+ * Player settings: colors, font, button radius, background, sidebar position,
+ * menu/notes tabs, play and caption controls, navigation mode and the
+ * course-wide quiz timer. Includes a scaled live preview (PlayerShell).
+ */
 import { useRef, useState, useLayoutEffect } from 'react';
 import { useCourse } from '@/context/CourseContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';

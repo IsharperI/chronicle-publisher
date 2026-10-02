@@ -1,3 +1,8 @@
+/**
+ * Variable manager: create, rename and delete course variables (boolean, number,
+ * text) and set their default values. Variables are changed at runtime by
+ * "adjustVariable" triggers and tested by trigger conditions.
+ */
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';

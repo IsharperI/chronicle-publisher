@@ -1,3 +1,18 @@
+/**
+ * Course blueprints: a compact JSON description of a course (usually written
+ * by an AI from a storyboard) that is converted into real slides.
+ *
+ * - courseBlueprintSchema / validateBlueprint: the format and readable errors.
+ * - blueprintToCourse: turns each layout (title, section, bullets, image-text,
+ *   two-column, reveal, callout, quiz, results) into positioned elements and
+ *   layers, designed at 1024×768 and scaled to the canvas.
+ * - prepareBlueprintLoad: validate → convert → sanitize; used by both the Load
+ *   button and the Blueprint dialog.
+ * - parseBlueprintText: tolerant parsing of pasted AI output (code fences,
+ *   stray text, JSON repair).
+ * - BLUEPRINT_GUIDE: the "Copy AI instructions" text. Keep it in sync with the
+ *   schema whenever a layout changes.
+ */
 import { z } from 'zod';
 import { jsonrepair } from 'jsonrepair';
 import {

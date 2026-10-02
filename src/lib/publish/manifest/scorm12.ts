@@ -1,3 +1,6 @@
+/**
+ * imsmanifest.xml for SCORM 1.2 packages.
+ */
 export interface Scorm12ManifestOpts {
   identifier: string;
   version: string;

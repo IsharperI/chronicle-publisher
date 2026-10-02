@@ -1,3 +1,17 @@
+/**
+ * The Storyline-style ribbon across the top of the editor.
+ *
+ * Tabs: Home (Save, Load, Blueprint, Preview, Publish, Player settings,
+ * Variables), Insert (text, images, shapes, audio, Text to Speech, video,
+ * interactive elements, tables), Design (story size, theme colors, arrange,
+ * grid, media library), Transitions, Animations (entrance/exit, motion paths),
+ * View (preview, story view) and Quiz (quiz/results slides, quiz themes,
+ * question bank).
+ *
+ * Also owns Save/Load. Loading runs every file through lib/sanitize.ts before
+ * LOAD_COURSE, and routes course blueprints through lib/blueprint.ts. It mounts
+ * most of the editor's dialogs.
+ */
 import React, { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Save, Upload, Play, X, Type, ImageIcon, Square, Eye, Settings, Music, Video as VideoIcon, AlignLeft, AlignCenter, AlignRight, AlignStartVertical, AlignCenterVertical, AlignEndVertical, AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter, Ban, Sparkles, ArrowUpFromLine, ArrowLeftFromLine, ZoomIn, CopyCheck, MousePointerClick, Target, CheckSquare, ChevronDown, Table as TableIcon, HelpCircle, Trophy, Layers, FolderOpen, Map as MapIcon, Spline, Palette, Library, Variable, ClipboardPaste, AudioLines } from 'lucide-react';

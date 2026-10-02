@@ -1,3 +1,6 @@
+/**
+ * imsmanifest.xml for SCORM 2004 packages.
+ */
 export interface Scorm2004ManifestOpts {
   identifier: string;
   version: string;

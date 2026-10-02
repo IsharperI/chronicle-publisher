@@ -1,3 +1,9 @@
+/**
+ * Publish entry point: builds the SCORM 1.2 / SCORM 2004 / xAPI zip.
+ * Picks the LMS adapter (runtime/scorm12|scorm2004|xapi), builds the single
+ * self-contained index.html (runtime/player.ts), adds the manifest
+ * (manifest/*) and downloads the zip.
+ */
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import type { CourseState } from '@/types/course';
