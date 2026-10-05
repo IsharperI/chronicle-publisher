@@ -203,7 +203,7 @@ A blueprint is a compact JSON course description, usually written by an AI from 
 - **`lib/storyboard.ts`**: Blueprint dialog → **Upload storyboard…** reads a Word storyboard in the browser (JSZip + DOMParser on `word/document.xml`, no server).
   - Table rows become `cell | cell | cell` lines, so a storyboard's columns stay together.
   - Pictures become `[Image N]` markers. The pictures themselves are kept in memory for this browser session.
-  - `buildStoryboardPrompt` joins `BLUEPRINT_GUIDE`, optional notes and the storyboard text into one prompt, which is copied to the clipboard or saved as .txt.
+  - `buildStoryboardPrompt` joins `BLUEPRINT_GUIDE` and the storyboard text into one prompt, which is copied to the clipboard or saved as .txt. The storyboard isn't attached to the AI chat separately: this text, with its `[Image N]` numbering, keeps picture numbers consistent with the images folder. There are deliberately no free-text notes for the AI, so courses stick to the source.
   - `.txt` and `.md` files also work. A PDF or .doc must be saved as .docx first.
 - **Image placeholders (`lib/imagePlaceholders.ts`)**, like PowerPoint's: a shape with `imagePlaceholder: { description, marker? }`.
   - **Where they come from:** Insert → **Image Placeholder**, or blueprints. A blueprint creates one placeholder per `[Image N]` marker in `imageDescription`, tiled across the image area.

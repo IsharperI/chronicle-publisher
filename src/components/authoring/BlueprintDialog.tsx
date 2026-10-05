@@ -17,7 +17,6 @@ import type { Brand } from '@/types/course';
 const NO_BRAND = '__none';
 import { toast } from 'sonner';
 import { Copy, AlertTriangle, FileUp, Download, CheckCircle2, Loader2, FolderOpen } from 'lucide-react';
-import { Input } from '@/components/ui/input';
 import { buildStoryboardPrompt, extractStoryboard, type ExtractedStoryboard } from '@/lib/storyboard';
 import { findPlaceholders, parseImageNumber, placeNumberedImages, readImageFile, type NumberedImage } from '@/lib/imagePlaceholders';
 import { storyboardImages } from '@/lib/storyboard';
@@ -90,12 +89,11 @@ export function BlueprintDialog({ open, onOpenChange }: { open: boolean; onOpenC
       setFolderBusy(false);
     }
   };
-  const [sbNotes, setSbNotes] = useState('');
   const [sbBusy, setSbBusy] = useState(false);
   const [sbCopied, setSbCopied] = useState(false);
   const sbInput = useRef<HTMLInputElement>(null);
 
-  const prompt = () => (storyboard ? buildStoryboardPrompt(storyboard, sbNotes) : '');
+  const prompt = () => (storyboard ? buildStoryboardPrompt(storyboard) : '');
   const copyPrompt = async () => {
     try {
       await navigator.clipboard.writeText(prompt());
@@ -123,7 +121,7 @@ export function BlueprintDialog({ open, onOpenChange }: { open: boolean; onOpenC
       if (!sb.text) throw new Error('No text was found in this file.');
       setStoryboard(sb);
       try {
-        await navigator.clipboard.writeText(buildStoryboardPrompt(sb, sbNotes));
+        await navigator.clipboard.writeText(buildStoryboardPrompt(sb));
         setSbCopied(true);
       } catch {
         /* Browser blocked copying without a click: the Copy prompt button works. */
@@ -225,13 +223,6 @@ export function BlueprintDialog({ open, onOpenChange }: { open: boolean; onOpenC
                 {sbBusy ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <FileUp className="h-4 w-4 mr-1.5" />}
                 Upload storyboard…
               </Button>
-              <Input
-                value={sbNotes}
-                onChange={(e) => { setSbNotes(e.target.value); setSbCopied(false); }}
-                placeholder="Notes for the AI (optional), e.g. audience, length, which sections"
-                className="h-8 text-xs flex-1 min-w-[220px]"
-                aria-label="Notes for the AI"
-              />
               <input ref={sbInput} type="file" accept=".docx,.txt,.md" hidden aria-label="Storyboard file"
                 onChange={(e) => { void onStoryboard(e.target.files?.[0]); e.target.value = ''; }} />
             </div>
@@ -266,8 +257,8 @@ export function BlueprintDialog({ open, onOpenChange }: { open: boolean; onOpenC
                   <strong>{storyboard.fileName}</strong>: {storyboard.text.length.toLocaleString()} characters
                   {storyboard.images.length > 0 && `, ${storyboard.images.length} picture${storyboard.images.length === 1 ? '' : 's'}`}.{' '}
                   {sbCopied
-                    ? 'Prompt copied. Paste it into Gemini (or any AI chat), then paste its reply below.'
-                    : 'Copy the prompt, paste it into Gemini (or any AI chat), then paste its reply below.'}
+                    ? 'Prompt copied. It already contains the whole storyboard, so paste it into Gemini (or any AI chat) without attaching the file, then paste the reply below.'
+                    : 'Copy the prompt. It already contains the whole storyboard, so paste it into Gemini (or any AI chat) without attaching the file, then paste the reply below.'}
                 </span>
                 <Button variant={sbCopied ? 'ghost' : 'default'} size="sm" className="h-7" onClick={() => void copyPrompt()}>
                   <Copy className="h-3.5 w-3.5 mr-1" />{sbCopied ? 'Copy again' : 'Copy prompt'}
@@ -278,7 +269,7 @@ export function BlueprintDialog({ open, onOpenChange }: { open: boolean; onOpenC
               </div>
             ) : (
               <p className="text-xs text-muted-foreground">
-                Upload a Word storyboard (.docx) and Chronicle copies a complete prompt for your AI chat: the instructions plus the storyboard text.
+                Upload a Word storyboard (.docx) and Chronicle copies one complete prompt (the instructions plus the storyboard’s text, with its pictures numbered as [Image&nbsp;N]). Paste just that into your AI chat; there’s no need to attach the storyboard there.
               </p>
             )}
           </div>

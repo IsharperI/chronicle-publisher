@@ -40,10 +40,10 @@ describe('reading a Word storyboard', () => {
     expect(sb.images[0].dataUrl.startsWith('data:image/png;base64,')).toBe(true);
   });
 
-  it('builds one prompt: instructions, notes, then the storyboard', async () => {
-    const p = buildStoryboardPrompt({ fileName: 'm3.docx', text: 'ROW TEXT' }, 'Audience: bus cleaners');
+  it('builds one prompt: the instructions, then the storyboard', async () => {
+    const p = buildStoryboardPrompt({ fileName: 'm3.docx', text: 'ROW TEXT' });
     expect(p.startsWith(BLUEPRINT_GUIDE)).toBe(true);
-    expect(p).toContain('NOTES FROM THE COURSE DEVELOPER\nAudience: bus cleaners');
+    expect(p).not.toContain('NOTES FROM');
     expect(p.indexOf('ROW TEXT')).toBeGreaterThan(p.indexOf('SOURCE MATERIAL'));
   });
 
