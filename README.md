@@ -6,7 +6,7 @@ Everything runs in the browser. There is no backend or database. Courses are sav
 
 ## Main features
 
-- **Slide editor:** drag-and-drop canvas, timeline, layers, master slides, theme colors, transitions, entrance/exit animations and motion paths.
+- **Slide editor:** drag-and-drop canvas, timeline, layers, master slides, theme colors, transitions, entrance/exit animations and motion paths, with undo/redo (Ctrl+Z / Ctrl+Y) and autosave.
 - **Interactivity:** triggers (click, hover, timeline, media events), course variables with conditions, layers that can be shown and hidden, lightboxes.
 - **Branching:** choose where Next goes, branching slides with auto-generated buttons, hubs (required or exploration, with ticks), and an editable **course tree** (drag slides, draw connections, slide groups), like Storyline's story view.
 - **Quizzes:** multiple choice, drag-and-drop matching and sorting, attempts, timers, feedback, a results slide, quiz style templates and a question bank.

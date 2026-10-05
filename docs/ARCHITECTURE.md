@@ -133,6 +133,16 @@ Each slide's outgoing connections are stored in `slide.next`:
 
   Dashed arrows are Jump to Slide triggers and are read-only in the tree. A connection to the following slide is stored as the default (no `next`), so it keeps following the slide list when slides are reordered.
 
+## Undo / redo (`context/history.ts`)
+
+`CourseProvider` runs `courseReducer` inside `withHistory`. Use Ctrl+Z / Ctrl+Y (⌘Z / ⌘⇧Z) or the arrows in the ribbon's title bar (`UndoRedo.tsx`).
+- **What makes a step:** a step is recorded whenever the saved part of the course changes (slides, masters, settings, variables). Because the store is immutable, a step is just references, so 100 steps cost little memory. UI actions (selection, playhead) never make steps.
+- **Merging:** rapid edits to the same thing (typing) merge into one step, as do several dispatches from one click (`GESTURE_MS`).
+- **Preview and loading:** nothing is recorded in preview, and `LOAD_COURSE` starts a fresh history.
+- **Background narration:** `SET_SLIDE_NARRATION` is applied to every stored version instead of becoming a step, so undo never strips voice-over.
+- **Text fields:** while typing in an input, the browser's own text undo is used.
+- **If you add a background action** (one the user didn't make directly), add it to `BACKGROUND` in `history.ts`.
+
 ## Autosave
 
 `AutosaveManager.tsx` (mounted in `pages/Index.tsx`) keeps the latest course in the browser's **IndexedDB** (`lib/autosave.ts`). IndexedDB is used rather than localStorage because courses embed media and can be tens of MB, and localStorage holds about 5 MB.

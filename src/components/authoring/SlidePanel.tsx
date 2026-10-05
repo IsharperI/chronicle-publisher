@@ -335,6 +335,8 @@ export function SlidePanel() {
             }
           }}
           disabled={isMain ? state.slides.length <= 1 : state.masterSlides.length === 0}
+          aria-label={isMain ? 'Delete slide' : 'Delete master slide'}
+          title={isMain ? 'Delete slide (Ctrl+Z to undo)' : 'Delete master slide (Ctrl+Z to undo)'}
         >
           <Trash2 className="h-3.5 w-3.5" />
         </Button>

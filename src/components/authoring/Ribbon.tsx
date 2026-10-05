@@ -31,6 +31,7 @@ import { Separator } from '@/components/ui/separator';
 import { PlayerSettingsModal } from './PlayerSettingsModal';
 import { projectFileName, projectSnapshot, sanitizeProject } from '@/lib/project';
 import { AutosaveStatus } from './AutosaveManager';
+import { UndoRedo } from './UndoRedo';
 import { isBlueprint, parseBlueprintText, prepareBlueprintLoad } from '@/lib/blueprint';
 import { BlueprintDialog } from './BlueprintDialog';
 import { TextToSpeechDialog } from './TextToSpeechDialog';
@@ -373,7 +374,9 @@ export function Ribbon() {
     <div className="glass border-b border-white/60 shrink-0 rounded-none">
       {/* Title bar + Tab row */}
       <div className="h-9 flex items-center px-4 border-b border-white/40 bg-white/30">
-        <span className="font-semibold text-foreground text-sm mr-6">Chronicle Publisher</span>
+        <span className="font-semibold text-foreground text-sm mr-3">Chronicle Publisher</span>
+        <UndoRedo />
+        <div className="w-4" />
         <div className="flex">
           {TABS.map((tab) => (
             <button
