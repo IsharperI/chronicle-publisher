@@ -126,6 +126,11 @@ export interface BaseElement {
   motionPath?: MotionPath;
   /** Optional override duration (ms) for the motion-path traversal. Defaults to the element's `duration`. */
   motionPathDuration?: number;
+  /**
+   * Elements a brand manages (lib/brand.ts): the logo, blueprint title bars
+   * and their accent line, and title-slide backgrounds ('cover').
+   */
+  brandRole?: 'logo' | 'titleBar' | 'titleText' | 'titleAccent' | 'cover';
 }
 
 /** Cubic bezier motion path in absolute canvas coordinates. */
@@ -149,6 +154,8 @@ export interface TextElement extends BaseElement {
   backgroundColor: string;
   hoverTextColor?: string;
   hoverBackgroundColor?: string;
+  /** 'heading' text uses the course's heading font (courseSettings.headingFont). */
+  fontRole?: 'heading';
 }
 
 export interface ImageElement extends BaseElement {
@@ -525,6 +532,28 @@ export interface CourseSettings {
   themeColors: string[];
   /** Global slide transition applied to every slide change in preview/SCORM. */
   transition: GlobalTransition;
+  /** Font for all slide text (from the brand). Omitted: the app default. */
+  bodyFont?: string;
+  /** Font for headings (text with fontRole 'heading'). */
+  headingFont?: string;
+  /** The client brand this course uses (lib/brand.ts), kept so others can reuse it. */
+  brand?: Brand;
+}
+
+/** A client brand: colours, fonts, logo and title style (Design → Brands). */
+export interface Brand {
+  id: string;
+  name: string;
+  /** 6 theme colours: Primary, Secondary, Accent 1, Accent 2, Dark, Light. */
+  colors: string[];
+  bodyFont: string;
+  headingFont: string;
+  /** Logo image as a data URL. */
+  logo?: string;
+  /** Logo width ÷ height. */
+  logoAspect?: number;
+  logoPosition: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
+  titleStyle: 'solid' | 'light' | 'minimal';
 }
 
 export const defaultCourseSettings: CourseSettings = {

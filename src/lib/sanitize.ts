@@ -16,6 +16,8 @@ const SAFE_FONT_FAMILIES = new Set([
   'Trebuchet MS, sans-serif',
   'Inter, sans-serif',
   'Roboto, sans-serif',
+  'Segoe UI, sans-serif',
+  'Calibri, sans-serif',
 ]);
 
 const HEX_COLOR_RE = /^#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
@@ -117,6 +119,7 @@ import type {
   ShapeElement,
   Trigger,
   CourseVariable,
+  Brand,
 } from '@/types/course';
 
 const ANIM_IN = ['none', 'fade', 'fly-in-left', 'fly-in-right'] as const;
@@ -137,6 +140,27 @@ const BG_MODES = ['stretch', 'fit', 'tile'] as const;
 function safeString(value: unknown, fallback = '', max = 10_000): string {
   if (typeof value !== 'string') return fallback;
   return value.slice(0, max);
+}
+
+const BRAND_ROLES = ['logo', 'titleBar', 'titleText', 'titleAccent', 'cover'];
+
+/** Validates a client brand (from a course file, a brand .json file or browser storage). */
+export function sanitizeBrand(raw: unknown): Brand | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const r = raw as any;
+  if (!Array.isArray(r.colors) || r.colors.length !== 6) return undefined;
+  const logo = safeImageSrc(r.logo);
+  return {
+    id: isSafeId(r.id) ? r.id : safeId(undefined),
+    name: safeString(r.name, 'Brand', 60) || 'Brand',
+    colors: r.colors.map((c: unknown) => safeColor(c, '#000000')),
+    bodyFont: safeFontFamily(r.bodyFont, 'Arial, sans-serif'),
+    headingFont: safeFontFamily(r.headingFont, 'Arial, sans-serif'),
+    ...(logo ? { logo, logoAspect: safeNumber(r.logoAspect, 3, 0.05, 50) } : {}),
+    logoPosition: safeEnum(r.logoPosition, ['top-left', 'top-right', 'bottom-left', 'bottom-right'] as const, 'top-right'),
+    titleStyle: safeEnum(r.titleStyle, ['solid', 'light', 'minimal'] as const, 'solid'),
+  };
 }
 
 function isSafeId(value: unknown): value is string {
@@ -217,6 +241,7 @@ function sanitizeElement(raw: any): SlideElement | null {
     exitDuration: safeNumber(raw.exitDuration, 500, 0, 60_000),
     ...(raw.isLocked === true ? { isLocked: true } : {}),
     ...(raw.isHidden === true ? { isHidden: true } : {}),
+    ...(BRAND_ROLES.includes(raw.brandRole) ? { brandRole: raw.brandRole } : {}),
   };
   if (raw.type === 'text') {
     const el: TextElement = {
@@ -234,6 +259,7 @@ function sanitizeElement(raw: any): SlideElement | null {
       hoverTextColor: raw.hoverTextColor != null ? safeColor(raw.hoverTextColor, '#000000') : undefined,
       hoverBackgroundColor:
         raw.hoverBackgroundColor != null ? safeColor(raw.hoverBackgroundColor, 'transparent') : undefined,
+      ...(raw.fontRole === 'heading' ? { fontRole: 'heading' as const } : {}),
     };
     return el;
   }
@@ -501,6 +527,9 @@ export function sanitizeCourseSettings(raw: unknown): Partial<CourseSettings> | 
       }
     : undefined;
   return {
+    bodyFont: r.bodyFont != null ? safeFontFamily(r.bodyFont) : undefined,
+    headingFont: r.headingFont != null ? safeFontFamily(r.headingFont) : undefined,
+    brand: sanitizeBrand(r.brand),
     canvasDimensions: dims && typeof dims === 'object' ? {
       width: safeNumber(dims.width, 1920, 320, 7680),
       height: safeNumber(dims.height, 1080, 240, 4320),

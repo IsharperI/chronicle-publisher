@@ -24,6 +24,7 @@ import type { SlideElement, TextElement, ShapeElement, AnimationIn, AnimationOut
 import { isExtendedShapeType, resolveShapeSvg } from '@/lib/shapes';
 import { resolveQuizStyle, type ResolvedQuizStyle } from '@/lib/quizTemplates';
 import { themeVarStyle } from '@/lib/themeVars';
+import { fontStyle, HEADING_FONT } from '@/lib/brand';
 import { MotionPathLayer } from './MotionPathLayer';
 import { motionPathOffset } from '@/lib/motionPath';
 
@@ -125,6 +126,7 @@ function ElementRenderer({ element, isPreview }: { element: SlideElement; isPrev
         {...hoverProps}
         style={{
           width: '100%', height: '100%', fontSize: te.fontSize, fontWeight: te.fontWeight,
+          fontFamily: te.fontRole === 'heading' ? HEADING_FONT : undefined,
           color, backgroundColor: bg, padding: 8, overflow: 'hidden', wordBreak: 'break-word', whiteSpace: 'pre-wrap',
           transition: isPreview ? 'color 0.2s, background-color 0.2s' : undefined,
           cursor: isPreview && (te.hoverBackgroundColor || te.hoverTextColor) ? 'pointer' : undefined,
@@ -810,7 +812,7 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
     <div
       ref={containerRef}
       className="flex-1 flex flex-col items-center justify-center overflow-hidden min-w-0 bg-gradient-to-br from-slate-200 to-slate-300"
-      style={themeVarStyle(state.courseSettings.themeColors)}
+      style={{ ...themeVarStyle(state.courseSettings.themeColors), ...fontStyle(state.courseSettings) }}
     >
       <div
         style={{

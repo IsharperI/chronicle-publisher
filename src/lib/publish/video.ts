@@ -15,7 +15,7 @@
  * recording keeps going (at a lower frame rate) if the tab is in the background.
  */
 import JSZip from 'jszip';
-import type { CourseState, QuizConfig, Slide, SlideElement, SlideLayer } from '@/types/course';
+import type { CourseState, QuizConfig, Slide, SlideElement, SlideLayer, TextElement } from '@/types/course';
 import { resolveColor } from '@/lib/themeVars';
 import { isExtendedShapeType, SHAPE_SVG } from '@/lib/shapes';
 
@@ -175,6 +175,7 @@ interface RenderContext {
   sx: number;
   sy: number;
   font: string;
+  headingFont: string;
   themeColors: string[];
   assets: Map<string, HTMLImageElement | null>;
 }
@@ -265,7 +266,7 @@ function drawElement(rc: RenderContext, el: SlideElement, alpha: number, dx: num
       ctx.fillRect(x, y, w, h);
     }
     const fs = (el.fontSize || 16) * sy;
-    ctx.font = `${el.fontWeight || 'normal'} ${fs}px ${rc.font}`;
+    ctx.font = `${el.fontWeight || 'normal'} ${fs}px ${(el as TextElement).fontRole === 'heading' ? rc.headingFont : rc.font}`;
     ctx.fillStyle = color(rc, el.textColor, '#000000');
     ctx.beginPath();
     ctx.rect(x, y, w, h);
@@ -471,7 +472,8 @@ async function recordSlides(
     outH,
     sx: outW / state.courseSettings.canvasDimensions.width,
     sy: outH / state.courseSettings.canvasDimensions.height,
-    font: state.playerSettings.fontFamily || 'system-ui, sans-serif',
+    font: state.courseSettings.bodyFont || state.playerSettings.fontFamily || 'system-ui, sans-serif',
+    headingFont: state.courseSettings.headingFont || state.courseSettings.bodyFont || state.playerSettings.fontFamily || 'system-ui, sans-serif',
     themeColors: state.courseSettings.themeColors,
     assets: await preloadAssets(state, slides),
   };

@@ -9,7 +9,11 @@
  * chat. After loading, if the course has image placeholders, a toast offers
  * to fill them (Insert → Image Placeholders).
  */
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { lastBrandId, loadBrands, setLastBrandId } from '@/lib/brand';
+import type { Brand } from '@/types/course';
+
+const NO_BRAND = '__none';
 import { toast } from 'sonner';
 import { Copy, AlertTriangle, FileUp, Download, CheckCircle2, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -45,6 +49,16 @@ export function BlueprintDialog({ open, onOpenChange, onOpenImages }: { open: bo
   const [pending, setPending] = useState<PendingLoad | null>(null);
   const [narrate, setNarrate] = useState(true);
   const [voice, setVoice] = useState(getVoicePref);
+  const [brands, setBrands] = useState<Brand[]>([]);
+  const [brandId, setBrandId] = useState<string>(NO_BRAND);
+  useEffect(() => {
+    if (!open) return;
+    const list = loadBrands();
+    setBrands(list);
+    const pick = [state.courseSettings.brand?.id, lastBrandId()].find((id) => id && list.some((b) => b.id === id));
+    setBrandId(pick ?? NO_BRAND);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
   const [storyboard, setStoryboard] = useState<ExtractedStoryboard | null>(null);
   const [sbNotes, setSbNotes] = useState('');
   const [sbBusy, setSbBusy] = useState(false);
@@ -124,7 +138,9 @@ export function BlueprintDialog({ open, onOpenChange, onOpenImages }: { open: bo
         description: 'For example quotation marks inside text. The content itself is unchanged.',
       });
     }
-    const res = prepareBlueprintLoad(parsed.data, state.courseSettings);
+    const brand = brands.find((b) => b.id === brandId);
+    setLastBrandId(brand?.id ?? null);
+    const res = prepareBlueprintLoad(parsed.data, state.courseSettings, brand);
     if (res.ok === false) {
       setErrors(res.errors);
       return;
@@ -216,6 +232,17 @@ export function BlueprintDialog({ open, onOpenChange, onOpenImages }: { open: bo
           />
 
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-md border bg-muted/30 px-3 py-2 text-sm">
+            <div className="flex items-center gap-2 w-full">
+              <span className="text-muted-foreground">Brand</span>
+              <Select value={brandId} onValueChange={setBrandId}>
+                <SelectTrigger className="h-8 w-72" aria-label="Brand"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NO_BRAND}>No brand (colours from the blueprint)</SelectItem>
+                  {brands.map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              {brands.length === 0 && <span className="text-xs text-muted-foreground">Create brands in Design → Brands.</span>}
+            </div>
             <label className="flex items-center gap-2 cursor-pointer">
               <Checkbox checked={narrate} onCheckedChange={(v) => setNarrate(v === true)} aria-label="Generate narration audio" />
               Generate narration audio from the voice-over scripts

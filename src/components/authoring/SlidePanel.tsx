@@ -14,8 +14,9 @@ import { Button } from '@/components/ui/button';
 import { Plus, Trash2, HelpCircle, Trophy } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
-import type { Slide, SlideElement } from '@/types/course';
-import { resolveColor } from '@/lib/themeVars';
+import type { Slide, SlideElement, TextElement } from '@/types/course';
+import { resolveColor, themeVarStyle } from '@/lib/themeVars';
+import { fontStyle, HEADING_FONT } from '@/lib/brand';
 import { memo, useEffect, useRef, useState } from 'react';
 
 const THUMB_WIDTH = 160; // px rendered width of the thumbnail box
@@ -46,6 +47,7 @@ function ThumbElement({ el, themeColors }: { el: SlideElement; themeColors: stri
           backgroundColor: el.backgroundColor,
           fontSize: el.fontSize,
           fontWeight: el.fontWeight as React.CSSProperties['fontWeight'],
+          fontFamily: (el as TextElement).fontRole === 'heading' ? HEADING_FONT : undefined,
           lineHeight: 1.1,
           padding: 8,
           textAlign: 'left',
@@ -168,7 +170,8 @@ function ThumbElement({ el, themeColors }: { el: SlideElement; themeColors: stri
  * preserve scroll height, but only mounts inner elements when the container
  * intersects the viewport. Unmounts inner elements when scrolled away.
  */
-const SlideThumbnail = memo(function SlideThumbnail({ slide, canvasWidth, canvasHeight, themeColors }: {
+const SlideThumbnail = memo(function SlideThumbnail({ slide, canvasWidth, canvasHeight, themeColors, fonts }: {
+  fonts?: React.CSSProperties;
   slide: Slide;
   canvasWidth: number;
   canvasHeight: number;
@@ -212,6 +215,9 @@ const SlideThumbnail = memo(function SlideThumbnail({ slide, canvasWidth, canvas
             height: canvasHeight,
             transform: `scale(${scale})`,
             transformOrigin: 'top left',
+            // Theme colour variables, so var(--theme-*) colours resolve in thumbnails too.
+            ...themeVarStyle(themeColors),
+            ...fonts,
           }}
         >
           {(slide.layers?.length
@@ -279,6 +285,7 @@ export function SlidePanel() {
                     canvasWidth={canvasWidth}
                     canvasHeight={canvasHeight}
                     themeColors={state.courseSettings.themeColors}
+                    fonts={fontStyle(state.courseSettings)}
                   />
                   {isMain && slide.slideType === 'quiz' && (
                     <span

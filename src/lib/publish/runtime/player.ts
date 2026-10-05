@@ -52,7 +52,10 @@ export function buildPlayerHtml(state: CourseState, opts: PublishOptions, lmsRun
   const aspect = `${dims.width}/${dims.height}`;
 
   const safeThemeColors = (state.courseSettings.themeColors ?? []).map((c) => safeColor(c, '#000000'));
-  const themeVarsCss = themeVarCssText(safeThemeColors);
+  // Course fonts (from the brand): body font on the stage, heading font as a variable.
+  const bodyFont = state.courseSettings.bodyFont ? safeFontFamily(state.courseSettings.bodyFont) : '';
+  const headingFont = state.courseSettings.headingFont ? safeFontFamily(state.courseSettings.headingFont) : '';
+  const themeVarsCss = themeVarCssText(safeThemeColors) + (bodyFont ? `--course-font:${bodyFont};` : '') + (headingFont ? `--course-heading-font:${headingFont};` : '');
 
   // Embed completion config so the runtime can decide when to mark complete.
   const completionConfig = JSON.stringify(opts.completion || { mode: 'percent', percent: 100 });
@@ -94,7 +97,7 @@ body{background-color:${ps.backgroundColor};${ps.backgroundImage ? `background-i
 #notes-pane.empty{color:rgba(255,255,255,.4);font-style:italic}
 #stage-area{flex:1;display:flex;align-items:center;justify-content:center;min-width:0;padding:16px;order:1}
 #stage-wrapper{position:relative;width:100%;max-width:${Math.min(dims.width, 1280)}px;aspect-ratio:${aspect};overflow:hidden;border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,.4);background:#000}
-#stage{position:absolute;top:0;left:0;width:${dims.width}px;height:${dims.height}px;transform-origin:top left;background:#fff;opacity:1;transition:opacity .25s ease-in-out}
+#stage{position:absolute;top:0;left:0;width:${dims.width}px;height:${dims.height}px;transform-origin:top left;background:#fff;${bodyFont ? `font-family:${bodyFont};` : ''}opacity:1;transition:opacity .25s ease-in-out}
 #stage.fading{opacity:0}
 #cc-overlay{position:absolute;left:5%;right:5%;bottom:6%;text-align:center;pointer-events:none;z-index:50;font-family:${ps.fontFamily}}
 #cc-overlay span{display:inline-block;background:rgba(0,0,0,0.75);color:#fff;padding:8px 16px;border-radius:6px;font-size:clamp(12px,2.4vw,28px);line-height:1.3;max-width:90%;white-space:pre-wrap}
@@ -350,6 +353,7 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
     if(el.type==="text"){
       d.style.fontSize=(el.fontSize||24)+"px";
       d.style.fontWeight=el.fontWeight||"400";
+      if(el.fontRole==="heading")d.style.fontFamily="var(--course-heading-font, inherit)";
       d.style.color=el.textColor||"#000";
       d.style.backgroundColor=el.backgroundColor||"transparent";
       d.style.padding="4px";d.style.whiteSpace="pre-wrap";d.style.overflow="hidden";d.style.wordWrap="break-word";

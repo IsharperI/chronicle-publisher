@@ -31,6 +31,7 @@ User edits ──► dispatch(action) ──► courseReducer ──► CourseSt
 | `lib/blueprint.ts` | Course blueprints: schema, validation, layout → slide conversion, JSON repair, and the AI instructions text. |
 | `lib/tts/` | Text-to-speech narration (Kokoro). See *Text-to-speech* below. |
 | `lib/transcribe.ts` | Whisper speech-to-text for "Auto-Generate Captions" on imported audio. |
+| `lib/brand.ts` | Client brands: library (browser storage + .json export/import), applying a brand to a course, course fonts. See *Brands*. |
 | `lib/courseTree.ts` | The course tree (View → Course Tree): arrows, auto layout (Tidy up), saved box positions and the connect / disconnect / re-point rules. |
 | `lib/navigation.ts` | Where Next goes (`slide.next`), branching slides and their auto-generated buttons. See *Navigation and branching*. |
 | `lib/project.ts` | What a saved project contains (`projectSnapshot`) and how saved data becomes a `LOAD_COURSE` payload (`sanitizeProject`). Used by Save/Load and autosave. |
@@ -132,6 +133,17 @@ Each slide's outgoing connections are stored in `slide.next`:
   - **slide groups** (`slide.group`, a name like a Storyline scene): Shift+click several boxes, then right-click → Add to slide group. Groups are drawn as labelled frames; drag the label to move the group, double-click it to rename, right-click it to collapse, expand or ungroup. Collapsing is view-only and isn't saved. The slide list stays flat.
 
   Dashed arrows are Jump to Slide triggers and are read-only in the tree. A connection to the following slide is stored as the default (no `next`), so it keeps following the slide list when slides are reordered.
+
+## Brands (`lib/brand.ts`, `BrandsDialog.tsx`)
+
+A brand is a client's 6 theme colours, heading and body fonts, logo (data URL plus its aspect ratio), logo position and title style (`solid` / `light` / `minimal`).
+- **Storage:** brands live in browser storage. Design → Brands creates, edits and exports/imports them as `.brand.json`. The brand a course uses is also saved in `courseSettings.brand`, so it travels with the course file.
+- **Applying a brand** (`APPLY_BRAND`, undoable):
+  - sets the theme colours, `courseSettings.bodyFont` / `headingFont` and the player button colour;
+  - restyles every brand-managed element (`brandRole`): blueprint title bars (`titleBar` / `titleText`, plus an added `titleAccent` line for the light and minimal styles);
+  - replaces the logo (`logo`, locked) on every non-quiz slide. The logo sits inside the title bar if there is one, and is larger on title slides (whose background is marked `cover`).
+- **Blueprints:** the Blueprint dialog's **Brand** picker passes the brand to `blueprintToCourse`, which overrides the AI's colours and brands each slide the same way. **Blueprint elements use theme colour references (`var(--theme-*)`), not hex values**, so later theme or brand changes restyle them.
+- **Fonts:** the body font is set on the slide stage of every renderer (canvas, thumbnails, exported `#stage`, video). Text with `fontRole: 'heading'` uses `var(--course-heading-font)`. Only fonts in the sanitizer's safe list are allowed, because they are written into the exported CSS.
 
 ## Undo / redo (`context/history.ts`)
 
