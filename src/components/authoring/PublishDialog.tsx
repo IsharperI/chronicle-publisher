@@ -21,6 +21,7 @@ import { useCourse } from '@/context/CourseContext';
 import { publish } from '@/lib/publish';
 import type { PublishFormat, PublishOptions, ReportStatus, CompletionMode } from '@/lib/publish/types';
 import { analyzeCompatibility } from '@/lib/publish/compat';
+import { findPlaceholders } from '@/lib/imagePlaceholders';
 import { exportToWord } from '@/lib/publish/word';
 import { exportToVideo, isMp4Supported, type VideoQuality, type VideoStructure } from '@/lib/publish/video';
 import { Switch } from '@/components/ui/switch';
@@ -60,6 +61,8 @@ export function PublishDialog({ open, onOpenChange }: Props) {
   const [lessonTitle, setLessonTitle] = useState(state.playerSettings.courseTitle || 'Lesson');
   const [lessonIdentifier, setLessonIdentifier] = useState(`lesson_${Date.now()}`);
   const [reportStatus, setReportStatus] = useState<ReportStatus>('passed-incomplete');
+  const [showPlaceholders, setShowPlaceholders] = useState(false);
+  const emptyPlaceholders = useMemo(() => findPlaceholders(state.slides).length, [state.slides]);
 
   // Refresh title-based fields each time the dialog opens, so a course loaded
   // after startup doesn't publish as "Untitled Course".
@@ -148,6 +151,7 @@ export function PublishDialog({ open, onOpenChange }: Props) {
         lessonTitle,
         lessonIdentifier,
         reportStatus,
+        showPlaceholders,
         completion: { mode: completionMode, percent: completionPercent, quizSlideId: completionQuizSlideId || undefined },
         lrs: format === 'xapi' ? {
           endpoint: lrsEndpoint,
@@ -240,6 +244,22 @@ export function PublishDialog({ open, onOpenChange }: Props) {
                     <dd className="col-span-2">Entire course ({state.slides.length} slide{state.slides.length === 1 ? '' : 's'})</dd>
                   </dl>
                 </div>
+
+                {emptyPlaceholders > 0 && (
+                  <div className="rounded-lg border p-4 flex items-center justify-between gap-4" data-testid="placeholder-option">
+                    <div>
+                      <div className="font-semibold text-slate-800">Empty image placeholders</div>
+                      <div className="text-xs text-slate-500">
+                        This course has {emptyPlaceholders} empty image placeholder{emptyPlaceholders === 1 ? '' : 's'}. Learners don’t see them unless you
+                        show them, e.g. for a review build.
+                      </div>
+                    </div>
+                    <label className="flex items-center gap-2 text-sm shrink-0 cursor-pointer">
+                      <Switch checked={showPlaceholders} onCheckedChange={setShowPlaceholders} aria-label="Show empty image placeholders" />
+                      Show them
+                    </label>
+                  </div>
+                )}
 
                 <div className="rounded-lg border p-4 space-y-3">
                   <div className="flex items-center justify-between">

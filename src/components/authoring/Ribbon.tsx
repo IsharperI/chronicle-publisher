@@ -2,7 +2,7 @@
  * The Storyline-style ribbon across the top of the editor.
  *
  * Tabs: Home (Save, Load, Blueprint, Preview, Publish, Player settings,
- * Variables), Insert (text, images, image placeholders, shapes, audio, Text to Speech, video,
+ * Variables), Insert (text, images, image placeholder, shapes, audio, Text to Speech, video,
  * interactive elements, tables), Design (story size, theme colors, brands, arrange,
  * grid, media library), Transitions, Animations (entrance/exit, motion paths),
  * View (preview, story view) and Quiz (quiz/results slides, quiz themes,
@@ -35,9 +35,9 @@ import { UndoRedo } from './UndoRedo';
 import { isBlueprint, parseBlueprintText, prepareBlueprintLoad } from '@/lib/blueprint';
 import { BlueprintDialog } from './BlueprintDialog';
 import { TextToSpeechDialog } from './TextToSpeechDialog';
-import { ImagePlaceholdersDialog } from './ImagePlaceholdersDialog';
 import { BrandsDialog } from './BrandsDialog';
 import { lastBrandId, loadBrands } from '@/lib/brand';
+import { makePlaceholder } from '@/lib/imagePlaceholders';
 import { NarrationProgress } from './NarrationProgress';
 import { cancelNarration, startCourseNarration } from '@/lib/tts/narrationJob';
 import { getVoicePref } from '@/lib/tts';
@@ -64,7 +64,6 @@ export function Ribbon() {
   const [variablesOpen, setVariablesOpen] = useState(false);
   const [blueprintOpen, setBlueprintOpen] = useState(false);
   const [ttsOpen, setTtsOpen] = useState(false);
-  const [imagesOpen, setImagesOpen] = useState(false);
   const [brandsOpen, setBrandsOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -141,6 +140,19 @@ export function Ribbon() {
     };
     reader.readAsText(file);
     e.target.value = '';
+  };
+
+  /** Insert → Image Placeholder: an empty image area; double-click it to choose the image. */
+  const addPlaceholder = () => {
+    const { width, height } = state.courseSettings.canvasDimensions;
+    const w = Math.round(width * 0.4), h = Math.round(height * 0.4);
+    dispatch({
+      type: 'ADD_ELEMENT',
+      element: makePlaceholder({
+        id: crypto.randomUUID(), x: Math.round((width - w) / 2), y: Math.round((height - h) / 2), width: w, height: h,
+        startTime: 0, duration: state.slides[state.activeSlideIndex]?.duration ?? 5000, triggers: [], animationIn: 'none', animationOut: 'none', entranceDuration: 500, exitDuration: 500,
+      }, ''),
+    });
   };
 
   const addText = () => {
@@ -445,7 +457,7 @@ export function Ribbon() {
             <RibbonGroup label="Elements">
               <RibbonButton icon={Type} label="Text" onClick={addText} />
               <RibbonButton icon={ImageIcon} label="Image" onClick={() => imageInputRef.current?.click()} />
-              <RibbonButton icon={Images} label="Image Placeholders" onClick={() => setImagesOpen(true)} />
+              <RibbonButton icon={Images} label="Image Placeholder" onClick={addPlaceholder} />
               <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageFile} />
               <ShapePicker onPick={(t) => addShape(t)} />
             </RibbonGroup>
@@ -594,8 +606,7 @@ export function Ribbon() {
     <MediaLibraryOverlay open={mediaLibraryOpen} onClose={() => setMediaLibraryOpen(false)} />
     <StoryViewOverlay open={storyViewOpen} onClose={() => setStoryViewOpen(false)} />
     <PublishDialog open={publishOpen} onOpenChange={setPublishOpen} />
-    <BlueprintDialog open={blueprintOpen} onOpenChange={setBlueprintOpen} onOpenImages={() => setImagesOpen(true)} />
-    <ImagePlaceholdersDialog open={imagesOpen} onOpenChange={setImagesOpen} />
+    <BlueprintDialog open={blueprintOpen} onOpenChange={setBlueprintOpen} />
     <BrandsDialog open={brandsOpen} onOpenChange={setBrandsOpen} />
     <TextToSpeechDialog open={ttsOpen} onOpenChange={setTtsOpen} />
     <NarrationProgress />

@@ -27,4 +27,6 @@ export interface PublishOptions {
   reportStatus: ReportStatus;
   completion: { mode: CompletionMode; percent?: number; quizSlideId?: string };
   lrs?: LrsConfig;
+  /** Show empty image placeholders (grey boxes with their description), e.g. for review builds. */
+  showPlaceholders?: boolean;
 }

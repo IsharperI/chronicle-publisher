@@ -38,6 +38,7 @@ import {
 import { sanitizeSlides, sanitizePlayerSettings, sanitizeCourseSettings, sanitizeVariables } from '@/lib/sanitize';
 import { themeVarRef } from '@/lib/themeVars';
 import { brandSlide } from '@/lib/brand';
+import { makePlaceholder, markersIn, tile } from '@/lib/imagePlaceholders';
 
 const hex = z.string().regex(/^#[0-9a-fA-F]{6}$/, 'must be a 6-digit hex color');
 const common = { narration: z.string().optional(), sourceRef: z.string().optional() };
@@ -182,6 +183,17 @@ export function blueprintToCourse(bp: CourseBlueprint, canvas: CanvasDimensions 
   const shape = (x: number, y: number, w: number, h: number, fillColor: string, extra: Partial<ShapeElement> = {}, shapeType: ShapeType = 'rectangle'): ShapeElement => ({
     ...base(x, y, w, h), type: 'shape', shapeType, fillColor, borderColor: fillColor, borderWidth: 0, ...extra,
   });
+  // Image placeholders (lib/imagePlaceholders.ts): one per storyboard picture
+  // marker in the description, tiled across the image area.
+  const placeholders = (x: number, y: number, w: number, h: number, description: string): SlideElement[] => {
+    const markers = markersIn(description);
+    const area = base(x, y, w, h);
+    if (markers.length <= 1) return [makePlaceholder(area, description)];
+    const other = description.replace(/\[\s*image\s+\d+\s*\]/gi, '').replace(/\s{2,}/g, ' ').trim();
+    return tile(area, markers.length).map((b, i) =>
+      makePlaceholder({ ...base(0, 0, 0, 0), ...b }, `${other} [Image ${markers[i]}]`.trim()),
+    );
+  };
   const bulletText = (items: string[]) => items.map((b) => `• ${b}`).join('\n');
   const bulletSize = (n: number) => Math.max(18, 28 - Math.max(0, n - 4) * 2);
   // Brand-managed title bar (lib/brand.ts restyles it for the brand's title style).
@@ -226,7 +238,7 @@ export function blueprintToCourse(bp: CourseBlueprint, canvas: CanvasDimensions 
         const imgX = imgRight ? 532 : 60, bodyX = imgRight ? 60 : 532;
         return content(s.title, [
           ...titleBar(s.title),
-          shape(imgX, 150, 432, 420, LIGHT, { borderColor: DARK, borderWidth: 2, text: 'IMAGE PLACEHOLDER\n\n' + s.imageDescription, textColor: DARK, fontSize: 16 }),
+          ...placeholders(imgX, 150, 432, 420, s.imageDescription),
           text(bodyX, 150, 432, 420, s.body, 24, DARK),
         ], s);
       }
@@ -284,7 +296,7 @@ export function blueprintToCourse(bp: CourseBlueprint, canvas: CanvasDimensions 
           ];
           if (it.imageDescription) {
             els.push(
-              shape(152, 200, 300, 440, LIGHT, { borderColor: DARK, borderWidth: 2, text: 'IMAGE PLACEHOLDER\n\n' + it.imageDescription, textColor: DARK, fontSize: 14 }),
+              ...placeholders(152, 200, 300, 440, it.imageDescription),
               text(480, 200, 392, 440, it.body, bodySize, DARK),
             );
           } else {

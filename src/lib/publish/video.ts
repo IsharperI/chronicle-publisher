@@ -93,11 +93,14 @@ export function elementAppearance(
 }
 
 /** Elements a learner sees when the slide opens: visible layers only (hidden layers are lightboxes etc.). */
+/** Hidden elements and empty image placeholders aren't in the video. */
+const shown = (e: SlideElement) => !e.isHidden && !(e.type === 'shape' && (e as { imagePlaceholder?: unknown }).imagePlaceholder);
+
 function slideElements(slide: Slide): SlideElement[] {
   if (slide.layers && slide.layers.length > 0) {
-    return slide.layers.flatMap((l: SlideLayer) => (l.visible === false ? [] : l.elements)).filter((e) => !e.isHidden);
+    return slide.layers.flatMap((l: SlideLayer) => (l.visible === false ? [] : l.elements)).filter(shown);
   }
-  return slide.elements.filter((e) => !e.isHidden);
+  return slide.elements.filter(shown);
 }
 
 function masterElements(state: AppState, slide: Slide): SlideElement[] {

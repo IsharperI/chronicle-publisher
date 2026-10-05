@@ -622,10 +622,12 @@ function baseReducer(state: CourseState, action: Action): CourseState {
       };
     }
     case 'REPLACE_SLIDE_ELEMENT': {
-      const slides = state.slides.map((s) =>
+      // Works on slides and master slides.
+      const swap = (list: Slide[]) => list.map((s) =>
         s.id === action.slideId ? mapElementsInSlide(ensureLayers(s), (el) => (el.id === action.elementId ? action.element : el)) : s,
       );
-      return { ...state, slides };
+      const inMasters = state.masterSlides.some((m) => m.id === action.slideId);
+      return inMasters ? { ...state, masterSlides: swap(state.masterSlides) } : { ...state, slides: swap(state.slides) };
     }
     case 'UPDATE_SLIDE_BY_ID': {
       const slides = state.slides.map((s) => {

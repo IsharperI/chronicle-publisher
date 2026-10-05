@@ -17,6 +17,7 @@ import { cn } from '@/lib/utils';
 import type { Slide, SlideElement, TextElement } from '@/types/course';
 import { resolveColor, themeVarStyle } from '@/lib/themeVars';
 import { fontStyle, HEADING_FONT } from '@/lib/brand';
+import { PlaceholderBox } from './PlaceholderBox';
 import { memo, useEffect, useRef, useState } from 'react';
 
 const THUMB_WIDTH = 160; // px rendered width of the thumbnail box
@@ -60,6 +61,9 @@ function ThumbElement({ el, themeColors }: { el: SlideElement; themeColors: stri
     );
   }
 
+  if (el.type === 'shape' && el.imagePlaceholder) {
+    return <div style={baseStyle}><PlaceholderBox description="" compact /></div>;
+  }
   if (el.type === 'shape') {
     const rawFill = el.fillColor;
     const rawStroke = el.borderColor;

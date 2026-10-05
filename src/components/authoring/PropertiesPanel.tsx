@@ -14,6 +14,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useCourse } from '@/context/CourseContext';
 import { NextSlideControl } from './NextSlideControl';
+import { PlaceholderProperties } from './PlaceholderProperties';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -741,7 +742,11 @@ export function PropertiesPanel() {
               </>
             )}
 
-            {activeElement.type === 'shape' && (
+            {activeElement.type === 'shape' && (activeElement as ShapeElement).imagePlaceholder && (
+              <PlaceholderProperties element={activeElement as ShapeElement} onChange={update} />
+            )}
+
+            {activeElement.type === 'shape' && !(activeElement as ShapeElement).imagePlaceholder && (
               <>
                 <div className="space-y-1">
                   <Label className="text-xs">Shape Type</Label>
