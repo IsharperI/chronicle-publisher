@@ -3,7 +3,7 @@
  *
  * Tabs: Home (Save, Load, Blueprint, Preview, Publish, Player settings,
  * Variables), Insert (text, images, image placeholders, shapes, audio, Text to Speech, video,
- * interactive elements, tables), Design (story size, theme colors, arrange,
+ * interactive elements, tables), Design (story size, theme colors, brands, arrange,
  * grid, media library), Transitions, Animations (entrance/exit, motion paths),
  * View (preview, story view) and Quiz (quiz/results slides, quiz themes,
  * question bank).
@@ -36,6 +36,8 @@ import { isBlueprint, parseBlueprintText, prepareBlueprintLoad } from '@/lib/blu
 import { BlueprintDialog } from './BlueprintDialog';
 import { TextToSpeechDialog } from './TextToSpeechDialog';
 import { ImagePlaceholdersDialog } from './ImagePlaceholdersDialog';
+import { BrandsDialog } from './BrandsDialog';
+import { lastBrandId, loadBrands } from '@/lib/brand';
 import { NarrationProgress } from './NarrationProgress';
 import { cancelNarration, startCourseNarration } from '@/lib/tts/narrationJob';
 import { getVoicePref } from '@/lib/tts';
@@ -63,6 +65,7 @@ export function Ribbon() {
   const [blueprintOpen, setBlueprintOpen] = useState(false);
   const [ttsOpen, setTtsOpen] = useState(false);
   const [imagesOpen, setImagesOpen] = useState(false);
+  const [brandsOpen, setBrandsOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const audioInputRef = useRef<HTMLInputElement>(null);
@@ -109,7 +112,9 @@ export function Ribbon() {
           }
         }
         if (isBlueprint(data)) {
-          const res = prepareBlueprintLoad(data, state.courseSettings);
+          // Use the brand last picked in the Blueprint dialog (if any).
+          const brand = loadBrands().find((b) => b.id === lastBrandId());
+          const res = prepareBlueprintLoad(data, state.courseSettings, brand);
           if (res.ok === false) {
             toast.error('Blueprint has errors', { description: res.errors.slice(0, 5).join('\n') });
             return;
@@ -496,6 +501,10 @@ export function Ribbon() {
               <ThemeColorsControl />
             </RibbonGroup>
             <Separator orientation="vertical" className="h-12 mx-2" />
+            <RibbonGroup label="Brand">
+              <RibbonButton icon={Palette} label="Brands" onClick={() => setBrandsOpen(true)} />
+            </RibbonGroup>
+            <Separator orientation="vertical" className="h-12 mx-2" />
             <RibbonGroup label="Arrange">
               <ArrangeControls
                 mode={alignMode}
@@ -587,6 +596,7 @@ export function Ribbon() {
     <PublishDialog open={publishOpen} onOpenChange={setPublishOpen} />
     <BlueprintDialog open={blueprintOpen} onOpenChange={setBlueprintOpen} onOpenImages={() => setImagesOpen(true)} />
     <ImagePlaceholdersDialog open={imagesOpen} onOpenChange={setImagesOpen} />
+    <BrandsDialog open={brandsOpen} onOpenChange={setBrandsOpen} />
     <TextToSpeechDialog open={ttsOpen} onOpenChange={setTtsOpen} />
     <NarrationProgress />
     <QuizThemesOverlay open={quizThemesOpen} onClose={() => setQuizThemesOpen(false)} />

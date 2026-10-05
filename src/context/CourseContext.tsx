@@ -15,7 +15,8 @@
 import { completesBranch, hubLocked, isHub, nextSlideIndex, reconcileBranching } from '@/lib/navigation';
 import React, { createContext, useCallback, useContext, useMemo, useReducer, type Dispatch } from 'react';
 import { initialHistory, withHistory } from './history';
-import type { CourseState, Slide, SlideElement, SlideLayer, ViewMode, PlayerSettings, CourseSettings, SlideAudio, QuizConfig, ResultsConfig, SlideKind, CourseVariable } from '@/types/course';
+import { applyBrandToCourse } from '@/lib/brand';
+import type { CourseState, Slide, SlideElement, SlideLayer, ViewMode, PlayerSettings, CourseSettings, SlideAudio, QuizConfig, ResultsConfig, SlideKind, CourseVariable, Brand } from '@/types/course';
 import { defaultPlayerSettings, defaultCourseSettings } from '@/types/course';
 import { TTS_AUDIO_NAME } from '@/lib/tts/narration';
 
@@ -233,6 +234,8 @@ type Action =
   | { type: 'DUPLICATE_SLIDE'; index: number; newId?: string; treePos?: { x: number; y: number } }
   /** Update an element on any slide (UPDATE_ELEMENT only reaches the active slide). */
   | { type: 'UPDATE_SLIDE_ELEMENT'; slideId: string; elementId: string; updates: Partial<SlideElement> }
+  /** Apply a client brand to the whole course (lib/brand.ts). */
+  | { type: 'APPLY_BRAND'; brand: Brand }
   /** Replace one element on any slide (any layer), e.g. an image placeholder with the image. */
   | { type: 'REPLACE_SLIDE_ELEMENT'; slideId: string; elementId: string; element: SlideElement }
   /** Update any slide by id (branch mode, continue target, …). undefined values remove the field. */
@@ -608,6 +611,15 @@ function baseReducer(state: CourseState, action: Action): CourseState {
       if (!hist.length) return state;
       const back = baseReducer(state, { type: 'SET_ACTIVE_SLIDE', index: hist[hist.length - 1] });
       return { ...back, previewHistory: hist.slice(0, -1) };
+    }
+    case 'APPLY_BRAND': {
+      const branded = applyBrandToCourse(state.slides, state.courseSettings, state.playerSettings, action.brand);
+      return {
+        ...state,
+        slides: branded.slides,
+        courseSettings: { ...state.courseSettings, ...branded.courseSettings },
+        playerSettings: { ...state.playerSettings, ...branded.playerSettings },
+      };
     }
     case 'REPLACE_SLIDE_ELEMENT': {
       const slides = state.slides.map((s) =>

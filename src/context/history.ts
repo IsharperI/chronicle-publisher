@@ -54,7 +54,7 @@ const LABELS: Record<string, string> = {
   ADD_SLIDE: 'Add slide', DELETE_SLIDE: 'Delete slide', MOVE_SLIDE: 'Move slide', INSERT_SLIDE: 'Add slide', DUPLICATE_SLIDE: 'Duplicate slide',
   UPDATE_SLIDE: 'Slide change', UPDATE_SLIDE_BY_ID: 'Slide change',
   ADD_ELEMENT: 'Add object', UPDATE_ELEMENT: 'Edit object', DELETE_ELEMENT: 'Delete object', UPDATE_SLIDE_ELEMENT: 'Edit object',
-  REPLACE_SLIDE_ELEMENT: 'Place image',
+  REPLACE_SLIDE_ELEMENT: 'Place image', APPLY_BRAND: 'Apply brand',
   SET_SLIDE_NEXT: 'Change connection', SET_TREE_POSITIONS: 'Move in course tree',
   SET_SLIDE_GROUP: 'Slide group', RENAME_SLIDE_GROUP: 'Rename slide group',
   ADD_LAYER: 'Add layer', DELETE_LAYER: 'Delete layer', RENAME_LAYER: 'Rename layer', REORDER_LAYERS: 'Reorder layers',

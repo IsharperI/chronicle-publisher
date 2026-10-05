@@ -23,6 +23,7 @@ import { jsonrepair } from 'jsonrepair';
 import {
   defaultCourseSettings,
   type BaseElement,
+  type Brand,
   type CanvasDimensions,
   type CourseSettings,
   type PlayerSettings,
@@ -35,6 +36,8 @@ import {
   type TextElement,
 } from '@/types/course';
 import { sanitizeSlides, sanitizePlayerSettings, sanitizeCourseSettings, sanitizeVariables } from '@/lib/sanitize';
+import { themeVarRef } from '@/lib/themeVars';
+import { brandSlide } from '@/lib/brand';
 
 const hex = z.string().regex(/^#[0-9a-fA-F]{6}$/, 'must be a 6-digit hex color');
 const common = { narration: z.string().optional(), sourceRef: z.string().optional() };
@@ -157,9 +160,11 @@ export function shortTitle(title: string, max = 30): string {
   return base.replace(/[\s,;:.\-–—(]+$/, '') + '…';
 }
 
-export function blueprintToCourse(bp: CourseBlueprint, canvas: CanvasDimensions = { width: 1024, height: 768 }): BlueprintCourse {
-  const colors = bp.course.themeColors ?? [...defaultCourseSettings.themeColors];
-  const PRIMARY = colors[0], ACCENT2 = colors[3], DARK = colors[4], LIGHT = colors[5];
+export function blueprintToCourse(bp: CourseBlueprint, canvas: CanvasDimensions = { width: 1024, height: 768 }, brand?: Brand): BlueprintCourse {
+  // A chosen client brand wins over colours the AI suggested.
+  const colors = brand?.colors ?? bp.course.themeColors ?? [...defaultCourseSettings.themeColors];
+  // Elements use theme colour references, so changing the theme or brand later restyles them.
+  const PRIMARY = themeVarRef(0), ACCENT2 = themeVarRef(3), DARK = themeVarRef(4), LIGHT = themeVarRef(5);
   const sx = canvas.width / 1024, sy = canvas.height / 768;
 
   const base = (x: number, y: number, w: number, h: number): Omit<BaseElement, 'type'> => ({
@@ -170,17 +175,19 @@ export function blueprintToCourse(bp: CourseBlueprint, canvas: CanvasDimensions 
     entranceDuration: 500, exitDuration: 500,
     isLocked: false, isHidden: false,
   });
-  const text = (x: number, y: number, w: number, h: number, content: string, fontSize: number, textColor: string, fontWeight = '400'): TextElement => ({
-    ...base(x, y, w, h), type: 'text', content, fontSize, fontWeight, textColor, backgroundColor: 'transparent',
+  const text = (x: number, y: number, w: number, h: number, content: string, fontSize: number, textColor: string, fontWeight = '400', extra: Partial<TextElement> = {}): TextElement => ({
+    ...base(x, y, w, h), type: 'text', content, fontSize, fontWeight, textColor, backgroundColor: 'transparent', ...extra,
   });
+  const heading = { fontRole: 'heading' } as const;
   const shape = (x: number, y: number, w: number, h: number, fillColor: string, extra: Partial<ShapeElement> = {}, shapeType: ShapeType = 'rectangle'): ShapeElement => ({
     ...base(x, y, w, h), type: 'shape', shapeType, fillColor, borderColor: fillColor, borderWidth: 0, ...extra,
   });
   const bulletText = (items: string[]) => items.map((b) => `• ${b}`).join('\n');
   const bulletSize = (n: number) => Math.max(18, 28 - Math.max(0, n - 4) * 2);
+  // Brand-managed title bar (lib/brand.ts restyles it for the brand's title style).
   const titleBar = (title: string): SlideElement[] => [
-    shape(0, 0, 1024, 110, PRIMARY),
-    text(60, 25, 904, 70, title, 36, LIGHT, '700'),
+    shape(0, 0, 1024, 110, PRIMARY, { brandRole: 'titleBar' }),
+    text(60, 25, 904, 70, title, 36, LIGHT, '700', { ...heading, brandRole: 'titleText' }),
   ];
   const notesFor = (s: BlueprintSlide) => {
     let n = s.narration ? `Narration:\n${s.narration}` : '';
@@ -201,14 +208,14 @@ export function blueprintToCourse(bp: CourseBlueprint, canvas: CanvasDimensions 
           shape(0, 0, 1024, 768, LIGHT),
           shape(0, 0, 28, 768, PRIMARY),
           shape(80, 262, 120, 8, ACCENT2),
-          text(80, 290, 864, 140, s.title, size, PRIMARY, '700'),
+          text(80, 290, 864, 140, s.title, size, PRIMARY, '700', heading),
         ];
         if (s.subtitle) els.push(text(80, 440, 864, 120, s.subtitle, 24, DARK));
         return content(s.title, els, s);
       }
       case 'title': {
         const titleSize = s.title.length <= 28 ? 48 : s.title.length <= 50 ? 40 : 34;
-        const els: SlideElement[] = [shape(0, 0, 1024, 768, PRIMARY), text(80, 220, 864, 180, s.title, titleSize, LIGHT, '700')];
+        const els: SlideElement[] = [shape(0, 0, 1024, 768, PRIMARY, { brandRole: 'cover' }), text(80, 220, 864, 180, s.title, titleSize, LIGHT, '700', heading)];
         if (s.subtitle) els.push(text(80, 410, 864, 100, s.subtitle, 24, LIGHT));
         return content(s.title, els, s);
       }
@@ -225,7 +232,7 @@ export function blueprintToCourse(bp: CourseBlueprint, canvas: CanvasDimensions 
       }
       case 'two-column': {
         const col = (x: number, c: { heading?: string; bullets?: string[] }) => [
-          text(x, 150, 432, 60, c.heading ?? "", 26, PRIMARY, '700'),
+          text(x, 150, 432, 60, c.heading ?? "", 26, PRIMARY, '700', heading),
           text(x, 220, 432, 490, bulletText(c.bullets ?? []), bulletSize((c.bullets ?? []).length), DARK),
         ];
         return content(s.title, [...titleBar(s.title), ...col(60, s.left), ...col(532, s.right)], s);
@@ -233,7 +240,7 @@ export function blueprintToCourse(bp: CourseBlueprint, canvas: CanvasDimensions 
       case 'reveal': {
         // Storyline-style lightboxes: a button per item on the base layer; each
         // opens its own hidden layer (dimmed backdrop + card + close button).
-        const SECONDARY = colors[1];
+        const SECONDARY = themeVarRef(1);
         const n = s.items.length;
         const cols = n <= 3 ? n : n === 4 ? 2 : 3;
         const rows = Math.ceil(n / cols);
@@ -264,13 +271,13 @@ export function blueprintToCourse(bp: CourseBlueprint, canvas: CanvasDimensions 
 
         const itemLayers: SlideLayer[] = s.items.map((it, i) => {
           const close = onClick('hideLayer', layerIds[i]);
-          const heading = it.heading ?? it.label;
+          const itemHeading = it.heading ?? it.label;
           const bodySize = it.body.length > 450 ? 18 : it.body.length > 280 ? 20 : 22;
           const els: SlideElement[] = [
             shape(0, 0, 1024, 768, 'rgba(0,0,0,0.55)', { triggers: close }),
             shape(112, 84, 800, 600, '#ffffff', { borderRadius: 12, boxShadow: '0 12px 40px rgba(0,0,0,0.35)' }),
             shape(112, 84, 800, 12, PRIMARY),
-            text(152, 116, 660, 70, heading, 30, PRIMARY, '700'),
+            text(152, 116, 660, 70, itemHeading, 30, PRIMARY, '700', heading),
             shape(848, 112, 44, 44, PRIMARY, {
               text: '✕', textColor: LIGHT, fontSize: 20, hoverFillColor: SECONDARY, triggers: close,
             }, 'circle'),
@@ -329,7 +336,7 @@ export function blueprintToCourse(bp: CourseBlueprint, canvas: CanvasDimensions 
 
   /** Hub slide: title bar, intro, and one branch button per branch (lib/navigation.ts auto buttons). */
   const hubSlideFor = (s: HubBlueprintSlide, targets: string[]): Slide => {
-    const SECONDARY = colors[1];
+    const SECONDARY = themeVarRef(1);
     const n = s.branches.length;
     const cols = n <= 3 ? n : n === 4 ? 2 : 3;
     const rows = Math.ceil(n / cols);
@@ -397,6 +404,15 @@ export function blueprintToCourse(bp: CourseBlueprint, canvas: CanvasDimensions 
   }
   pending.forEach((fill) => fill(undefined));
 
+  if (brand) {
+    return {
+      slides: slides.map((sl) => brandSlide(sl, brand, canvas)),
+      sources,
+      masterSlides: [],
+      playerSettings: { courseTitle: bp.course.title, buttonColor: brand.colors[0] },
+      courseSettings: { themeColors: [...colors], bodyFont: brand.bodyFont, headingFont: brand.headingFont, brand: { ...brand } },
+    };
+  }
   return {
     slides,
     sources,
@@ -429,13 +445,14 @@ export interface BlueprintLoadPayload {
 export function prepareBlueprintLoad(
   data: unknown,
   currentSettings: CourseSettings,
+  brand?: Brand,
 ): { ok: true; payload: BlueprintLoadPayload; narration: BlueprintNarration[] } | { ok: false; errors: string[] } {
   if (!isBlueprint(data)) {
     return { ok: false, errors: ['This is not a course blueprint (it needs "blueprintVersion": 1 at the top level).'] };
   }
   const res = validateBlueprint(data);
   if (res.ok === false) return { ok: false, errors: res.errors };
-  const course = blueprintToCourse(res.blueprint, currentSettings.canvasDimensions);
+  const course = blueprintToCourse(res.blueprint, currentSettings.canvasDimensions, brand);
   // Voice-over scripts to turn into audio after loading (slide ids survive sanitizing).
   const narration: BlueprintNarration[] = course.sources
     .map((bs, i) => ({ slideId: course.slides[i].id, title: course.slides[i].title ?? `Slide ${i + 1}`, script: bs.narration?.trim() ?? '' }))
