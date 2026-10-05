@@ -12,6 +12,10 @@
  *
  * buildStoryboardPrompt() puts the blueprint instructions (BLUEPRINT_GUIDE)
  * and the storyboard text together, ready to paste into Gemini or any AI chat.
+ * The storyboard isn't attached to the chat separately: this text (with its
+ * [Image N] numbering) is what keeps picture numbers consistent with the
+ * images folder. There are deliberately no free-text "notes for the AI", so
+ * the course sticks to the source material.
  */
 import JSZip from 'jszip';
 import { BLUEPRINT_GUIDE } from './blueprint';
@@ -148,12 +152,11 @@ export async function extractDocx(data: ArrayBuffer, fileName = 'storyboard.docx
 }
 
 /** The full prompt to paste into an AI chat: the blueprint instructions plus the storyboard. */
-export function buildStoryboardPrompt(sb: Pick<ExtractedStoryboard, 'fileName' | 'text'>, extra?: string): string {
+export function buildStoryboardPrompt(sb: Pick<ExtractedStoryboard, 'fileName' | 'text'>): string {
   const parts = [
     BLUEPRINT_GUIDE,
     '',
     '---',
-    extra?.trim() ? `NOTES FROM THE COURSE DEVELOPER\n${extra.trim()}\n\n---` : '',
     `SOURCE MATERIAL: the storyboard "${sb.fileName}". Table rows are shown as cells separated by " | ". Pictures are shown as markers like [Image 3].`,
     '',
     sb.text,
