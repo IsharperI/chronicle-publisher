@@ -13,7 +13,8 @@
  *   been through lib/sanitize.ts.
  */
 import { completesBranch, hubLocked, isHub, nextSlideIndex, reconcileBranching } from '@/lib/navigation';
-import React, { createContext, useContext, useReducer, type Dispatch } from 'react';
+import React, { createContext, useCallback, useContext, useMemo, useReducer, type Dispatch } from 'react';
+import { initialHistory, withHistory } from './history';
 import type { CourseState, Slide, SlideElement, SlideLayer, ViewMode, PlayerSettings, CourseSettings, SlideAudio, QuizConfig, ResultsConfig, SlideKind, CourseVariable } from '@/types/course';
 import { defaultPlayerSettings, defaultCourseSettings } from '@/types/course';
 import { TTS_AUDIO_NAME } from '@/lib/tts/narration';
@@ -1007,11 +1008,35 @@ function baseReducer(state: CourseState, action: Action): CourseState {
   }
 }
 
-const CourseContext = createContext<{ state: CourseState; dispatch: Dispatch<Action> } | null>(null);
+export interface CourseHistory {
+  canUndo: boolean;
+  canRedo: boolean;
+  /** What would be undone / redone, e.g. "Delete slide". */
+  undoLabel?: string;
+  redoLabel?: string;
+  undo: () => void;
+  redo: () => void;
+}
 
+const CourseContext = createContext<{ state: CourseState; dispatch: Dispatch<Action>; history: CourseHistory } | null>(null);
+
+const historyReducer = withHistory(courseReducer);
+
+/** The course store, with undo/redo (context/history.ts). */
 export function CourseProvider({ children }: { children: React.ReactNode }) {
-  const [state, dispatch] = useReducer(courseReducer, initialState);
-  return <CourseContext.Provider value={{ state, dispatch }}>{children}</CourseContext.Provider>;
+  const [h, dispatchH] = useReducer(historyReducer, initialState, initialHistory);
+  const dispatch = useCallback((a: Action) => dispatchH(a), []);
+  const undo = useCallback(() => dispatchH({ type: 'UNDO' }), []);
+  const redo = useCallback(() => dispatchH({ type: 'REDO' }), []);
+  const history = useMemo<CourseHistory>(() => ({
+    canUndo: h.past.length > 0 && !h.present.previewMode,
+    canRedo: h.future.length > 0 && !h.present.previewMode,
+    undoLabel: h.past[h.past.length - 1]?.label,
+    redoLabel: h.future[h.future.length - 1]?.label,
+    undo, redo,
+  }), [h.past, h.future, h.present.previewMode, undo, redo]);
+  const value = useMemo(() => ({ state: h.present, dispatch, history }), [h.present, dispatch, history]);
+  return <CourseContext.Provider value={value}>{children}</CourseContext.Provider>;
 }
 
 export function useCourse() {
