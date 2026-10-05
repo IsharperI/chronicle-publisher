@@ -205,11 +205,14 @@ A blueprint is a compact JSON course description, usually written by an AI from 
   - Pictures become `[Image N]` markers. The pictures themselves are kept in memory for this browser session.
   - `buildStoryboardPrompt` joins `BLUEPRINT_GUIDE`, optional notes and the storyboard text into one prompt, which is copied to the clipboard or saved as .txt.
   - `.txt` and `.md` files also work. A PDF or .doc must be saved as .docx first.
-- **`lib/imageMatching.ts`** and `ImagePlaceholdersDialog.tsx` (Insert → **Image Placeholders**, also offered after a blueprint loads):
-  - `findPlaceholders` lists the grey `IMAGE PLACEHOLDER` boxes, including those on pop-up layers.
-  - `matchImages` pairs them with images, in this order: storyboard `[Image N]` marker, then a 5+ digit stock number in the file name, then file-name words found in the description. Each image is used only once.
-  - The author can change any match. Placing swaps each placeholder for an image element (`REPLACE_SLIDE_ELEMENT`) that fits inside its box without stretching (`fitImage`). Added photos are scaled down to at most 1920 px.
-  - `BLUEPRINT_GUIDE` asks the AI to copy `[Image N]` markers and stock numbers into `imageDescription`.
+- **Image placeholders (`lib/imagePlaceholders.ts`)**, like PowerPoint's: a shape with `imagePlaceholder: { description, marker? }`.
+  - **Where they come from:** Insert → **Image Placeholder**, or blueprints. A blueprint creates one placeholder per `[Image N]` marker in `imageDescription`, tiled across the image area.
+  - **Older courses:** the old grey "IMAGE PLACEHOLDER" text boxes are converted by the sanitizer when a course loads.
+  - **In the editor:** the placeholder shows as a dashed box (`PlaceholderBox.tsx`). Double-click it, or use Properties → **Choose image…** (`PlaceholderProperties.tsx`), and the image replaces it through `REPLACE_SLIDE_ELEMENT`, fitted without stretching and keeping timing and triggers.
+  - **Empty placeholders** are hidden in preview, video and the published course, unless the Publish dialog's **Show empty image placeholders** is on (`PublishOptions.showPlaceholders`).
+- **Images folder (Blueprint dialog):** files are numbered by picture order in the storyboard. `3.png` is `[Image 3]` and fills every placeholder for it; `3_1.png`, `3_2.png`… give each use of that picture (in course order) its own file (`parseImageNumber`, `assignNumberedImages`).
+  - `placeNumberedImages` runs while the blueprint is built, so the course loads with its images in place.
+  - Optionally, the storyboard's own pictures fill any picture numbers the folder lacks.
 
 ## Text-to-speech (`lib/tts/`)
 

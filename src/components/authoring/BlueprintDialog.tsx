@@ -6,8 +6,9 @@
  *
  * "Start from a storyboard" reads a Word storyboard (lib/storyboard.ts) and
  * copies one ready-made prompt (instructions + storyboard text) for the AI
- * chat. After loading, if the course has image placeholders, a toast offers
- * to fill them (Insert → Image Placeholders).
+ * chat. An optional images folder holds the course's pictures, numbered by
+ * picture order in the storyboard; they're put into the matching image
+ * placeholders as the course is built (lib/imagePlaceholders.ts).
  */
 import { useEffect, useRef, useState } from 'react';
 import { lastBrandId, loadBrands, setLastBrandId } from '@/lib/brand';
@@ -15,10 +16,11 @@ import type { Brand } from '@/types/course';
 
 const NO_BRAND = '__none';
 import { toast } from 'sonner';
-import { Copy, AlertTriangle, FileUp, Download, CheckCircle2, Loader2 } from 'lucide-react';
+import { Copy, AlertTriangle, FileUp, Download, CheckCircle2, Loader2, FolderOpen } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { buildStoryboardPrompt, extractStoryboard, type ExtractedStoryboard } from '@/lib/storyboard';
-import { findPlaceholders } from '@/lib/imageMatching';
+import { findPlaceholders, parseImageNumber, placeNumberedImages, readImageFile, type NumberedImage } from '@/lib/imagePlaceholders';
+import { storyboardImages } from '@/lib/storyboard';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
   AlertDialog,
@@ -42,7 +44,7 @@ import { hasCourseContent } from '@/lib/project';
 
 type PendingLoad = { payload: BlueprintLoadPayload; narration: BlueprintNarration[] };
 
-export function BlueprintDialog({ open, onOpenChange, onOpenImages }: { open: boolean; onOpenChange: (open: boolean) => void; onOpenImages?: () => void }) {
+export function BlueprintDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   const { state, dispatch } = useCourse();
   const [text, setText] = useState('');
   const [errors, setErrors] = useState<string[]>([]);
@@ -60,6 +62,34 @@ export function BlueprintDialog({ open, onOpenChange, onOpenImages }: { open: bo
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
   const [storyboard, setStoryboard] = useState<ExtractedStoryboard | null>(null);
+  // Images folder: files numbered by picture order in the storyboard (3.png = [Image 3]; 3_2.png = its 2nd use).
+  const [folderImages, setFolderImages] = useState<NumberedImage[]>([]);
+  const [folderSkipped, setFolderSkipped] = useState(0);
+  const [folderBusy, setFolderBusy] = useState(false);
+  const [useStoryboardPics, setUseStoryboardPics] = useState(false);
+  const folderInput = useRef<HTMLInputElement>(null);
+  const onFolder = async (files: FileList | null) => {
+    const list = Array.from(files ?? []).filter((f) => f.type.startsWith('image/'));
+    if (!list.length) return;
+    setFolderBusy(true);
+    try {
+      const out: NumberedImage[] = [];
+      let skipped = 0;
+      for (const f of list) {
+        const num = parseImageNumber(f.name);
+        if (!num) { skipped++; continue; }
+        const img = await readImageFile(f);
+        out.push({ name: f.name, dataUrl: img.dataUrl, ...num });
+      }
+      out.sort((a, b) => a.n - b.n || (a.use ?? 0) - (b.use ?? 0));
+      setFolderImages(out);
+      setFolderSkipped(skipped);
+    } catch {
+      toast.error('Some images could not be read');
+    } finally {
+      setFolderBusy(false);
+    }
+  };
   const [sbNotes, setSbNotes] = useState('');
   const [sbBusy, setSbBusy] = useState(false);
   const [sbCopied, setSbCopied] = useState(false);
@@ -106,20 +136,30 @@ export function BlueprintDialog({ open, onOpenChange, onOpenImages }: { open: bo
     }
   };
 
-  const apply = ({ payload, narration }: PendingLoad) => {
-    dispatch({ type: 'LOAD_COURSE', ...payload });
-    toast.success(`Loaded blueprint: ${payload.slides.length} slides`);
+  const apply = async ({ payload, narration }: PendingLoad) => {
+    // Numbered images (folder, plus storyboard pictures if chosen) go into their placeholders.
+    let slides = payload.slides;
+    let placedMsg = '';
+    const holes = findPlaceholders(slides).length;
+    if (holes) {
+      const fromFolder = new Set(folderImages.map((i) => i.n));
+      const pics: NumberedImage[] = [
+        ...folderImages,
+        ...(useStoryboardPics ? storyboardImages().filter((i) => !fromFolder.has(i.n)).map((i) => ({ name: i.name, dataUrl: i.dataUrl, n: i.n })) : []),
+      ];
+      if (pics.length) {
+        const res = await placeNumberedImages(slides, pics);
+        slides = res.slides;
+        placedMsg = `Placed ${res.placed} image${res.placed === 1 ? '' : 's'}.` + (res.empty ? ` ${res.empty} placeholder${res.empty === 1 ? ' is' : 's are'} still empty; double-click one to add an image.` : '');
+      } else {
+        placedMsg = `${holes} image placeholder${holes === 1 ? '' : 's'}: double-click one to add an image.`;
+      }
+    }
+    dispatch({ type: 'LOAD_COURSE', ...payload, slides });
+    toast.success(`Loaded blueprint: ${slides.length} slides`, placedMsg ? { description: placedMsg, duration: 8000 } : undefined);
     if (narrate && narration.length) {
       setVoicePref(voice);
       void startCourseNarration(narration, dispatch, voice);
-    }
-    const holes = findPlaceholders(payload.slides).length;
-    if (holes && onOpenImages) {
-      toast.info(`${holes} image placeholder${holes === 1 ? '' : 's'} to fill`, {
-        description: 'Add your images, or use the pictures from the storyboard.',
-        action: { label: 'Fill images', onClick: onOpenImages },
-        duration: 10000,
-      });
     }
     setPending(null);
     setErrors([]);
@@ -148,7 +188,7 @@ export function BlueprintDialog({ open, onOpenChange, onOpenImages }: { open: bo
     setErrors([]);
     const load = { payload: res.payload, narration: res.narration };
     if (hasCourseContent(state.slides)) setPending(load);
-    else apply(load);
+    else void apply(load);
   };
 
   const copyGuide = async () => {
@@ -194,6 +234,30 @@ export function BlueprintDialog({ open, onOpenChange, onOpenImages }: { open: bo
               />
               <input ref={sbInput} type="file" accept=".docx,.txt,.md" hidden aria-label="Storyboard file"
                 onChange={(e) => { void onStoryboard(e.target.files?.[0]); e.target.value = ''; }} />
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-sm">Images folder <span className="text-muted-foreground">(optional)</span></span>
+              <Button variant="outline" size="sm" onClick={() => folderInput.current?.click()} disabled={folderBusy}>
+                {folderBusy ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <FolderOpen className="h-4 w-4 mr-1.5" />}
+                Choose folder…
+              </Button>
+              <input ref={folderInput} type="file" accept="image/*" multiple hidden aria-label="Images folder"
+                {...({ webkitdirectory: '', directory: '' } as Record<string, string>)}
+                onChange={(e) => { void onFolder(e.target.files); e.target.value = ''; }} />
+              <span className="text-xs text-muted-foreground" role="status" aria-label="Images folder status">
+                {folderImages.length
+                  ? `${folderImages.length} numbered image${folderImages.length === 1 ? '' : 's'} (${[...new Set(folderImages.map((i) => i.n))].length} pictures)${folderSkipped ? `, ${folderSkipped} without a number ignored` : ''}`
+                  : 'Name files by storyboard picture: 3.png = [Image 3]; 3_2.png = its 2nd use.'}
+              </span>
+              {folderImages.length > 0 && (
+                <Button variant="ghost" size="sm" className="h-7" onClick={() => { setFolderImages([]); setFolderSkipped(0); }}>Clear</Button>
+              )}
+              {storyboard && storyboard.images.length > 0 && (
+                <label className="flex items-center gap-1.5 text-xs cursor-pointer ml-auto">
+                  <Checkbox checked={useStoryboardPics} onCheckedChange={(v) => setUseStoryboardPics(v === true)} aria-label="Use storyboard pictures" />
+                  Use the storyboard’s own pictures where the folder has none
+                </label>
+              )}
             </div>
             {storyboard ? (
               <div className="flex flex-wrap items-center gap-2 text-xs" role="status">
@@ -308,7 +372,7 @@ export function BlueprintDialog({ open, onOpenChange, onOpenImages }: { open: bo
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => pending && apply(pending)}>Replace course</AlertDialogAction>
+            <AlertDialogAction onClick={() => pending && void apply(pending)}>Replace course</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

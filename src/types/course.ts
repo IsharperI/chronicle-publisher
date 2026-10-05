@@ -195,6 +195,12 @@ export interface ShapeElement extends BaseElement {
    * button leads to. Managed by lib/navigation.ts (removed with its connection).
    */
   autoBranchTarget?: string;
+  /**
+   * Marks this shape as an image placeholder (lib/imagePlaceholders.ts):
+   * double-click to replace it with an image. `marker` is the storyboard
+   * picture number ([Image 3]) used to auto-place numbered images.
+   */
+  imagePlaceholder?: { description: string; marker?: number };
 }
 
 /**

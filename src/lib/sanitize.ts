@@ -297,6 +297,19 @@ function sanitizeElement(raw: any): SlideElement | null {
           : undefined,
       autoBranchTarget: isSafeId(raw.autoBranchTarget) ? raw.autoBranchTarget : undefined,
     };
+    if (raw.imagePlaceholder && typeof raw.imagePlaceholder === 'object') {
+      const marker = Number(raw.imagePlaceholder.marker);
+      el.imagePlaceholder = {
+        description: safeString(raw.imagePlaceholder.description, '', 2_000),
+        ...(Number.isInteger(marker) && marker > 0 && marker < 100_000 ? { marker } : {}),
+      };
+    } else if (typeof el.text === 'string' && el.text.trim().startsWith('IMAGE PLACEHOLDER')) {
+      // Older courses: grey boxes whose text said "IMAGE PLACEHOLDER …" become real placeholders.
+      const description = el.text.trim().slice('IMAGE PLACEHOLDER'.length).trim();
+      const m = description.match(/\[\s*image\s+(\d+)\s*\]/i);
+      el.imagePlaceholder = { description, ...(m ? { marker: Number(m[1]) } : {}) };
+      el.text = undefined;
+    }
     return el;
   }
   if (raw.type === 'hotspot') {

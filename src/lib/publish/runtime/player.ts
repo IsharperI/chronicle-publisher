@@ -158,7 +158,7 @@ body{background-color:${ps.backgroundColor};${ps.backgroundImage ? `background-i
 </div>
 <script>
 window.COURSE_DATA=${courseData.replace(/<\/script>/gi, '<\\/script>').replace(/<!--/g, '<\\!--')};
-window.__PUBLISH_OPTS={completion:${completionConfig},reportStatus:${reportStatusConfig}};
+window.__PUBLISH_OPTS={completion:${completionConfig},reportStatus:${reportStatusConfig},showPlaceholders:${opts.showPlaceholders ? 'true' : 'false'}};
 </script>
 <script>${lmsRuntime}</script>
 <script>${PLAYER_RUNTIME(dims)}</script>
@@ -376,6 +376,16 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
       vid.setAttribute("playsinline","");
       vid.style.width="100%";vid.style.height="100%";vid.style.objectFit="contain";vid.style.background="#000";
       d.appendChild(vid);
+    } else if(el.type==="shape"&&el.imagePlaceholder){
+      /* Empty image placeholder: hidden from learners unless the author
+         published with "Show empty image placeholders" (review builds). */
+      if(!PUB.showPlaceholders){d.style.display="none"}
+      else{
+        d.style.border="2px dashed #94a3b8";d.style.background="#f1f5f9";d.style.borderRadius="6px";d.style.boxSizing="border-box";
+        d.style.display="flex";d.style.alignItems="center";d.style.justifyContent="center";d.style.textAlign="center";
+        d.style.padding="10px";d.style.color="#475569";d.style.fontSize="14px";d.style.fontFamily="system-ui,sans-serif";
+        d.textContent="Image: "+(el.imagePlaceholder.description||"");
+      }
     } else if(el.type==="shape"){
       var st=el.shapeType||"rectangle";
       var fillColor=el.fillColor||"#3b82f6";

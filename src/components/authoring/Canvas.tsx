@@ -19,6 +19,9 @@ import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import { Rnd } from 'react-rnd';
 import { TextLines } from './TextLines';
 import { isBranchingSlide, nextSlideIndex } from '@/lib/navigation';
+import { PlaceholderBox } from './PlaceholderBox';
+import { imageFromPlaceholder, readImageFile } from '@/lib/imagePlaceholders';
+import { toast } from 'sonner';
 import { useCourse } from '@/context/CourseContext';
 import type { SlideElement, TextElement, ShapeElement, AnimationIn, AnimationOut, TableElement, Slide, QuizConfig, QuizChoice, QuizMatchPair, QuizSortItem } from '@/types/course';
 import { isExtendedShapeType, resolveShapeSvg } from '@/lib/shapes';
@@ -151,6 +154,11 @@ function ElementRenderer({ element, isPreview }: { element: SlideElement; isPrev
         style={{ width: '100%', height: '100%', objectFit: 'contain', backgroundColor: '#000', pointerEvents: isPreview ? 'auto' : 'none' }}
       />
     );
+  }
+  if (element.type === 'shape' && (element as ShapeElement).imagePlaceholder) {
+    // Empty image placeholders are hidden from learners (preview).
+    if (isPreview) return null;
+    return <PlaceholderBox description={(element as ShapeElement).imagePlaceholder!.description} />;
   }
   if (element.type === 'shape') {
     const se = element as ShapeElement;
@@ -359,6 +367,23 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0.5);
   const [editingId, setEditingId] = useState<string | null>(null);
+  // Double-clicking an image placeholder asks for an image to put in its place.
+  const placeholderInput = useRef<HTMLInputElement>(null);
+  const [fillTarget, setFillTarget] = useState<ShapeElement | null>(null);
+  const fillPlaceholder = async (file: File | undefined) => {
+    const target = fillTarget;
+    setFillTarget(null);
+    if (!file || !target) return;
+    try {
+      const img = await readImageFile(file);
+      const slides = state.viewMode === 'master' ? state.masterSlides : state.slides;
+      const slide = slides[state.activeSlideIndex];
+      if (!slide) return;
+      dispatch({ type: 'REPLACE_SLIDE_ELEMENT', slideId: slide.id, elementId: target.id, element: imageFromPlaceholder(target, img.dataUrl, img) });
+    } catch {
+      toast.error('That image could not be read');
+    }
+  };
   const [lightboxSlideId, setLightboxSlideId] = useState<string | null>(null);
   // Runtime-only override map for layer visibility set by showLayer/hideLayer
   // triggers during playback. Keyed by layer id. Undefined entries fall back
@@ -814,6 +839,8 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
       className="flex-1 flex flex-col items-center justify-center overflow-hidden min-w-0 bg-gradient-to-br from-slate-200 to-slate-300"
       style={{ ...themeVarStyle(state.courseSettings.themeColors), ...fontStyle(state.courseSettings) }}
     >
+      <input ref={placeholderInput} type="file" accept="image/*" hidden aria-label="Image for placeholder"
+        onChange={(e) => { void fillPlaceholder(e.target.files?.[0]); e.target.value = ''; }} />
       <div
         style={{
           width: CANVAS_W, height: CANVAS_H,
@@ -962,7 +989,13 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
                       dispatch({ type: 'SET_ACTIVE_ELEMENT', id: el.id });
                     }
                   }}
-                  onDoubleClick={() => { if (!locked && el.type === 'shape') setEditingId(el.id); }}
+                  onDoubleClick={() => {
+                    if (locked || el.type !== 'shape') return;
+                    if ((el as ShapeElement).imagePlaceholder) {
+                      setFillTarget(el as ShapeElement);
+                      placeholderInput.current?.click();
+                    } else setEditingId(el.id);
+                  }}
                   enableResizing={!locked && !state.isPlaying && state.activeElementId === el.id && state.selectedElementIds.length === 1 && !isEditing}
                   resizeHandleStyles={{
                     top: handleStyle, bottom: handleStyle, left: handleStyle, right: handleStyle,
