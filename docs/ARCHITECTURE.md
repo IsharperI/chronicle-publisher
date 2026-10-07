@@ -116,7 +116,7 @@ Each slide's outgoing connections are stored in `slide.next`:
   - A branch is **completed** when the learner reaches its last slide, meaning a slide whose Next leads back to the hub (`completesBranch`).
   - A `required` hub keeps Continue locked until every branch is completed (`hubLocked`).
   - Completed branches get a ✓ on their button (`BranchTick` in `Canvas.tsx`; `.branch-tick` in the exported player).
-  - Progress is tracked in `branchDone` / `previewBranch` in the preview, and in `branchDone` / `activeBranch` in `player.ts`. The exported player saves it as `{"b": branchDone}` in SCORM `cmi.suspend_data` (`getSuspend`/`setSuspend` in the SCORM adapters), so ticks survive a relaunch. xAPI packages don't save it yet.
+  - Progress is tracked in `branchDone` / `previewBranch` in the preview, and in `branchDone` / `activeBranch` in `player.ts`. The exported player saves it with the rest of the learner's progress (see **Resuming** below), so ticks survive a relaunch.
   - The panel warns about branches that never lead back to their hub (`branchesReturn`).
   - Branching slides never auto-advance.
 - **Prev retraces the path the learner took** (a history stack), not the slide list, in both the preview (`previewHistory`, `PREVIEW_BACK`) and the exported player (`navHistory`).
@@ -174,7 +174,14 @@ A brand is a client's 6 theme colours, heading and body fonts, logo (data URL pl
 
 > **Gotcha: the exported player is code inside a string.** `PLAYER_RUNTIME` in `player.ts` returns the player's JavaScript as a **template literal**, so it can't `import` anything, is written in ES5 style (`var`, `function`), and **backslashes must be doubled** (`\\n`, `\\{`). Use `String.fromCharCode(10)` rather than `"\n"` when in doubt. Test changes by publishing a package and opening its `index.html`.
 
-**LMS reporting.** Scores are only sent once a quiz is scored. A course with no quiz questions reports a status but no score, so it never shows as "0%" in LMS reports. SCORM 1.2 and 2004 both report time spent (`cmi.core.session_time` / `cmi.session_time`), and SCORM 2004 sets `cmi.exit` to `suspend` until the course is complete so the LMS keeps the learner's place.
+**LMS reporting.** Scores are only sent once a quiz is scored. A course with no quiz questions reports a status but no score, so it never shows as "0%" in LMS reports. SCORM 1.2 and 2004 both report time spent (`cmi.core.session_time` / `cmi.session_time`), and both set the exit value (`cmi.core.exit` / `cmi.exit`) to `suspend` until the course is complete so the LMS keeps the learner's place.
+
+**Resuming.** The exported player saves the learner's progress every time they change slide or answer a question, and offers to pick up from there when the course is relaunched (Publish dialog → "When learners return": ask to resume (default), always resume, or always start at slide 1, `PublishOptions.resume`).
+- What's saved (`saveProgress` / `readProgress` / `applyProgress` in `player.ts`): `{v:2, s, h, vis, b, ab, q, vr, d}`, which is the current slide, the Prev history, visited slides (for percent completion), hub branches done, the branch in progress, submitted quiz answers (so the results slide still scores them), variables, and whether completion was already reported.
+- Slides are saved by a short prefix of their id, not their position, so a bookmark survives republishing with changes. Quiz answers are saved as choice positions.
+- Where: SCORM `cmi.suspend_data` (`getSuspend`/`setSuspend`), with the slide position also in `cmi.core.lesson_location` / `cmi.location` (`getLocation`, used for saves from before this format). xAPI uses the LRS State API (stateId `chronicle-resume`); it's read asynchronously, so the player waits for `LMS.loadSuspend` before starting.
+- SCORM 1.2 allows 4096 characters (`suspendLimit`), so if it gets too long the variables, then most of the history, then the quiz answers' details, then visited slides are dropped. Older saves (`{"b": {...}}`) still load.
+- Tests: `src/test/resume.test.ts` runs the exported player in jsdom against a fake SCORM LMS.
 
 Also in this folder: `compat.ts` (warnings shown in the Publish dialog), `word.ts` (Word storyboard export using `docx`) and `video.ts` (records slides with `MediaRecorder` into MP4).
 

@@ -19,7 +19,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { useCourse } from '@/context/CourseContext';
 import { publish } from '@/lib/publish';
-import type { PublishFormat, PublishOptions, ReportStatus, CompletionMode } from '@/lib/publish/types';
+import type { PublishFormat, PublishOptions, ReportStatus, CompletionMode, ResumeMode } from '@/lib/publish/types';
 import { analyzeCompatibility } from '@/lib/publish/compat';
 import { findPlaceholders } from '@/lib/imagePlaceholders';
 import { exportToWord } from '@/lib/publish/word';
@@ -62,6 +62,7 @@ export function PublishDialog({ open, onOpenChange }: Props) {
   const [lessonIdentifier, setLessonIdentifier] = useState(`lesson_${Date.now()}`);
   const [reportStatus, setReportStatus] = useState<ReportStatus>('passed-incomplete');
   const [showPlaceholders, setShowPlaceholders] = useState(false);
+  const [resume, setResume] = useState<ResumeMode>('prompt');
   const emptyPlaceholders = useMemo(() => findPlaceholders(state.slides).length, [state.slides]);
 
   // Refresh title-based fields each time the dialog opens, so a course loaded
@@ -152,6 +153,7 @@ export function PublishDialog({ open, onOpenChange }: Props) {
         lessonIdentifier,
         reportStatus,
         showPlaceholders,
+        resume,
         completion: { mode: completionMode, percent: completionPercent, quizSlideId: completionQuizSlideId || undefined },
         lrs: format === 'xapi' ? {
           endpoint: lrsEndpoint,
@@ -282,6 +284,21 @@ export function PublishDialog({ open, onOpenChange }: Props) {
                         <SelectItem value="xapi">xAPI (Tin Can)</SelectItem>
                       </SelectContent>
                     </Select>
+                  </div>
+                  <div className="space-y-1.5 max-w-xs">
+                    <Label htmlFor="resume-mode">When learners return</Label>
+                    <Select value={resume} onValueChange={(v) => setResume(v as ResumeMode)}>
+                      <SelectTrigger id="resume-mode"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="prompt">Ask to resume</SelectItem>
+                        <SelectItem value="always">Always resume</SelectItem>
+                        <SelectItem value="never">Always start at slide 1</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-slate-500">
+                      The course remembers the learner’s slide, quiz answers and completed sections.
+                      {format === 'xapi' ? ' With xAPI this is saved in your LRS.' : ''}
+                    </p>
                   </div>
                 </div>
 

@@ -2,7 +2,8 @@
  *
  *  - Finds API_1484_11 in parent frames and calls Initialize("") on load.
  *  - Marks a new attempt "incomplete" so the LMS shows it as started.
- *  - getSuspend/setSuspend: cmi.suspend_data (the player saves hub progress there).
+ *  - getSuspend/setSuspend: cmi.suspend_data (the player saves its progress there).
+ *  - getLocation: the saved slide (cmi.location) for resuming.
  *  - On leaving: reports cmi.session_time (ISO 8601, e.g. PT1H5M30S), sets
  *    cmi.exit ("suspend" until complete, so the LMS keeps the bookmark), then
  *    Terminate("").
@@ -39,6 +40,8 @@ window.__LMS = (function(){
   return {
     api:API,
     setLocation:function(loc){set("cmi.location",String(loc));commit();},
+    getLocation:function(){if(!API||!initialized)return "";try{return String(API.GetValue("cmi.location")||"")}catch(e){return ""}},
+    suspendLimit:64000,
     setStatus:function(status){
       // Map SCORM 1.2-style status to 2004 dual axes.
       if(status==="passed"||status==="failed"||status==="completed")completed=true;

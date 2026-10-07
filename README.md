@@ -14,7 +14,7 @@ Everything runs in the browser. There is no backend or database. Courses are sav
 - **Course blueprints:** paste a compact JSON "blueprint" (usually written by an AI from a storyboard) and Chronicle builds the whole course. Layouts include title, section, bullets, image + text, two columns, callout, click-to-reveal lightboxes, branching hubs, quiz and results. The **Copy AI instructions** button gives any AI chat (Claude, Gemini, …) the format. Or **upload a Word storyboard** and Chronicle copies a complete prompt (instructions + storyboard text) in one click. Point it at an **images folder** (named by storyboard picture number, e.g. `3.png`) and the pictures are placed as the course is built. Image placeholders work like PowerPoint's: double-click one to add its image.
 - **Text-to-speech narration:** free, in-browser voices (Kokoro). Blueprints are narrated automatically; **Insert → Text to Speech** narrates a single slide. Captions are generated too.
 - **Captions from audio:** Whisper speech recognition, in the browser.
-- **Publishing:** SCORM 1.2 / 2004 / xAPI zip, Word (.docx) storyboard export, and MP4 video export.
+- **Publishing:** SCORM 1.2 / 2004 / xAPI zip (learners can resume where they left off), Word (.docx) storyboard export, and MP4 video export.
 
 ## Running it locally
 

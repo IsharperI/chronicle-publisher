@@ -158,7 +158,7 @@ body{background-color:${ps.backgroundColor};${ps.backgroundImage ? `background-i
 </div>
 <script>
 window.COURSE_DATA=${courseData.replace(/<\/script>/gi, '<\\/script>').replace(/<!--/g, '<\\!--')};
-window.__PUBLISH_OPTS={completion:${completionConfig},reportStatus:${reportStatusConfig},showPlaceholders:${opts.showPlaceholders ? 'true' : 'false'}};
+window.__PUBLISH_OPTS={completion:${completionConfig},reportStatus:${reportStatusConfig},showPlaceholders:${opts.showPlaceholders ? 'true' : 'false'},resume:${JSON.stringify(opts.resume === 'always' || opts.resume === 'never' ? opts.resume : 'prompt')}};
 </script>
 <script>${lmsRuntime}</script>
 <script>${PLAYER_RUNTIME(dims)}</script>
@@ -556,10 +556,127 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
      back to the hub). Completed branches get a tick on their button. */
   function isHubSlide(s){return !!(s&&s.next&&s.next.length>=2&&(s.branchMode==="explore"||s.branchMode==="required"))}
   var branchDone={};var activeBranch=null;
-  /* Hub progress is saved in the LMS's suspend data, so ticks survive closing
-     and relaunching the course (SCORM; xAPI and plain web have no store here). */
-  try{var _sd=LMS.getSuspend?LMS.getSuspend():"";if(_sd){var _p=JSON.parse(_sd);if(_p&&_p.b&&typeof _p.b==="object")branchDone=_p.b}}catch(e){}
-  function saveProgress(){try{if(LMS.setSuspend)LMS.setSuspend(JSON.stringify({b:branchDone}))}catch(e){}}
+  /* ===== Saved progress (resume) =====
+     Saved in the LMS's suspend data (SCORM) or the LRS State API (xAPI) every
+     time the learner changes slide or answers a question, so relaunching the
+     course can pick up where they left off:
+       {v:2, s:current slide, h:Prev history, vis:visited slides,
+        b:hub branches done, ab:branch in progress, q:quiz answers,
+        vr:variables, d:1 once completion was reported}
+     Slides are saved by a short prefix of their id (not their position), so
+     a bookmark still works after the course is republished with changes.
+     SCORM 1.2 allows only 4096 characters, so the least important parts are
+     dropped first if it gets too long. Older saves ({b:{hubId:{slideId:true}}})
+     still load. */
+  var KEYLEN=6;
+  (function(){for(;KEYLEN<40;KEYLEN++){var seen={},dup=false;for(var i=0;i<slides.length;i++){var k=String(slides[i].id).slice(0,KEYLEN);if(seen[k]){dup=true;break}seen[k]=1}if(!dup)return}})();
+  function keyOf(id){return String(id).slice(0,KEYLEN)}
+  function slideIndexByKey(k){
+    if(typeof k!=="string"||!k)return -1;
+    var found=-1;
+    for(var i=0;i<slides.length;i++){var id=String(slides[i].id);if(id===k||id.indexOf(k)===0){if(found>=0&&id!==k)return -1;found=i;if(id===k)return i}}
+    return found;
+  }
+  function idByKey(k){var i=slideIndexByKey(k);return i>=0?slides[i].id:null}
+  function packAnswer(slide,a){
+    var q=slide.quiz||{},i,out;
+    if(a==null)return null;
+    function idx(list,id){for(var j=0;j<list.length;j++)if(list[j].id===id)return j;return -1}
+    if((q.questionType||"multiple-choice")==="multiple-choice"){
+      var ch=q.choices||[];
+      if(typeof a==="string")return idx(ch,a);
+      out=[];for(i=0;i<a.length;i++)out.push(idx(ch,a[i]));return out;
+    }
+    if(q.questionType==="dnd-sorting"){var it=q.sortItems||[];out=[];for(i=0;i<a.length;i++)out.push(idx(it,a[i]));return out}
+    if(q.questionType==="dnd-matching"){var pr=q.pairs||[];out={};for(var k in a)if(a.hasOwnProperty(k)&&a[k])out[idx(pr,k)]=idx(pr,a[k]);return out}
+    return null;
+  }
+  function unpackAnswer(slide,a){
+    var q=slide.quiz||{},i,out;
+    if(a==null)return null;
+    function at(list,n){return list[n]?list[n].id:null}
+    if((q.questionType||"multiple-choice")==="multiple-choice"){
+      var ch=q.choices||[];
+      if(typeof a==="number")return at(ch,a);
+      out=[];for(i=0;i<a.length;i++){var c=at(ch,a[i]);if(c)out.push(c)}return out;
+    }
+    if(q.questionType==="dnd-sorting"){var it=q.sortItems||[];out=[];for(i=0;i<a.length;i++){var t=at(it,a[i]);if(t)out.push(t)}return out.length===it.length?out:null}
+    if(q.questionType==="dnd-matching"){var pr=q.pairs||[];out={};for(var k in a)if(a.hasOwnProperty(k)){var l=at(pr,+k),r=at(pr,a[k]);if(l&&r)out[l]=r}return out}
+    return null;
+  }
+  var progressReady=false;
+  function saveProgress(){
+    if(!progressReady||!LMS.setSuspend)return;
+    try{
+      var b={},q={},vis=[],h=[],i,k;
+      for(var hub in branchDone)if(branchDone.hasOwnProperty(hub)){var o={},any=false;for(var t in branchDone[hub])if(branchDone[hub][t]){o[keyOf(t)]=1;any=true}if(any)b[keyOf(hub)]=o}
+      for(i=0;i<slides.length;i++){
+        var sl=slides[i];
+        if(visited[sl.id])vis.push(keyOf(sl.id));
+        var st=quizState[sl.id];
+        if(st&&st.submitted)q[keyOf(sl.id)]=[st.correct?1:0,st.attemptsLeft|0,packAnswer(sl,st.answer)];
+      }
+      for(i=Math.max(0,navHistory.length-40);i<navHistory.length;i++){if(slides[navHistory[i]])h.push(keyOf(slides[navHistory[i]].id))}
+      var p={v:2,s:slides[current]?keyOf(slides[current].id):"",h:h,vis:vis,b:b,q:q};
+      if(activeBranch)p.ab=[keyOf(activeBranch.hub),keyOf(activeBranch.target)];
+      if(courseCompletionReported)p.d=1;
+      var hasVars=false;for(k in variableValues)if(variableValues.hasOwnProperty(k)){hasVars=true;break}
+      if(hasVars)p.vr=variableValues;
+      var limit=LMS.suspendLimit||4096;
+      var json=JSON.stringify(p);
+      /* Too long for the LMS: drop the least important parts first. */
+      if(json.length>limit){delete p.vr;json=JSON.stringify(p)}
+      if(json.length>limit){p.h=h.slice(-5);json=JSON.stringify(p)}
+      if(json.length>limit){for(k in q)if(q.hasOwnProperty(k))q[k]=q[k].slice(0,2);json=JSON.stringify(p)}
+      if(json.length>limit){delete p.vis;json=JSON.stringify(p)}
+      if(json.length<=limit)LMS.setSuspend(json);
+    }catch(e){}
+  }
+  /* Read saved progress; returns null when there's nothing to resume. */
+  function readProgress(){
+    try{
+      var raw=LMS.getSuspend?LMS.getSuspend():"";
+      var p=raw?JSON.parse(raw):null;
+      if(!p||typeof p!=="object")p={};
+      var out={b:{},s:-1,h:[],vis:[],q:{},ab:null,vr:null,d:false};
+      if(p.b&&typeof p.b==="object"){
+        for(var hk in p.b)if(p.b.hasOwnProperty(hk)){
+          var hubId=idByKey(hk);if(!hubId)continue;
+          var o={};for(var tk in p.b[hk])if(p.b[hk].hasOwnProperty(tk)&&p.b[hk][tk]){var tid=idByKey(tk);if(tid)o[tid]=true}
+          out.b[hubId]=o;
+        }
+      }
+      if(p.v===2){
+        out.s=slideIndexByKey(p.s);
+        var i;
+        for(i=0;i<(p.h||[]).length;i++){var hi=slideIndexByKey(p.h[i]);if(hi>=0)out.h.push(hi)}
+        for(i=0;i<(p.vis||[]).length;i++){var vid=idByKey(p.vis[i]);if(vid)out.vis.push(vid)}
+        for(var qk in (p.q||{}))if(p.q.hasOwnProperty(qk)){var qi=slideIndexByKey(qk);if(qi>=0&&slides[qi].slideType==="quiz")out.q[slides[qi].id]=p.q[qk]}
+        if(p.ab&&p.ab.length===2){var ah=idByKey(p.ab[0]),at=idByKey(p.ab[1]);if(ah&&at)out.ab={hub:ah,target:at}}
+        if(p.vr&&typeof p.vr==="object")out.vr=p.vr;
+        out.d=!!p.d;
+      }
+      /* SCORM's own bookmark, for older saves or when suspend data was too long. */
+      if(out.s<0&&LMS.getLocation){var loc=parseInt(LMS.getLocation(),10);if(loc>=0&&loc<slides.length)out.s=loc}
+      return out;
+    }catch(e){return null}
+  }
+  /* Put saved progress back (Resume). Start over simply doesn't call this. */
+  function applyProgress(r){
+    branchDone=r.b||{};
+    for(var i=0;i<r.vis.length;i++)visited[r.vis[i]]=true;
+    for(var qid in r.q)if(r.q.hasOwnProperty(qid)){
+      var sl=null;for(var j=0;j<slides.length;j++)if(slides[j].id===qid){sl=slides[j];break}
+      if(!sl)continue;
+      var e=r.q[qid];
+      quizState[qid]={submitted:true,correct:!!e[0],attemptsLeft:e[1]|0,answer:unpackAnswer(sl,e[2])};
+    }
+    navHistory.length=0;for(var h=0;h<r.h.length;h++)navHistory.push(r.h[h]);
+    activeBranch=r.ab;
+    if(r.vr)for(var vk in r.vr)if(r.vr.hasOwnProperty(vk)&&(vk in variableValues))variableValues[vk]=r.vr[vk];
+    if(r.d)courseCompletionReported=true;
+    if(r.s>=0)current=r.s;
+  }
   function hubLockedNow(){
     var s=slides[current];if(!isHubSlide(s)||s.branchMode!=="required")return false;
     var d=branchDone[s.id]||{};
@@ -1274,6 +1391,7 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
     startTriggersFor(slide);
     try{LMS.setLocation(current)}catch(e){}
     maybeReportPercentCompletion();
+    saveProgress();
   }
 
   var playing=true;
@@ -1341,6 +1459,48 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
   }
   requestAnimationFrame(tickCaptions);
 
-  render();
+  /* ===== Start: resume where the learner left off (PUB.resume) =====
+     "prompt" (default) asks, like Storyline; "always" resumes without asking;
+     "never" always starts at slide 1. Nothing is saved until this is settled,
+     so a learner who closes the prompt keeps their bookmark. */
+  function startCourse(){
+    var mode=PUB.resume||"prompt";
+    var r=mode==="never"?null:readProgress();
+    var canResume=!!(r&&r.s>0);
+    if(r&&!canResume){applyProgress(r)} /* e.g. only hub ticks saved */
+    if(!canResume||mode==="always"){if(canResume)applyProgress(r);progressReady=true;render();return}
+    showResumePrompt(function(resume){
+      if(resume)applyProgress(r);
+      else{current=0}
+      progressReady=true;render();
+    });
+  }
+  function showResumePrompt(done){
+    var wrap=document.getElementById("stage-wrapper")||document.body;
+    var ov=document.createElement("div");
+    ov.id="resume-prompt";
+    ov.setAttribute("role","dialog");ov.setAttribute("aria-modal","true");ov.setAttribute("aria-labelledby","resume-title");
+    ov.style.cssText="position:absolute;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;background:rgba(15,23,42,.72);font-family:"+(ps.fontFamily||"system-ui,sans-serif");
+    var card=document.createElement("div");
+    card.style.cssText="background:#fff;color:#0f172a;border-radius:12px;padding:28px 32px;max-width:420px;width:86%;text-align:center;box-shadow:0 12px 40px rgba(0,0,0,.35)";
+    var t=document.createElement("div");t.id="resume-title";t.style.cssText="font-size:20px;font-weight:700;margin-bottom:8px";t.textContent="Welcome back";
+    var m=document.createElement("div");m.style.cssText="font-size:15px;color:#475569;margin-bottom:22px";m.textContent="Would you like to resume where you left off?";
+    var row=document.createElement("div");row.style.cssText="display:flex;gap:12px;justify-content:center;flex-wrap:wrap";
+    var bc=ps.buttonColor||"#3b82f6";
+    function btn(label,primary,val){
+      var b=document.createElement("button");b.type="button";b.textContent=label;
+      b.style.cssText="padding:10px 22px;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;"+(primary?"background:"+bc+";color:#fff;border:2px solid "+bc:"background:#fff;color:#0f172a;border:2px solid #cbd5e1");
+      b.onclick=function(){if(ov.parentNode)ov.parentNode.removeChild(ov);done(val)};
+      row.appendChild(b);return b;
+    }
+    var yes=btn("Resume",true,true);btn("Start over",false,false);
+    /* Player buttons wait for the answer (render() turns them back on). */
+    prevBtn.disabled=true;nextBtn.disabled=true;
+    card.appendChild(t);card.appendChild(m);card.appendChild(row);ov.appendChild(card);wrap.appendChild(ov);
+    try{yes.focus()}catch(e){}
+  }
+  /* xAPI reads saved progress from the LRS asynchronously; SCORM has it already. */
+  if(LMS.loadSuspend){try{LMS.loadSuspend(function(){startCourse()})}catch(e){startCourse()}}
+  else startCourse();
 })();`;
 }
