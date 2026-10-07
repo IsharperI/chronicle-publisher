@@ -5,7 +5,9 @@
  *  - LMSInitialize("") on load with return-value check (logs warning on failure).
  *  - LMSCommit("") after every LMSSetValue.
  *  - Session timer: starts on init, formatted as hh:mm:ss and reported via cmi.core.session_time on finish.
- *  - LMSFinish("") on beforeunload / pagehide.
+ *  - LMSFinish("") on beforeunload / pagehide, with cmi.core.exit "suspend"
+ *    until the course is finished, so the LMS keeps the bookmark.
+ *  - getLocation: the saved slide (cmi.core.lesson_location) for resuming.
  *  - getSuspend/setSuspend: cmi.suspend_data (the player saves hub progress there).
  *  - No score is written until a quiz is scored, so courses without quizzes
  *    don't show up in LMS reports as "0%".
@@ -32,6 +34,7 @@ window.__LMS = (function(){
   var API=getAPI();
   var initialized=false;
   var sessionStart=0;
+  var completed=false;
 
   function pad(n){ n=Math.floor(n); return (n<10?"0":"")+n; }
   function formatSessionTime(ms){
@@ -68,6 +71,7 @@ window.__LMS = (function(){
         // Mark in-progress if still not attempted.
         try{
           var ls=API.LMSGetValue("cmi.core.lesson_status");
+          if(ls==="passed"||ls==="completed"||ls==="failed") completed=true;
           if(!ls||ls==="not attempted"||ls===""){
             set("cmi.core.lesson_status","incomplete");
           }
@@ -83,6 +87,7 @@ window.__LMS = (function(){
     try{
       var elapsed=sessionStart>0?(Date.now()-sessionStart):0;
       set("cmi.core.session_time", formatSessionTime(elapsed));
+      set("cmi.core.exit", completed ? "" : "suspend");
       commit();
       API.LMSFinish("");
     }catch(e){}
@@ -98,8 +103,11 @@ window.__LMS = (function(){
     api: API,
     isInitialized: function(){ return initialized; },
     setLocation: function(loc){ set("cmi.core.lesson_location", String(loc)); },
+    getLocation: function(){ if(!API||!initialized) return ""; try{ return String(API.LMSGetValue("cmi.core.lesson_location")||""); }catch(e){ return ""; } },
+    suspendLimit: 4096,
     setStatus: function(status){
       // status: passed | failed | completed | incomplete | browsed | not attempted
+      if(status==="passed"||status==="failed"||status==="completed") completed=true;
       set("cmi.core.lesson_status", status);
     },
     setScore: function(scaled, raw, min, max){
