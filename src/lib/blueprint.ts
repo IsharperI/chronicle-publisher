@@ -41,7 +41,12 @@ import { brandSlide } from '@/lib/brand';
 import { makePlaceholder, markersIn, tile } from '@/lib/imagePlaceholders';
 
 const hex = z.string().regex(/^#[0-9a-fA-F]{6}$/, 'must be a 6-digit hex color');
-const common = { narration: z.string().optional(), sourceRef: z.string().optional() };
+const common = {
+  narration: z.string().optional(),
+  sourceRef: z.string().optional(),
+  /** The storyboard slide this came from ("2.1"), so Chronicle can check none were skipped. AIs sometimes write a number. */
+  storyboardSlide: z.union([z.string(), z.number()]).transform((v) => String(v)).optional(),
+};
 const bulletList = z.array(z.string()).min(1, 'bullets must have 1–8 items').max(8, 'bullets must have 1–8 items');
 
 const titleSlide = z.object({ layout: z.literal('title'), title: z.string(), subtitle: z.string().optional(), ...common });
@@ -204,6 +209,7 @@ export function blueprintToCourse(bp: CourseBlueprint, canvas: CanvasDimensions 
   const notesFor = (s: BlueprintSlide) => {
     let n = s.narration ? `Narration:\n${s.narration}` : '';
     if (s.sourceRef) n += `${n ? '\n\n' : ''}Source: ${s.sourceRef}`;
+    if (s.storyboardSlide) n += `${n ? '\n\n' : ''}Storyboard slide: ${s.storyboardSlide}`;
     return n || undefined;
   };
   const content = (title: string, elements: SlideElement[], s: BlueprintSlide): Slide => ({
@@ -513,6 +519,34 @@ export function parseBlueprintText(
   }
 }
 
+/**
+ * Parse pasted text that may hold several blueprints, one after another (a
+ * long storyboard converted in parts). Each part starts at
+ * `{ "blueprintVersion"`. Returns each part's parsed JSON, in order; with a
+ * single blueprint it's the same as parseBlueprintText.
+ */
+export function parseBlueprintParts(
+  text: string,
+): { ok: true; parts: unknown[]; repaired: boolean } | { ok: false; error: string } {
+  const starts = [...text.matchAll(/\{\s*"blueprintVersion"/g)].map((m) => m.index!);
+  if (starts.length < 2) {
+    const one = parseBlueprintText(text);
+    if (one.ok === false) return one;
+    return { ok: true, parts: [one.data], repaired: one.repaired };
+  }
+  const parts: unknown[] = [];
+  let repaired = false;
+  for (let i = 0; i < starts.length; i++) {
+    let seg = text.slice(starts[i], starts[i + 1] ?? text.length);
+    seg = seg.slice(0, seg.lastIndexOf('}') + 1);
+    const r = parseBlueprintText(seg);
+    if (r.ok === false) return { ok: false, error: `Part ${i + 1} of ${starts.length}: ${r.error}` };
+    repaired ||= r.repaired;
+    parts.push(r.data);
+  }
+  return { ok: true, parts, repaired };
+}
+
 /** Explain a JSON syntax error, quoting the text around the problem. */
 function describeJsonError(text: string, err: Error): string {
   const msg = err.message;
@@ -538,7 +572,7 @@ export const BLUEPRINT_GUIDE = `You are writing an eLearning course as a "Chroni
 RULES
 - Write content ONLY from the source material I provide. Do not add facts, numbers, part names, values or procedures that are not in the source. If the source does not cover something, leave it out.
 - Put the source location (document name + section/page) in "sourceRef" on every content slide, so a subject-matter expert can check it.
-- Write for the audience I name. Short, plain sentences. One idea per slide.
+- Write for the audience I name. When writing from manuals or notes (not a finished storyboard), use short, plain sentences and one idea per slide.
 - Output ONLY the JSON object. No explanation before or after it.
 - Inside text values, never use straight double quotes ("). For quoted words, button names or terms, use single quotes ('EXIT') or curly quotes (“EXIT”). A straight double quote inside text breaks the JSON.
 
@@ -556,7 +590,8 @@ themeColors is optional: exactly 6 hex colors in this order: Primary, Secondary,
 
 Every slide may also have:
   "narration": "What the narrator says on this slide (optional). Read aloud by text-to-speech.",
-  "sourceRef": "Manual name, section 4.2"
+  "sourceRef": "Manual name, section 4.2",
+  "storyboardSlide": "2.1"   (only when converting a storyboard: its slide number)
 
 SLIDE LAYOUTS (choose one per slide with "layout")
 
@@ -604,7 +639,7 @@ GUIDANCE
 - Keep slide titles under 50 characters.
 - If the source is divided into sections, start each one with a section slide. Each section becomes a slide group in the authoring tool.
 - Use "reveal" for short pop-up details on one slide; use "hub" when each choice leads to one or more full slides.
-- A typical module: 1 title slide, 6 to 15 content slides, 3 to 5 quiz questions, 1 results slide.
+- When writing from manuals or notes, a typical module is 1 title slide, 6 to 15 content slides, 3 to 5 quiz questions and 1 results slide. A storyboard sets its own size.
 - Quiz questions must test content that appears on earlier slides.
 - Use "warning" callouts only for genuine safety-critical rules.
 - Pictures in the source may appear as markers like [Image 3]. When a slide uses that picture (image-text, or a reveal item's imageDescription), copy the marker into its imageDescription, for example "Brake caliper close-up [Image 3]". If a storyboard gives a stock photo number, include it too.`;
