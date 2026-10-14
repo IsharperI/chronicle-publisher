@@ -29,6 +29,7 @@ User edits ──► dispatch(action) ──► courseReducer ──► CourseSt
 | `components/authoring/` | All editor UI (see the next table). |
 | `components/ui/` | shadcn/ui building blocks (buttons, dialogs, selects, …). Generated; don't edit by hand. |
 | `lib/blueprint.ts` | Course blueprints: schema, validation, layout → slide conversion, JSON repair, and the AI instructions text. |
+| `lib/storyImport/` | Articulate Storyline `.story` importer (Home → Storyline): reads the zip in the browser and returns a `LOAD_COURSE` payload plus an import report. The header comment lists what maps to what. Measure changes with `tools/storyline-fidelity`. |
 | `lib/tts/` | Text-to-speech narration (Kokoro). See *Text-to-speech* below. |
 | `lib/transcribe.ts` | Whisper speech-to-text for "Auto-Generate Captions" on imported audio. |
 | `lib/brand.ts` | Client brands: library (browser storage + .json export/import), applying a brand to a course, course fonts. See *Brands*. |
@@ -54,6 +55,7 @@ User edits ──► dispatch(action) ──► courseReducer ──► CourseSt
 | `PlayerShell.tsx` | Preview-mode player frame (title bar, menu/notes sidebar, Prev/Play/Next/CC); also runs quiz timers. Wraps `Canvas`. |
 | `PublishDialog.tsx` | Publish dialog: LMS/LRS (SCORM/xAPI), Word, Video ("Web" is a placeholder). |
 | `BlueprintDialog.tsx` | Paste-a-blueprint dialog, "Copy AI instructions", narration option. |
+| `StoryImportDialog.tsx` | Home → Storyline: pick a `.story`, convert it (`lib/storyImport`), load it, and show the import report. |
 | `TextToSpeechDialog.tsx`, `NarrationProgress.tsx` | Insert → Text to Speech, and the background narration progress panel. |
 | `TextLines.tsx` | Renders text with hanging-indent bullets (mirrors `fillText` in the exported player). |
 | `StoryViewOverlay.tsx` | "Story View": a flowchart of slides and their jump-to-slide triggers. |

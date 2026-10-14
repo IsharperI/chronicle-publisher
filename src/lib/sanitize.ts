@@ -269,6 +269,8 @@ function sanitizeElement(raw: any): SlideElement | null {
       type: 'image',
       src: safeImageSrc(raw.src) ?? '',
       alt: safeString(raw.alt, '', 500),
+      ...(raw.fit === 'cover' || raw.fit === 'fill' ? { fit: raw.fit } : {}),
+      ...(raw.borderRadius != null ? { borderRadius: safeNumber(raw.borderRadius, 0, 0, 1000) } : {}),
     };
     return el;
   }

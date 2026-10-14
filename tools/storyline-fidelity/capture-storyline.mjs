@@ -25,8 +25,18 @@ const manifest = [];
 for (const [i, s] of slides.entries()) {
   const ok = await page.evaluate(async (abs) => {
     const DS = window.DS;
+    // Block the course's own slide changes (e.g. "jump to next slide when the timeline
+    // ends") so each slide stays put while it's captured.
+    if (!window.__jumpGate) {
+      window.__jumpGate = true;
+      const trig = DS.pubSub.trigger.bind(DS.pubSub);
+      const blocked = new Set([DS.events.request.NEXT_SLIDE, DS.events.request.PREV_SLIDE, DS.events.request.NEXT_DRAW_SLIDE]);
+      DS.pubSub.trigger = (ev, ...rest) => (blocked.has(ev) && !window.__allowJump ? undefined : trig(ev, ...rest));
+    }
     // Same request the player's own "jump to slide" triggers send.
+    window.__allowJump = true;
     DS.pubSub.trigger(DS.events.request.NEXT_SLIDE, abs);
+    window.__allowJump = false;
     const t0 = Date.now();
     while (Date.now() - t0 < 8000) {
       const cur = DS.windowManager.getCurrentWindowSlide();
@@ -36,11 +46,13 @@ for (const [i, s] of slides.entries()) {
     const cur = DS.windowManager.getCurrentWindowSlide();
     if (!cur || cur.absoluteId !== abs) return `ended up on ${cur ? cur.absoluteId : 'nothing'}`;
     await new Promise((r) => setTimeout(r, 600));
+    // Pause a little before the end: reaching the end can trigger the course's own
+    // "jump to next slide when timeline ends", which would capture the transition.
     try {
       const tl = cur.currentTimeline();
       tl.pause();
       const dur = tl.get('duration') || 0;
-      tl.seek(Math.max(0, dur - 50));
+      tl.seek(Math.max(0, dur - 250));
       tl.pause();
     } catch (e) { /* some slides have no timeline */ }
     return true;
@@ -49,6 +61,8 @@ for (const [i, s] of slides.entries()) {
   // let images and fonts settle
   await page.waitForLoadState('networkidle').catch(() => {});
   await page.waitForTimeout(900);
+  const still = await page.evaluate((abs) => window.DS.windowManager.getCurrentWindowSlide()?.absoluteId === abs, s.absoluteId);
+  if (!still) { console.log('slide moved on before capture:', s.absoluteId); continue; }
   const box = await page.evaluate(() => {
     const el = document.querySelector('.primary-slide') || document.querySelector('.slide-container');
     if (!el) return null;

@@ -366,7 +366,9 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
     } else if(el.type==="image"){
       var img=document.createElement("img");
       img.src=el.src||"";img.alt=el.alt||"";
-      img.style.width="100%";img.style.height="100%";img.style.objectFit="contain";
+      img.style.width="100%";img.style.height="100%";img.style.display="block";
+      img.style.objectFit=(el.fit==="cover"||el.fit==="fill")?el.fit:"contain";
+      if(el.borderRadius)img.style.borderRadius=el.borderRadius+"px";
       d.appendChild(img);
     } else if(el.type==="video"){
       var vid=document.createElement("video");

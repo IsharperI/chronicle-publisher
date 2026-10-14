@@ -1,7 +1,7 @@
 /**
  * The Storyline-style ribbon across the top of the editor.
  *
- * Tabs: Home (Save, Load, Blueprint, Preview, Publish, Player settings,
+ * Tabs: Home (Save, Load, Blueprint, Storyline import, Preview, Publish, Player settings,
  * Variables), Insert (text, images, image placeholder, shapes, audio, Text to Speech, video,
  * interactive elements, tables), Design (story size, theme colors, brands, arrange,
  * grid, media library), Transitions, Animations (entrance/exit, motion paths),
@@ -14,7 +14,7 @@
  */
 import React, { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Save, Upload, Play, X, Type, ImageIcon, Square, Eye, Settings, Music, Video as VideoIcon, AlignLeft, AlignCenter, AlignRight, AlignStartVertical, AlignCenterVertical, AlignEndVertical, AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter, Ban, Sparkles, ArrowUpFromLine, ArrowLeftFromLine, ZoomIn, CopyCheck, MousePointerClick, Target, CheckSquare, ChevronDown, Table as TableIcon, HelpCircle, Trophy, Layers, FolderOpen, Map as MapIcon, Spline, Palette, Library, Variable, ClipboardPaste, AudioLines, Images } from 'lucide-react';
+import { Save, Upload, Play, X, Type, ImageIcon, Square, Eye, Settings, Music, Video as VideoIcon, AlignLeft, AlignCenter, AlignRight, AlignStartVertical, AlignCenterVertical, AlignEndVertical, AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter, Ban, Sparkles, ArrowUpFromLine, ArrowLeftFromLine, ZoomIn, CopyCheck, MousePointerClick, Target, CheckSquare, ChevronDown, Table as TableIcon, HelpCircle, Trophy, Layers, FolderOpen, Map as MapIcon, Spline, Palette, Library, Variable, ClipboardPaste, AudioLines, Images, FileInput } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { MediaLibraryOverlay } from './MediaLibraryOverlay';
 import { StoryViewOverlay } from './StoryViewOverlay';
@@ -34,6 +34,7 @@ import { AutosaveStatus } from './AutosaveManager';
 import { UndoRedo } from './UndoRedo';
 import { isBlueprint, parseBlueprintText, prepareBlueprintLoad } from '@/lib/blueprint';
 import { BlueprintDialog } from './BlueprintDialog';
+import { StoryImportDialog } from './StoryImportDialog';
 import { TextToSpeechDialog } from './TextToSpeechDialog';
 import { BrandsDialog } from './BrandsDialog';
 import { lastBrandId, loadBrands } from '@/lib/brand';
@@ -63,6 +64,7 @@ export function Ribbon() {
   const [questionBankOpen, setQuestionBankOpen] = useState(false);
   const [variablesOpen, setVariablesOpen] = useState(false);
   const [blueprintOpen, setBlueprintOpen] = useState(false);
+  const [storyImportOpen, setStoryImportOpen] = useState(false);
   const [ttsOpen, setTtsOpen] = useState(false);
   const [brandsOpen, setBrandsOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -432,6 +434,7 @@ export function Ribbon() {
               <RibbonButton icon={Upload} label="Load" onClick={() => fileInputRef.current?.click()} />
               <input ref={fileInputRef} type="file" accept=".json" className="hidden" onChange={loadProject} />
               <RibbonButton icon={ClipboardPaste} label="Blueprint" onClick={() => setBlueprintOpen(true)} />
+              <RibbonButton icon={FileInput} label="Storyline" onClick={() => setStoryImportOpen(true)} />
             </RibbonGroup>
 
             <Separator orientation="vertical" className="h-12 mx-2" />
@@ -607,6 +610,7 @@ export function Ribbon() {
     <StoryViewOverlay open={storyViewOpen} onClose={() => setStoryViewOpen(false)} />
     <PublishDialog open={publishOpen} onOpenChange={setPublishOpen} />
     <BlueprintDialog open={blueprintOpen} onOpenChange={setBlueprintOpen} />
+    <StoryImportDialog open={storyImportOpen} onOpenChange={setStoryImportOpen} />
     <BrandsDialog open={brandsOpen} onOpenChange={setBrandsOpen} />
     <TextToSpeechDialog open={ttsOpen} onOpenChange={setTtsOpen} />
     <NarrationProgress />

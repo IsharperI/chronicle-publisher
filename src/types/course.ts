@@ -162,6 +162,13 @@ export interface ImageElement extends BaseElement {
   type: 'image';
   src: string;
   alt: string;
+  /**
+   * How the picture fills its box. 'contain' (default) letterboxes, 'cover'
+   * crops to fill, 'fill' stretches to the box exactly (Storyline's behaviour).
+   */
+  fit?: 'contain' | 'cover' | 'fill';
+  /** Optional corner rounding (px), e.g. for photos in rounded frames. */
+  borderRadius?: number;
 }
 
 export interface VideoElement extends BaseElement {
