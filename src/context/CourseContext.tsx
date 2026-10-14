@@ -13,7 +13,7 @@
  *   been through lib/sanitize.ts.
  */
 import { completesBranch, hubLocked, isHub, nextSlideIndex, reconcileBranching } from '@/lib/navigation';
-import React, { createContext, useCallback, useContext, useMemo, useReducer, type Dispatch } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, type Dispatch } from 'react';
 import { initialHistory, withHistory } from './history';
 import { applyBrandToCourse } from '@/lib/brand';
 import type { CourseState, Slide, SlideElement, SlideLayer, ViewMode, PlayerSettings, CourseSettings, SlideAudio, QuizConfig, ResultsConfig, SlideKind, CourseVariable, Brand } from '@/types/course';
@@ -1050,6 +1050,14 @@ export function CourseProvider({ children }: { children: React.ReactNode }) {
     undo, redo,
   }), [h.past, h.future, h.present.previewMode, undo, redo]);
   const value = useMemo(() => ({ state: h.present, dispatch, history }), [h.present, dispatch, history]);
+  // Development builds only: lets test tools (tools/storyline-fidelity) drive the
+  // editor from a scripted browser. Never included in a published build.
+  const stateRef = useRef(h.present);
+  stateRef.current = h.present;
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    (window as unknown as { __chronicle?: unknown }).__chronicle = { dispatch, getState: () => stateRef.current };
+  }, [dispatch]);
   return <CourseContext.Provider value={value}>{children}</CourseContext.Provider>;
 }
 
