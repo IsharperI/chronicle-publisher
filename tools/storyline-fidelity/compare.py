@@ -1,7 +1,8 @@
 """Score how closely Chronicle reproduces each Storyline slide, and build a side-by-side HTML report.
 
 Usage: python3 compare.py <storyline capture dir> <chronicle capture dir> <mapping.json> <out dir> [course name]
-mapping.json maps Chronicle slide id -> Storyline slide id (written by the importer).
+Pass '-' for mapping.json when Chronicle slides keep their Storyline slide ids (the in-app importer does);
+otherwise it maps Chronicle slide id -> Storyline slide id.
 
 Score per slide (0-100): 60% structural similarity (layout, shapes, text blocks; greyscale SSIM)
 + 40% colour closeness (mean colour difference in Lab-ish RGB space). Both images are compared at 640x360.
@@ -18,8 +19,8 @@ SIZE = (640, 360)
 
 sl = json.load(open(os.path.join(sl_dir, 'manifest.json')))
 ch = json.load(open(os.path.join(ch_dir, 'manifest.json')))
-mapping = json.load(open(mapping_file))
-ch_by_sl = {mapping.get(c['id']): c for c in ch}
+mapping = json.load(open(mapping_file)) if mapping_file != '-' else {}
+ch_by_sl = {mapping.get(c['id'], c['id']): c for c in ch}
 
 def load(p):
     return Image.open(p).convert('RGB').resize(SIZE, Image.LANCZOS)

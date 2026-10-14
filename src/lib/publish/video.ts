@@ -279,11 +279,20 @@ function drawElement(rc: RenderContext, el: SlideElement, alpha: number, dx: num
   } else if (el.type === 'image') {
     const img = rc.assets.get(el.src);
     if (img) {
-      // object-fit: contain, like the editor.
-      const scale = Math.min(w / img.width, h / img.height);
-      const iw = img.width * scale;
-      const ih = img.height * scale;
-      ctx.drawImage(img, x + (w - iw) / 2, y + (h - ih) / 2, iw, ih);
+      // object-fit like the editor: contain (default), cover (crop to fill) or fill (stretch).
+      const r = el.borderRadius ? el.borderRadius * sy : 0;
+      ctx.save();
+      if (r) { ctx.beginPath(); ctx.roundRect(x, y, w, h, r); ctx.clip(); }
+      if (el.fit === 'fill') {
+        ctx.drawImage(img, x, y, w, h);
+      } else {
+        const scale = el.fit === 'cover' ? Math.max(w / img.width, h / img.height) : Math.min(w / img.width, h / img.height);
+        const iw = img.width * scale;
+        const ih = img.height * scale;
+        if (el.fit === 'cover') { ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip(); }
+        ctx.drawImage(img, x + (w - iw) / 2, y + (h - ih) / 2, iw, ih);
+      }
+      ctx.restore();
     }
   } else if (el.type === 'shape') {
     const raster = rc.assets.get('shape:' + el.id);

@@ -123,7 +123,7 @@ function ThumbElement({ el, themeColors }: { el: SlideElement; themeColors: stri
   }
 
   if (el.type === 'image') {
-    return <img src={el.src} alt="" draggable={false} style={{ ...baseStyle, objectFit: 'cover' }} />;
+    return <img src={el.src} alt="" draggable={false} style={{ ...baseStyle, objectFit: el.fit ?? 'cover', borderRadius: el.borderRadius }} />;
   }
 
   if (el.type === 'video') {

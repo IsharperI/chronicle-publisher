@@ -23,7 +23,7 @@ import { PlaceholderBox } from './PlaceholderBox';
 import { imageFromPlaceholder, readImageFile } from '@/lib/imagePlaceholders';
 import { toast } from 'sonner';
 import { useCourse } from '@/context/CourseContext';
-import type { SlideElement, TextElement, ShapeElement, AnimationIn, AnimationOut, TableElement, Slide, QuizConfig, QuizChoice, QuizMatchPair, QuizSortItem } from '@/types/course';
+import type { SlideElement, TextElement, ShapeElement, ImageElement, AnimationIn, AnimationOut, TableElement, Slide, QuizConfig, QuizChoice, QuizMatchPair, QuizSortItem } from '@/types/course';
 import { isExtendedShapeType, resolveShapeSvg } from '@/lib/shapes';
 import { resolveQuizStyle, type ResolvedQuizStyle } from '@/lib/quizTemplates';
 import { themeVarStyle } from '@/lib/themeVars';
@@ -140,7 +140,8 @@ function ElementRenderer({ element, isPreview }: { element: SlideElement; isPrev
     );
   }
   if (element.type === 'image') {
-    return <img src={element.src} alt={element.alt} style={{ width: '100%', height: '100%', objectFit: 'contain' }} draggable={false} />;
+    const ie = element as ImageElement;
+    return <img src={ie.src} alt={ie.alt} style={{ width: '100%', height: '100%', objectFit: ie.fit ?? 'contain', borderRadius: ie.borderRadius, display: 'block' }} draggable={false} />;
   }
   if (element.type === 'video') {
     const ve = element as any;
