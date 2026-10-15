@@ -29,7 +29,8 @@ async function makeStory(): Promise<Uint8Array> {
   zip.file('story/media/Rsnd.mp3', MP3);
   zip.file('story/_rels/story.xml.rels', `<Relationships>
     <Relationship Type="slide" Target="/story/slides/slide.xml" Id="R111" />
-    <Relationship Type="slide" Target="/story/slides/slide2.xml" Id="R222" /></Relationships>`);
+    <Relationship Type="slide" Target="/story/slides/slide2.xml" Id="R222" />
+    <Relationship Type="slide" Target="/story/slides/slide3.xml" Id="R333" /></Relationships>`);
   zip.file('story/story.xml', `<story>
     <varLst>
       <var g="v1" name="Score" dataType="num" val="0" type="user" />
@@ -39,7 +40,7 @@ async function makeStory(): Promise<Uint8Array> {
       <audio g="aud1" displayName="voice.mp3"><md5Checksum><stream>${md5Hex(MP3)}</stream></md5Checksum></audio></mediaLst></mediaLst>
     <sceneLst>
       <scene g="sc1" name="Intro"><sldIdLst><sldId>R111</sldId></sldIdLst></scene>
-      <scene g="sc2" name="End"><sldIdLst><sldId>R222</sldId></sldIdLst></scene>
+      <scene g="sc2" name="End"><sldIdLst><sldId>R222</sldId><sldId>R333</sldId></sldIdLst></scene>
     </sceneLst></story>`);
   zip.file('story/playerProps.xml', '<props><option name="title_text" value="Test &amp; Course" /></props>');
   zip.file('story/slideMasters/slideMaster.xml', `<master g="m1" name="Clean">
@@ -85,6 +86,27 @@ async function makeStory(): Promise<Uint8Array> {
   <sldLayerLst><sldLayer g="L2" name="Popup"><tmProps min="4000" /><shapeLst>
     <sound g="snd2" zOrder="0" assetG="aud1">${tm(250, 1000)}</sound>
   </shapeLst></sldLayer></sldLayerLst></sld>`);
+  const fill = (hex: string) => `<bG><solidFill><clr><srgbClr val="${hex}" /></clr></solidFill></bG>`;
+  zip.file('story/slides/slide3.xml', `<sld g="s3" name="States" layoutG="lay1"><shapeLst>
+    <roundRect g="chk" zOrder="0" initState="Disabled" grpId="set1">${tm(0, 5000)}${loc(10, 10, 110, 50)}${fill('0000FF')}<text>${rich('Pick')}</text>
+      <stateLst>
+        <state name="Normal"><shapeLst><roundRect g="chkN">${fill('0000FF')}<text>${rich('Pick')}</text></roundRect></shapeLst></state>
+        <state name="Selected" defG="chkS"><shapeLst><pic g="tick" assetG="img1" zOrder="2">${loc(80, 5, 95, 20)}</pic>
+          <roundRect g="chkS" zOrder="1">${fill('00FF00')}<text>${rich('Picked')}</text></roundRect></shapeLst></state>
+        <state name="Disabled"><shapeLst><roundRect g="chkD">${fill('0000FF')}<text>${rich('Pick')}</text></roundRect>
+          <pic g="tick2" assetG="img1">${loc(80, 5, 95, 20)}</pic></shapeLst></state>
+      </stateLst>
+      <trigLst><trig><data event="OnClick" action="changeShapeState"><shape setStateG="msg" setStateName="Normal" /></data>
+        <condLst><trigCond dataType="state" andOr="and"><shapeState shapeG="chk" op="eq" name="Selected" /></trigCond></condLst></trig></trigLst>
+    </roundRect>
+    <textBox g="msg" zOrder="1" initState="Hidden">${tm(0, 5000)}${loc(10, 100, 300, 150)}<text>${rich('Done')}</text></textBox>
+  </shapeLst>
+  <sldLayerLst><sldLayer g="L3" name="Info"><shapeLst><rect g="r3" zOrder="0">${tm(0, 1000)}${loc(0, 0, 10, 10)}${fill('EEEEEE')}</rect></shapeLst>
+    <trigLst><trig><data event="OnStart" action="changeShapeState"><shape setStateG="chk" setStateName="Normal" /></data><condLst /></trig></trigLst></sldLayer></sldLayerLst>
+  <trigLst>
+    <trig><data event="OnStateChange" action="changeShapeState"><shape setStateG="msg" setStateName="Normal" stateInclude="any" statesNot="are" stateName="Selected"><stateLst><g>chk</g></stateLst></shape></data><condLst /></trig>
+    <trig><data event="OnTimelineEvent" action="changeShapeState"><shape setStateG="chk" setStateName="Normal" /><other time="PT1.5S" /></data><condLst /></trig>
+  </trigLst></sld>`);
   return zip.generateAsync({ type: 'uint8array' });
 }
 
@@ -94,7 +116,7 @@ describe('importStory', () => {
     const course = sanitizeProject(payload)!;
     expect(course).not.toBeNull();
     expect(payload.playerSettings?.courseTitle).toBe('Test & Course');
-    expect(course.slides.map((s) => [s.id, s.title, s.group])).toEqual([['111', 'Welcome', 'Intro'], ['222', 'Goodbye', 'End']]);
+    expect(course.slides.map((s) => [s.id, s.title, s.group])).toEqual([['111', 'Welcome', 'Intro'], ['222', 'Goodbye', 'End'], ['333', 'States', 'End']]);
     expect(course.variables).toEqual([{ id: 'v1', name: 'Score', type: 'number', defaultValue: 0 }]);
 
     // Master: background bar from the master, used by both slides.
@@ -116,7 +138,7 @@ describe('importStory', () => {
 
     const btn = base[1] as ShapeElement;
     expect(btn.text).toBe('Go');
-    expect(btn.hoverFillColor).toBe('#ff0000'.toUpperCase());
+    expect(btn.states).toEqual([{ name: 'Hover', look: { fillColor: '#FF0000' } }]);
     expect(btn.fillColor).toMatch(/^#[0-9a-f]{6}$/); // lighter variant of dark blue
     expect(parseInt(btn.fillColor.slice(1, 3), 16)).toBeGreaterThan(150);
     expect(btn.triggers).toEqual([
@@ -155,9 +177,29 @@ describe('importStory', () => {
 
     const messages = report.issues.map((i) => i.message);
     expect(messages).toContain('Freeform shapes');
-    expect(messages).toContain('Trigger: Change state');
-    expect(report.slides).toBe(2);
-    expect(report.triggersConverted).toBe(4);
+    expect(messages).toContain("Trigger: Change state of the player's Next button");
+    expect(report.slides).toBe(3);
+    expect(report.triggersConverted).toBe(8);
+    // A layer's "when timeline starts" trigger goes on its first object (it runs when the layer is shown).
+    expect(course.slides[2].layers![1].elements[0].triggers).toEqual([{ event: 'timelineStart', action: 'changeState', targetId: 'chk', state: 'Normal' }]);
+
+    // States: looks (as differences from Normal), initial states, button sets, state triggers and conditions.
+    const [chk, tick, msg] = course.slides[2].layers![0].elements as [ShapeElement, ImageElement, TextElement];
+    // A picture inside two of its states (placed relative to the button, drawn over it): one object,
+    // shown in those states, with the button's timing.
+    expect(tick).toMatchObject({ id: 'tick', type: 'image', x: 90, y: 15, stateParent: { id: 'chk', states: ['Selected', 'Disabled'] } });
+    expect([tick.startTime, tick.duration]).toEqual([chk.startTime, chk.duration]);
+    expect(chk.text).toBe('Pick');
+    expect(chk.states).toEqual([{ name: 'Selected', look: { fillColor: '#00FF00', text: 'Picked' } }, { name: 'Disabled', look: {} }]);
+    expect([chk.initialState, chk.buttonSet]).toEqual(['Disabled', 'set1']);
+    expect([msg.initialState, msg.states]).toEqual(['Hidden', [{ name: 'Hidden', look: {} }]]);
+    expect(chk.triggers).toEqual([
+      { event: 'onClick', action: 'changeState', targetId: 'msg', state: 'Normal',
+        conditions: [{ variableId: '', elementId: 'chk', operator: 'equals', state: 'Selected', value: '' }] },
+      // slide triggers go on the slide's first object
+      { event: 'stateChange', action: 'changeState', targetId: 'msg', state: 'Normal', stateWatch: { ids: ['chk'], state: 'Selected', any: true } },
+      { event: 'atTime', action: 'changeState', targetId: 'chk', state: 'Normal', time: 1.5 },
+    ]);
   });
 
   it('rejects files that are not .story files', async () => {

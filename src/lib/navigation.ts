@@ -137,7 +137,7 @@ function makeButton(target: string, label: string, x: number, y: number, slideDu
     triggers: [{ event: 'onClick', action: 'jumpToSlide', targetId: target }],
     animationIn: 'none', animationOut: 'none', entranceDuration: 500, exitDuration: 500,
     fillColor: themeVarRef(0), borderColor: themeVarRef(0), borderWidth: 0,
-    hoverFillColor: themeVarRef(1), borderRadius: 12,
+    states: [{ name: 'Hover', look: { fillColor: themeVarRef(1) } }], borderRadius: 12,
     text: label, textColor: '#ffffff', fontSize: 20,
     autoBranchTarget: target,
   };

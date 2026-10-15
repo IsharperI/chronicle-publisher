@@ -45,10 +45,12 @@ Layout scores:
 
 Timing scores (added with the timeline phase):
 
-| | Phase 1 importer | Timeline phase |
-|---|---|---|
-| Course A | 88.3 | 88.5 |
-| Course B | 85.7 | 86.5 |
+| | Phase 1 importer | Timeline phase | States phase |
+|---|---|---|---|
+| Course A | 88.3 | 88.5 | 88.7 |
+| Course B | 85.7 | 86.5 | 86.8 |
+
+Layout after the states phase: Course A 87.9, Course B 86.4. Most of what states change happens on interaction (hover, clicks), which screenshots of the untouched slide don't see; it's covered by unit tests.
 
 ## Output
 

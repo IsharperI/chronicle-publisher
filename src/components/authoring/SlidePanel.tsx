@@ -19,6 +19,7 @@ import { resolveColor, themeVarStyle } from '@/lib/themeVars';
 import { fontStyle, HEADING_FONT } from '@/lib/brand';
 import { PlaceholderBox } from './PlaceholderBox';
 import { memo, useEffect, useRef, useState } from 'react';
+import { atSlideStart } from '@/lib/states';
 
 const THUMB_WIDTH = 160; // px rendered width of the thumbnail box
 
@@ -28,7 +29,7 @@ const THUMB_WIDTH = 160; // px rendered width of the thumbnail box
  * Keep in sync with Canvas.tsx (ElementRenderer) and the exported player
  * (lib/publish/runtime/player.ts, renderElement).
  */
-function ThumbElement({ el, themeColors }: { el: SlideElement; themeColors: string[] }) {
+export function ThumbElement({ el, themeColors }: { el: SlideElement; themeColors: string[] }) {
   const baseStyle: React.CSSProperties = {
     position: 'absolute',
     left: el.x,
@@ -224,7 +225,7 @@ const SlideThumbnail = memo(function SlideThumbnail({ slide, canvasWidth, canvas
             ...fonts,
           }}
         >
-          {(slide.layers?.length
+          {atSlideStart(slide.layers?.length
             ? slide.layers.filter((l) => l.visible !== false).flatMap((l) => l.elements)
             : slide.elements
           ).map((el) => (

@@ -39,6 +39,7 @@ User edits ──► dispatch(action) ──► courseReducer ──► CourseSt
 | `lib/autosave.ts` | Autosave storage (IndexedDB) and the saving/saved status shown in the ribbon. |
 | `lib/sanitize.ts` | Validates everything loaded from a file before it enters the app. See *Loading a course*. |
 | `lib/publish/` | Publishing: `index.ts` (zip builder), `runtime/` (the exported player and LMS APIs), `manifest/` (SCORM/xAPI manifests), `word.ts`, `video.ts`, `compat.ts`. |
+| `lib/states.ts` | Object states (Hover, Selected, Visited, Disabled, Hidden, custom): how a state's look is merged in, which state is drawn under the pointer, what a click changes, "when state changes" tests. The exported player has a plain-JS copy of the same rules. |
 | `lib/animations.ts` | Entrance/exit animations beyond fade and fly left/right (fly top/bottom, wipes, split, zoom): their Animations-tab names and the CSS shared by the editor and the exported player. |
 | `lib/shapes.ts`, `lib/themeVars.ts`, `lib/motionPath.ts` | Shared helpers: SVG shape library, theme color variables, bezier motion paths. Used by the editor and the exported player. |
 | `lib/questionBank.ts`, `lib/quizTemplates.ts` | Question bank and quiz style templates, stored in the browser's `localStorage` (not in the course file). |
@@ -51,7 +52,8 @@ User edits ──► dispatch(action) ──► courseReducer ──► CourseSt
 | `Ribbon.tsx` | The Storyline-style ribbon: tabs Home, Insert, Design, Transitions, Animations, View, Quiz. Also owns **Save/Load** and mounts most dialogs. |
 | `Canvas.tsx` | The slide stage. Renders elements for both **editing** (drag/resize) and **preview** (playback, triggers, layers, audio, captions, quiz/results overlays). The largest and most central component. |
 | `PropertiesPanel.tsx` | Right-hand panel: slide properties (title, layers, advance/revisit, notes, audio and captions) and the selected element's properties, including the **trigger editor** and quiz/results editors. |
-| `TimelinePanel.tsx` | Bottom timeline: element timing bars, playhead, play/pause; "States" tab for hover colors. |
+| `TimelinePanel.tsx` | Bottom timeline: element timing bars, playhead, play/pause, audio bars; hosts the States tab. |
+| `StatesPanel.tsx` | States tab: the selected object's states. Click one to edit it on the canvas with the normal controls, then Done; add, rename (double-click), delete; initial state and button set. |
 | `SlidePanel.tsx` | Left slide list with thumbnails (its own lightweight renderer). |
 | `PlayerShell.tsx` | Preview-mode player frame (title bar, menu/notes sidebar, Prev/Play/Next/CC); also runs quiz timers. Wraps `Canvas`. |
 | `PublishDialog.tsx` | Publish dialog: LMS/LRS (SCORM/xAPI), Word, Video ("Web" is a placeholder). |
@@ -78,7 +80,9 @@ See `types/course.ts` for every field. Key points:
 - In the editor preview, an element appears when its timeline bar starts and disappears when it ends. An element whose bar reaches the end of the slide **stays visible after the timeline ends** (as in Storyline). The exported player (`applyTiming` in `player.ts`) and the video exporter (`elementAppearance` in `video.ts`) follow the same rules, including entrance and exit animations.
 - Colors can be hex values or theme references like `var(--theme-primary)` (see `lib/themeVars.ts`), so changing a theme color restyles every element that uses it.
 - Quiz and results slides are ordinary slides with `slideType: 'quiz' | 'results'` and a `quiz` / `results` config. The quiz card is drawn by the renderer, not built from elements.
-- Runtime-only fields (playhead, quiz answers, variable values, preview mode) live in `CourseState` too, but are never saved.
+- **Object states** (`lib/states.ts`): `states` holds each extra state's `look`, only the properties that differ from the element itself (the Normal state). `initialState` is the state when the slide starts (`Hidden` starts it hidden); `buttonSet` makes Selected work like radio buttons. Objects placed inside another object's states have `stateParent` and show only while that object is drawn in one of those states; they move and are deleted with it. While a state is being edited (`editingState`), `UPDATE_ELEMENT` puts look changes into that state and position/size changes on the element. Old courses' hover colours become a Hover state when loaded (`sanitize.ts`).
+- **State triggers:** the `changeState` action, the `stateChange` event (`stateWatch`: fires when the watched objects come to be in, or out of, a state), and state conditions (`elementId` + `state`). Show/Hide Element are the Hidden state. A "when timeline starts" trigger on an object in a non-base layer runs each time that layer is shown.
+- Runtime-only fields (playhead, quiz answers, variable values, preview mode, object states during Preview) live in `CourseState` or in `Canvas.tsx`, but are never saved.
 
 ## Rendering: three renderers that must stay in sync
 
@@ -89,6 +93,8 @@ The same slide content is drawn by **three independent renderers**:
 3. **`lib/publish/runtime/player.ts` → `renderElement`**: the **exported SCORM/xAPI player** (plain JavaScript, see below).
 
 A fourth, simplified renderer lives in **`lib/publish/video.ts`**, which paints slides onto an off-screen `<canvas>` for video export. Check it too when changing visuals.
+
+States: the editor shows Normal (or the state being edited), thumbnails and the video show each object's initial state (`atSlideStart`), and Preview and the player track the current state; the player repaints an element's content (`paintElement`) when its state changes and keeps its listeners.
 
 When you change how something looks or behaves (a new element property, text handling, shape text, layer visibility, timing), **update all three** (and the video renderer if it's visual), or the editor, thumbnails and published course will disagree. Several past bugs came from exactly this: line breaks lost in the export, bullets without hanging indents in thumbnails, hidden layers that could never be shown in the export.
 

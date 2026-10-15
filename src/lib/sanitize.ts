@@ -120,7 +120,10 @@ import type {
   Trigger,
   CourseVariable,
   Brand,
+  ElementState,
+  StateLook,
 } from '@/types/course';
+import { hoverToState } from './states';
 
 const ANIM_IN = ['none', 'fade', 'fly-in-left', 'fly-in-right', 'fly-in-top', 'fly-in-bottom',
   'wipe-from-left', 'wipe-from-right', 'wipe-from-top', 'wipe-from-bottom', 'split', 'zoom'] as const;
@@ -208,10 +211,27 @@ function sanitizeTrigger(t: any): Trigger {
   } else if (typeof t?.variableValue === 'boolean') {
     out.variableValue = t.variableValue;
   }
+  const stateName = safeStateName(t?.state);
+  if (stateName) out.state = stateName;
+  const w = t?.stateWatch;
+  if (w && typeof w === 'object' && Array.isArray(w.ids) && safeStateName(w.state)) {
+    out.stateWatch = {
+      ids: w.ids.filter(isSafeId).slice(0, 100),
+      state: safeStateName(w.state)!,
+      ...(w.not === true ? { not: true } : {}),
+      ...(w.any === true ? { any: true } : {}),
+    };
+  }
   if (Array.isArray(t?.conditions)) {
     const condOps = ['equals', 'notEquals', 'greaterThan', 'lessThan', 'greaterThanOrEqual', 'lessThanOrEqual'];
     const conds = t.conditions.slice(0, 20).map((c: any) => {
       if (!c || typeof c !== 'object') return null;
+      // State condition: is element X (not) in state Y?
+      if (isSafeId(c.elementId)) {
+        const st = safeStateName(c.state);
+        if (!st || (c.operator !== 'equals' && c.operator !== 'notEquals')) return null;
+        return { variableId: '', elementId: c.elementId, state: st, operator: c.operator, value: '' };
+      }
       if (typeof c.variableId !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(c.variableId)) return null;
       if (typeof c.operator !== 'string' || condOps.indexOf(c.operator) < 0) return null;
       let value: string | number | boolean;
@@ -224,6 +244,64 @@ function sanitizeTrigger(t: any): Trigger {
     if (conds.length) out.conditions = conds as any;
   }
   return out;
+}
+
+/** State names are short plain labels ("Hover", "Selected", "Step 2"). */
+function safeStateName(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const v = value.trim().slice(0, 40);
+  return v && !/[<>"'`\\]/.test(v) ? v : null;
+}
+
+const FONT_WEIGHTS = ['100', '200', '300', '400', '500', '600', '700', '800', '900', 'normal', 'bold'] as const;
+
+function safeBoxShadow(v: unknown): string | undefined {
+  return typeof v === 'string' && v.length < 200 && /^[\d\s.,()a-zA-Z#%/-]+$/.test(v) && !/[<>"'`\\]/.test(v) ? v : undefined;
+}
+
+/** A state's look: only the properties a state may change, each validated like the element's own. */
+function sanitizeLook(raw: any): StateLook {
+  const look: StateLook = {};
+  if (!raw || typeof raw !== 'object') return look;
+  if (typeof raw.content === 'string') look.content = safeString(raw.content, '', 10_000);
+  if (typeof raw.text === 'string') look.text = safeString(raw.text, '', 5_000);
+  for (const k of ['textColor', 'backgroundColor', 'fillColor', 'borderColor'] as const) {
+    if (raw[k] != null) look[k] = safeColor(raw[k], 'transparent');
+  }
+  if (raw.fontSize != null) look.fontSize = safeNumber(raw.fontSize, 16, 1, 1000);
+  if (raw.borderWidth != null) look.borderWidth = safeNumber(raw.borderWidth, 0, 0, 1000);
+  if (raw.borderRadius != null) look.borderRadius = safeNumber(raw.borderRadius, 0, 0, 1000);
+  if (raw.fontWeight != null) look.fontWeight = safeEnum(raw.fontWeight, FONT_WEIGHTS, '400');
+  const shadow = safeBoxShadow(raw.boxShadow);
+  if (shadow) look.boxShadow = shadow;
+  if (raw.src != null) { const src = safeImageSrc(raw.src); if (src) look.src = src; }
+  if (raw.fit === 'contain' || raw.fit === 'cover' || raw.fit === 'fill') look.fit = raw.fit;
+  return look;
+}
+
+/** States, plus the hover colours older courses had (they become a Hover state). */
+function sanitizeStates(raw: any): Pick<SlideElement, 'states' | 'initialState' | 'buttonSet' | 'stateParent'> {
+  const states: ElementState[] = [];
+  if (Array.isArray(raw.states)) {
+    for (const st of raw.states.slice(0, 30)) {
+      const name = safeStateName(st?.name);
+      if (!name || name === 'Normal' || states.some((s) => s.name === name)) continue;
+      states.push({ name, look: sanitizeLook(st.look) });
+    }
+  }
+  const legacy = hoverToState(raw).look;
+  if (legacy && !states.some((s) => s.name === 'Hover')) states.unshift({ name: 'Hover', look: sanitizeLook(legacy) });
+  const initial = safeStateName(raw.initialState);
+  const set = safeStateName(raw.buttonSet);
+  const sp = raw.stateParent;
+  const parentStates = sp && isSafeId(sp.id) && Array.isArray(sp.states)
+    ? sp.states.map(safeStateName).filter((n: string | null): n is string => !!n).slice(0, 30) : [];
+  return {
+    ...(parentStates.length ? { stateParent: { id: sp.id, states: parentStates } } : {}),
+    ...(states.length ? { states } : {}),
+    ...(initial && initial !== 'Normal' && states.some((s) => s.name === initial) ? { initialState: initial } : {}),
+    ...(set ? { buttonSet: set } : {}),
+  };
 }
 
 function sanitizeElement(raw: any): SlideElement | null {
@@ -244,6 +322,7 @@ function sanitizeElement(raw: any): SlideElement | null {
     ...(raw.isLocked === true ? { isLocked: true } : {}),
     ...(raw.isHidden === true ? { isHidden: true } : {}),
     ...(BRAND_ROLES.includes(raw.brandRole) ? { brandRole: raw.brandRole } : {}),
+    ...sanitizeStates(raw),
   };
   if (raw.type === 'text') {
     const el: TextElement = {
@@ -251,16 +330,9 @@ function sanitizeElement(raw: any): SlideElement | null {
       type: 'text',
       content: safeString(raw.content, '', 10_000),
       fontSize: safeNumber(raw.fontSize, 24, 1, 1000),
-      fontWeight: safeEnum(
-        raw.fontWeight,
-        ['100', '200', '300', '400', '500', '600', '700', '800', '900', 'normal', 'bold'] as const,
-        '400',
-      ),
+      fontWeight: safeEnum(raw.fontWeight, FONT_WEIGHTS, '400'),
       textColor: safeColor(raw.textColor, '#000000'),
       backgroundColor: safeColor(raw.backgroundColor, 'transparent'),
-      hoverTextColor: raw.hoverTextColor != null ? safeColor(raw.hoverTextColor, '#000000') : undefined,
-      hoverBackgroundColor:
-        raw.hoverBackgroundColor != null ? safeColor(raw.hoverBackgroundColor, 'transparent') : undefined,
       ...(raw.fontRole === 'heading' ? { fontRole: 'heading' as const } : {}),
     };
     return el;
@@ -284,21 +356,13 @@ function sanitizeElement(raw: any): SlideElement | null {
       fillColor: safeColor(raw.fillColor, '#3b82f6'),
       borderColor: safeColor(raw.borderColor, '#1e40af'),
       borderWidth: safeNumber(raw.borderWidth, 0, 0, 1000),
-      hoverFillColor: raw.hoverFillColor != null ? safeColor(raw.hoverFillColor, '#3b82f6') : undefined,
-      hoverBorderColor: raw.hoverBorderColor != null ? safeColor(raw.hoverBorderColor, '#1e40af') : undefined,
       text: raw.text != null ? safeString(raw.text, '', 5_000) : undefined,
       textColor: raw.textColor != null ? safeColor(raw.textColor, '#000000') : undefined,
       fontSize: raw.fontSize != null ? safeNumber(raw.fontSize, 16, 1, 1000) : undefined,
       borderRadius: raw.borderRadius != null ? safeNumber(raw.borderRadius, 0, 0, 1000) : undefined,
       // box-shadow restricted to a small allowlist pattern to defend against
       // CSS injection via imported JSON.
-      boxShadow:
-        typeof raw.boxShadow === 'string' &&
-        raw.boxShadow.length < 200 &&
-        /^[\d\s.,()a-zA-Z#%/-]+$/.test(raw.boxShadow) &&
-        !/[<>"'`\\]/.test(raw.boxShadow)
-          ? raw.boxShadow
-          : undefined,
+      boxShadow: safeBoxShadow(raw.boxShadow),
       autoBranchTarget: isSafeId(raw.autoBranchTarget) ? raw.autoBranchTarget : undefined,
     };
     if (raw.imagePlaceholder && typeof raw.imagePlaceholder === 'object') {

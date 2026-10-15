@@ -14,7 +14,9 @@
  * - each slide layout (+ its master's objects) → a Chronicle master slide
  * - slide layers → layers (non-base layers start hidden)
  * - text boxes, shapes, lines, pictures, picture-filled shapes, video, audio
- * - a button's Normal state supplies its look and label; Hover → hover colour
+ * - object states (Hover, Selected, Visited, Disabled, Hidden, custom) with
+ *   their looks, initial states, button sets, "change state" triggers,
+ *   "when state changes" triggers and state conditions
  * - triggers: jump to slide/scene, show/hide layer, adjust variable, play media,
  *   exit/complete course (with variable conditions)
  * - entrance/exit fade and fly animations
@@ -23,8 +25,8 @@
  */
 import JSZip from 'jszip';
 import type {
-  AnimationIn, AnimationOut, CourseVariable, ImageElement, ShapeElement, ShapeType, Slide, SlideAudio,
-  SlideElement, SlideLayer, TextElement, Trigger, TriggerCondition, VideoElement,
+  AnimationIn, AnimationOut, CourseVariable, ElementState, ImageElement, ShapeElement, ShapeType, Slide, SlideAudio,
+  SlideElement, SlideLayer, StateLook, TextElement, Trigger, TriggerCondition, VideoElement,
 } from '@/types/course';
 import type { ProjectLoadPayload } from '@/lib/project';
 import { md5Hex } from './md5';
@@ -355,7 +357,10 @@ function animations(el: El): Pick<SlideElement, 'animationIn' | 'animationOut' |
 
 // ---------- triggers ----------
 
-const EVENTS: Record<string, string> = { OnClick: 'onClick', OnMouseHover: 'onHover', OnStart: 'timelineStart', OnEnd: 'timelineEnd' };
+const EVENTS: Record<string, string> = {
+  OnClick: 'onClick', OnMouseHover: 'onHover', OnStart: 'timelineStart', OnEnd: 'timelineEnd',
+  OnStateChange: 'stateChange', OnTimelineEvent: 'atTime',
+};
 const ACTION_NAMES: Record<string, string> = {
   changeShapeState: 'Change state', submitInteraction: 'Submit interaction', Move: 'Move along motion path',
   showSubSlide: 'Show layer', hideSubSlide: 'Hide layer', jumpToSlide: 'Jump to slide', jumpToScene: 'Jump to scene',
@@ -364,7 +369,7 @@ const ACTION_NAMES: Record<string, string> = {
   submitResults: 'Submit results', reviewResults: 'Review results', resetResults: 'Reset results',
 };
 const EVENT_NAMES: Record<string, string> = {
-  OnDrop: 'when dropped', OnStateChange: 'when state changes', OnTimelineEvent: 'when timeline reaches a time',
+  OnDrop: 'when dropped',
   OnNextButtonClick: 'when Next is clicked', OnEntersSlide: 'when slide begins', OnKeyPress: 'when a key is pressed',
   OnVarChange: 'when a variable changes', OnVariableValueChange: 'when a variable changes', OnHoverOut: 'when hover ends',
 };
@@ -380,7 +385,26 @@ function convertTrigger(t: El, ctx: Ctx, layerIds: Map<string, string>, ownLayer
   const event = EVENTS[ev];
   if (!event) return `${actName} ${EVENT_NAMES[ev] ?? ev}`;
   const out: Trigger = { event, action: '', targetId: '' };
-  if (act === 'jumpToSlide') {
+  const shape = kid(d, 'shape');
+  if (event === 'stateChange') {
+    const ids = kids(kid(shape, 'stateLst'), 'g').map((g) => safeId(g.textContent));
+    const state = attr(shape, 'stateName');
+    if (!ids.length || !state) return `${actName} when state changes (no objects to watch)`;
+    out.stateWatch = {
+      ids, state,
+      ...(attr(shape, 'statesNot') && attr(shape, 'statesNot') !== 'are' ? { not: true } : {}),
+      ...(attr(shape, 'stateInclude') === 'any' ? { any: true } : {}),
+    };
+  } else if (event === 'atTime') {
+    out.time = isoMs(attr(kid(d, 'other'), 'time'), 0) / 1000;
+  }
+  if (act === 'changeShapeState') {
+    // Without a target object, the trigger changes the player's Next button (e.g. disabled until all are visited).
+    if (!attr(shape, 'setStateG')) return `Change state of the player's Next button`;
+    out.action = 'changeState';
+    out.targetId = safeId(attr(shape, 'setStateG'));
+    out.state = attr(shape, 'setStateName') || 'Normal';
+  } else if (act === 'jumpToSlide') {
     if (sub === 'prev') return 'Jump to previous slide';
     out.action = 'jumpToSlide';
     out.targetId = sub === 'next' ? nextSlideId : ctx.slideIdByG.get(attr(kid(d, 'slide'), 'jumpG') ?? '') ?? '';
@@ -412,8 +436,14 @@ function convertTrigger(t: El, ctx: Ctx, layerIds: Map<string, string>, ownLayer
 
   const conds: TriggerCondition[] = [];
   for (const c of kids(kid(t, 'condLst'), 'trigCond')) {
-    if (attr(c, 'dataType') === 'state') return `${actName} that depends on an object's state`;
     if (attr(c, 'andOr') === 'or') return `${actName} with "or" conditions`;
+    if (attr(c, 'dataType') === 'state') {
+      const ss = kid(c, 'shapeState');
+      const op = attr(ss, 'op') === 'noteq' ? 'notEquals' : attr(ss, 'op') === 'eq' ? 'equals' : null;
+      if (!attr(ss, 'shapeG') || !attr(ss, 'name') || !op) return `${actName} with an unsupported state condition`;
+      conds.push({ variableId: '', elementId: safeId(attr(ss, 'shapeG')), operator: op, state: attr(ss, 'name')!, value: '' });
+      continue;
+    }
     const v = ctx.vars.get(attr(c, 'varG') ?? '');
     if (!v) return `${actName} that depends on a built-in variable`;
     const op = ({ eq: 'equals', neq: 'notEquals', gt: 'greaterThan', lt: 'lessThan', gte: 'greaterThanOrEqual', lte: 'lessThanOrEqual' } as Record<string, string>)[attr(c, 'op') ?? ''];
@@ -449,15 +479,85 @@ function stackingOrder(list: El | null): El[] {
   return out;
 }
 
-/** The look of an object in a given state (each state is stored as a full copy of the object). */
+/**
+ * Each state stores a full copy of the object (the child named by the state's
+ * defG) plus any objects added to that state, positioned relative to the object.
+ */
+function stateCopy(st: El): { copy: El | null; extras: El[] } {
+  const all = kids(kid(st, 'shapeLst'));
+  const copy = all.find((c) => attr(c, 'g') && attr(c, 'g') === attr(st, 'defG')) ?? all[0] ?? null;
+  return { copy, extras: all.filter((c) => c !== copy) };
+}
+
+/** The look of an object in a given state. */
 function stateShape(el: El, name: string): El | null {
   for (const s of kids(kid(el, 'stateLst'), 'state')) {
-    if (attr(s, 'name') === name) { const first = kids(kid(s, 'shapeLst'))[0]; if (first) return first; }
+    if (attr(s, 'name') === name) { const { copy } = stateCopy(s); if (copy) return copy; }
   }
   return null;
 }
 
-const STANDARD_STATES = new Set(['Normal', 'Hover', 'Visited', 'Disabled', 'Down', 'Selected', 'Hidden']);
+/** The look properties Chronicle keeps for one copy of an object (its Normal look or a state's). */
+async function lookOfCopy(copy: El, el: SlideElement, ctx: Ctx, cv: Convert): Promise<StateLook> {
+  if (el.type === 'image') {
+    const ag = attr(q(copy, 'bG', 'picFill'), 'assetG') ?? (copy.localName === 'pic' || copy.localName === 'svgimage' ? attr(copy, 'assetG') : null);
+    const src = ag ? await mediaUri(ctx, ag) : null;
+    return src ? { src } : {};
+  }
+  const text = readText(copy, cv.scheme, ctx.placeholders);
+  const fill = fillOf(copy, cv.scheme);
+  if (el.type === 'text') {
+    return {
+      backgroundColor: fill ?? 'transparent',
+      ...(text ? { content: text.text, textColor: text.colour ?? '#000000', fontSize: text.size, fontWeight: text.bold ? '700' : '400' } : {}),
+    };
+  }
+  if (el.type === 'shape') {
+    const line = q(copy, 'bG', 'solidLine');
+    return {
+      fillColor: fill ?? 'transparent',
+      borderColor: colourOf(line, cv.scheme) ?? 'transparent',
+      borderWidth: line ? Math.max(1, Math.round(num(attr(q(copy, 'bG', 'lineStyle'), 'w'), 1))) : 0,
+      ...(text ? { text: text.text, textColor: text.colour ?? '#000000', fontSize: text.size } : {}),
+    };
+  }
+  return {};
+}
+
+/**
+ * Storyline states → Chronicle states. Each Storyline state is a full copy of
+ * the object; Chronicle keeps only what differs from the Normal state.
+ * `looks` = false keeps just the state names (objects whose look Chronicle
+ * draws differently, e.g. lines), so Hidden/Disabled and triggers still work.
+ */
+async function addStates<T extends SlideElement>(e: El, el: T, looks: boolean, ctx: Ctx, cv: Convert): Promise<T> {
+  const states: ElementState[] = [];
+  const normalCopy = stateShape(e, 'Normal') ?? e;
+  const normal = looks ? await lookOfCopy(normalCopy, el, ctx, cv) : {};
+  for (const st of kids(kid(e, 'stateLst'), 'state')) {
+    const name = (attr(st, 'name') ?? '').trim();
+    if (!name || name === 'Normal' || states.some((x) => x.name === name)) continue;
+    const { copy } = stateCopy(st);
+    const look: StateLook = {};
+    if (looks && copy) {
+      const full = await lookOfCopy(copy, el, ctx, cv);
+      for (const [k, v] of Object.entries(full)) {
+        if (v !== (normal as Record<string, unknown>)[k]) (look as Record<string, unknown>)[k] = v;
+      }
+    }
+    states.push({ name, look });
+  }
+  const init = (attr(e, 'initState') ?? '').trim();
+  if (init && init !== 'Normal' && !states.some((x) => x.name === init)) states.push({ name: init, look: {} });
+  if (!states.length) return el;
+  const set = (attr(e, 'grpId') ?? '').trim();
+  return {
+    ...el,
+    states,
+    ...(init && init !== 'Normal' ? { initialState: init } : {}),
+    ...(set && states.some((x) => x.name === 'Selected') ? { buttonSet: set.slice(0, 40) } : {}),
+  };
+}
 
 /** An object's own time window on its timeline; "show until end" objects end at Infinity. */
 function ownWindow(e: El): { start: number; end: number } {
@@ -465,6 +565,48 @@ function ownWindow(e: El): { start: number; end: number } {
   const start = Math.round(num(attr(tm, 'start')));
   const untilEnd = attr(tm, 'untilEnd') === 'true' || attr(tm, 'alwysShw') === 'true';
   return { start, end: untilEnd ? Infinity : start + Math.round(num(attr(tm, 'dur'), 5000)) };
+}
+
+/**
+ * Objects placed inside an object's states (e.g. a tick shown in its Selected
+ * state, an icon on a button). Storyline keeps a copy in every state that has
+ * it, positioned relative to the object; identical copies become one Chronicle
+ * object listing those states. They follow the object's timing and show only
+ * while it's drawn in one of them. `below` go under the object, `above` over it.
+ */
+async function stateChildren(e: El, parent: SlideElement, ctx: Ctx, cv: Convert): Promise<{ below: SlideElement[]; above: SlideElement[] }> {
+  const byKey = new Map<string, { el: SlideElement; below: boolean }>();
+  const loc = kid(e, 'loc');
+  const ox = Math.min(num(attr(loc, 'l')), num(attr(loc, 'r'))), oy = Math.min(num(attr(loc, 't')), num(attr(loc, 'b')));
+  for (const st of kids(kid(e, 'stateLst'), 'state')) {
+    const name = (attr(st, 'name') ?? '').trim();
+    const { copy, extras } = stateCopy(st);
+    if (!name || !extras.length) continue;
+    const copyZ = num(attr(copy, 'zOrder'), 0);
+    for (const x of extras) {
+      const holder = e.ownerDocument.createElement('shapeLst');
+      holder.appendChild(x.cloneNode(true));
+      for (const child of await convertObjects(holder, ctx, cv)) {
+        const placed = {
+          ...child, x: child.x + Math.round(ox), y: child.y + Math.round(oy),
+          startTime: parent.startTime, duration: parent.duration,
+          animationIn: parent.animationIn, animationOut: parent.animationOut,
+          entranceDuration: parent.entranceDuration, exitDuration: parent.exitDuration,
+        } as SlideElement;
+        const { id: _id, ...look } = placed;
+        void _id;
+        const key = JSON.stringify(look);
+        const seen = byKey.get(key);
+        if (seen) { if (!seen.el.stateParent!.states.includes(name)) seen.el.stateParent!.states.push(name); continue; }
+        placed.stateParent = { id: parent.id, states: [name] };
+        const end = ctx.rawEnds.get(parent.id);
+        if (end != null) ctx.rawEnds.set(placed.id, end);
+        byKey.set(key, { el: placed, below: num(attr(x, 'zOrder'), 0) < copyZ });
+      }
+    }
+  }
+  const list = [...byKey.values()];
+  return { below: list.filter((c) => c.below).map((c) => c.el), above: list.filter((c) => !c.below).map((c) => c.el) };
 }
 
 async function convertObjects(list: El | null, ctx: Ctx, cv: Convert): Promise<SlideElement[]> {
@@ -510,12 +652,15 @@ async function convertObjects(list: El | null, ctx: Ctx, cv: Convert): Promise<S
       triggers: [] as Trigger[],
       animationIn: anim.animationIn, animationOut: anim.animationOut, entranceDuration: anim.entranceDuration, exitDuration: anim.exitDuration,
     };
-    // Chronicle has no "starts hidden" yet (isHidden only hides objects in the editor), so they show from the start.
-    if (attr(e, 'initState') === 'Hidden') rep('approximated', 'Objects that start hidden (shown from the start)');
     ctx.rawEnds.set(base.id, own.start + Math.round(num(attr(tm, 'dur'), 0)));
     if (num(attr(e, 'rot'), -1) > 0 && num(attr(e, 'rot')) % 360 !== 0) rep('approximated', 'Rotated objects (shown unrotated)');
-    const custom = kids(kid(e, 'stateLst'), 'state').map((s) => attr(s, 'name') ?? '').filter((n) => n && !STANDARD_STATES.has(n));
-    if (custom.length) rep('skipped', 'Custom object states (e.g. Correct, Dropped)');
+    /** Adds the object's states (and initial state, button set) to the converted element. */
+    const withStates = async <T extends SlideElement>(el: T, looks = true): Promise<T> => addStates(e, el, looks, ctx, cv);
+    /** Adds the converted element with its states, then any objects placed inside its states. */
+    const push = async (el: SlideElement, looks = true) => {
+      const inner = looks ? await stateChildren(e, el, ctx, cv) : { below: [], above: [] };
+      els.push(...inner.below, await withStates(el, looks), ...inner.above);
+    };
     for (const trg of kids(kid(e, 'trigLst'), 'trig')) {
       const res = convertTrigger(trg, ctx, cv.layerIds, cv.ownLayer, cv.nextSlideId);
       if (typeof res === 'string') { if (res) rep('skipped', `Trigger: ${res}`); }
@@ -539,10 +684,10 @@ async function convertObjects(list: El | null, ctx: Ctx, cv: Convert): Promise<S
             return parsed.lines.join('\n').trim();
           });
         });
-        els.push({
+        await push({
           ...base, type: 'table', rowCount: rows.length, colCount: nCols, cellData,
           ...(size ? { fontSize: Math.round(size * FONT_SCALE) } : {}), ...(colour ? { textColor: colour } : {}),
-        } as SlideElement);
+        } as SlideElement, false);
         rep('approximated', 'Tables (cell colours and column widths not kept)');
         continue;
       }
@@ -551,13 +696,13 @@ async function convertObjects(list: El | null, ctx: Ctx, cv: Convert): Promise<S
       const src = await mediaUri(ctx, attr(e, 'assetG'));
       if (!src) { rep('skipped', 'Pictures whose file is missing from the .story'); continue; }
       const img: ImageElement = { ...base, type: 'image', src, alt: attr(e, 'altText') ?? ctx.media.get(attr(e, 'assetG')!)?.name ?? '', fit: 'fill' };
-      els.push(img);
+      await push(img);
       continue;
     }
     if (tag === 'video') {
       const src = await mediaUri(ctx, attr(e, 'assetG'));
       if (!src) { rep('skipped', 'Videos whose file is missing from the .story'); continue; }
-      els.push({ ...base, type: 'video', src, controls: true, autoplay: false } as VideoElement);
+      await push({ ...base, type: 'video', src, controls: true, autoplay: false } as VideoElement, false);
       continue;
     }
     if (tag === 'line') {
@@ -565,33 +710,33 @@ async function convertObjects(list: El | null, ctx: Ctx, cv: Convert): Promise<S
       const colour = colourOf(q(e, 'bG', 'solidLine'), cv.scheme) ?? '#000000';
       const horizontal = Math.abs(b - t) < 1, vertical = Math.abs(r - l) < 1;
       if (!horizontal && !vertical) { rep('skipped', 'Diagonal lines'); continue; }
-      els.push({
+      await push({
         ...base, type: 'shape', shapeType: 'rectangle', fillColor: colour, borderColor: colour, borderWidth: 0, borderRadius: 0,
         ...(horizontal ? { y: Math.round(t - lw / 2), height: lw } : { x: Math.round(l - lw / 2), width: lw }),
-      } as ShapeElement);
+      } as ShapeElement, false);
       if (q(e, 'bG', 'lineStyle', 'arrow', 'end') && attr(q(e, 'bG', 'lineStyle', 'arrow', 'end'), 'type') !== 'none'
         && attr(q(e, 'bG', 'lineStyle', 'arrow', 'end'), 'type') !== 'def') rep('approximated', 'Arrowheads on lines');
       continue;
     }
     if (tag === 'textBox' || SHAPES[tag]) {
       const look = stateShape(e, 'Normal') ?? e;
+      // The shape drawn is the Normal state's (the object's own tag can differ, e.g. after "change shape").
+      const shapeTag = look !== e && (SHAPES[look.localName] || look.localName === 'textBox') ? look.localName : tag;
       const text = readText(look, cv.scheme, ctx.placeholders) ?? readText(e, cv.scheme, ctx.placeholders);
       // Picture-filled shapes (e.g. photos in rounded frames) become pictures.
       const picFill = q(look, 'bG', 'picFill') ?? q(e, 'bG', 'picFill');
       if (picFill) {
         const src = await mediaUri(ctx, attr(picFill, 'assetG'));
         if (src) {
-          els.push({ ...base, type: 'image', src, alt: '', fit: 'cover', ...(ROUNDED.has(tag) ? { borderRadius: Math.round(Math.min(base.width, base.height) * 0.12) } : {}) } as ImageElement);
-          if (tag !== 'rect' && !ROUNDED.has(tag)) rep('approximated', 'Pictures inside non-rectangular shapes (shown as rectangles)');
+          await push({ ...base, type: 'image', src, alt: '', fit: 'cover', ...(ROUNDED.has(shapeTag) ? { borderRadius: Math.round(Math.min(base.width, base.height) * 0.12) } : {}) } as ImageElement);
+          if (shapeTag !== 'rect' && !ROUNDED.has(shapeTag)) rep('approximated', 'Pictures inside non-rectangular shapes (shown as rectangles)');
           if (text) rep('skipped', 'Text on picture-filled shapes');
           continue;
         }
       }
       if (text && /%[A-Za-z_][\w.]*%/.test(text.text)) rep('approximated', 'Text that shows a variable\'s value (shows the variable name)');
       const fill = fillOf(look, cv.scheme);
-      const hov = stateShape(e, 'Hover');
-      const hoverFill = hov ? fillOf(hov, cv.scheme) : null;
-      if (tag === 'textBox' || (!fill && text && !q(look, 'bG', 'solidLine'))) {
+      if (shapeTag === 'textBox' || (!fill && text && !q(look, 'bG', 'solidLine'))) {
         if (!text) continue;
         // Storyline lets text spill out of its box; Chronicle clips it, so make the box tall enough.
         const lineCount = text.text.split('\n').length;
@@ -601,23 +746,21 @@ async function convertObjects(list: El | null, ctx: Ctx, cv: Convert): Promise<S
           ...base, type: 'text', content: text.text, fontSize: text.size, fontWeight: text.bold ? '700' : '400',
           textColor: text.colour ?? '#000000', backgroundColor: fill ?? 'transparent',
           ...(text.heading ? { fontRole: 'heading' as const } : {}),
-          ...(hoverFill && hoverFill !== fill ? { hoverBackgroundColor: hoverFill } : {}),
         };
-        els.push(te);
+        await push(te);
         continue;
       }
       const line = q(look, 'bG', 'solidLine');
       const se: ShapeElement = {
-        ...base, type: 'shape', shapeType: SHAPES[tag], fillColor: fill ?? 'transparent',
+        ...base, type: 'shape', shapeType: SHAPES[shapeTag], fillColor: fill ?? 'transparent',
         borderColor: colourOf(line, cv.scheme) ?? 'transparent',
         borderWidth: line ? Math.max(1, Math.round(num(attr(q(look, 'bG', 'lineStyle'), 'w'), 1))) : 0,
-        ...(tag === 'rect' || tag === 'textBox' || tag.startsWith('snip') ? { borderRadius: 0 } : {}),
-        ...(ROUNDED.has(tag) ? { borderRadius: Math.round(Math.min(base.width, base.height) * 0.15) } : {}),
-        ...(hoverFill && hoverFill !== fill ? { hoverFillColor: hoverFill } : {}),
+        ...(shapeTag === 'rect' || shapeTag === 'textBox' || shapeTag.startsWith('snip') ? { borderRadius: 0 } : {}),
+        ...(ROUNDED.has(shapeTag) ? { borderRadius: Math.round(Math.min(base.width, base.height) * 0.15) } : {}),
       };
       if (text) { se.text = text.text; se.textColor = text.colour ?? '#000000'; se.fontSize = text.size; }
-      if (tag !== 'rect' && tag !== 'roundRect' && ROUNDED.has(tag)) rep('approximated', 'Shapes with only some corners rounded (all corners rounded)');
-      els.push(se);
+      if (shapeTag !== 'rect' && shapeTag !== 'roundRect' && ROUNDED.has(shapeTag)) rep('approximated', 'Shapes with only some corners rounded (all corners rounded)');
+      await push(se);
       continue;
     }
     if (/Intr$/.test(tag)) ctx.questionSlides.add(cv.slideTitle);
@@ -802,17 +945,36 @@ export async function importStory(data: Blob | ArrayBuffer | Uint8Array, onProgr
     const layers: SlideLayer[] = [{ id: `${id}-base`, name: 'Base Layer', visible: true, locked: false, elements: baseEls }];
     for (const l of layerEls) {
       const lid = layerIds.get(attr(l, 'g')!)!;
-      layers.push({ id: lid, name: (attr(l, 'name') || 'Layer').trim(), visible: false, locked: false, elements: await convertObjects(kid(l, 'shapeLst'), ctx, cv(lid)) });
+      const layerElements = await convertObjects(kid(l, 'shapeLst'), ctx, cv(lid));
+      // Layer triggers go on the layer's first object (Chronicle triggers belong to objects); "when the
+      // timeline starts" on a layer's object runs each time the layer is shown. Chronicle layers have no
+      // timeline of their own, so "when it ends / reaches a time" can't be kept.
+      for (const trg of kids(kid(l, 'trigLst'), 'trig')) {
+        const res = convertTrigger(trg, ctx, layerIds, lid, nextSlideId);
+        if (typeof res === 'string') { if (res) report.add('skipped', `Trigger: ${res}`, title); }
+        else if (res.event === 'timelineEnd' || res.event === 'atTime') report.add('skipped', "Layer triggers that run when the layer's timeline ends or reaches a time", title);
+        else if (!layerElements.length) report.add('skipped', 'Triggers on empty layers', title);
+        else { layerElements[0].triggers.push(res); report.counts.triggers++; }
+      }
+      layers.push({ id: lid, name: (attr(l, 'name') || 'Layer').trim(), visible: false, locked: false, elements: layerElements });
       report.counts.layers++;
       // Layer audio starts relative to when the layer is shown (each Storyline layer has its own timeline).
       const layerAudio = await readAudio(kid(l, 'shapeLst'), ctx);
       if (layerAudio.length) layers[layers.length - 1].audio = layerAudio;
     }
-    // slide-level triggers (Chronicle triggers belong to objects, except Next-button navigation)
+    // Slide triggers go on the slide's first object (Chronicle triggers belong to objects), or on
+    // an invisible hotspot when the slide has none.
     for (const trg of kids(kid(s, 'trigLst'), 'trig')) {
       const res = convertTrigger(trg, ctx, layerIds, '', nextSlideId);
-      if (typeof res === 'string') { if (res) report.add('skipped', `Trigger: ${res}`, title); }
-      else report.add('skipped', `Slide-level trigger: ${ACTION_NAMES[attr(kid(trg, 'data'), 'action') ?? ''] ?? 'other'}`, title);
+      if (typeof res === 'string') { if (res) report.add('skipped', `Trigger: ${res}`, title); continue; }
+      if (!baseEls.length) {
+        baseEls.push({
+          id: `${id}-triggers`, type: 'hotspot', x: 0, y: 0, width: 1, height: 1, startTime: 0, duration: UNTIL_END, triggers: [],
+          animationIn: 'none', animationOut: 'none', entranceDuration: 0, exitDuration: 0,
+        });
+      }
+      baseEls[0].triggers.push(res);
+      report.counts.triggers++;
     }
     // Audio on the base layer, at its start time on the slide's timeline.
     const audio = await readAudio(kid(s, 'shapeLst'), ctx);

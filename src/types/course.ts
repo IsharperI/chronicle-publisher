@@ -52,11 +52,18 @@ export type AnimationOut = 'none' | 'fade' | 'fly-out-left' | 'fly-out-right' | 
 export type ViewMode = 'main' | 'master';
 
 export interface Trigger {
-  /** 'onClick' | 'onHover' | 'timelineStart' | 'timelineEnd' | 'atTime' | 'mediaStart' | 'mediaEnd' | 'mediaPause' */
+  /** 'onClick' | 'onHover' | 'timelineStart' | 'timelineEnd' | 'atTime' | 'mediaStart' | 'mediaEnd' | 'mediaPause' | 'stateChange' */
   event: string;
-  /** 'jumpToSlide' | 'showElement' | 'hideElement' | 'playMedia' | 'pauseMedia' | 'stopMedia' | 'restartCourse' | 'exitCourse' | 'completeCourse' | 'jumpToTime' | 'emphasizeElement' | 'openUrl' | 'adjustVariable' | 'pauseTimeline' | 'resumeTimeline' | 'lightboxSlide' | 'showLayer' | 'hideLayer' */
+  /** 'jumpToSlide' | 'showElement' | 'hideElement' | 'changeState' | 'playMedia' | 'pauseMedia' | 'stopMedia' | 'restartCourse' | 'exitCourse' | 'completeCourse' | 'jumpToTime' | 'emphasizeElement' | 'openUrl' | 'adjustVariable' | 'pauseTimeline' | 'resumeTimeline' | 'lightboxSlide' | 'showLayer' | 'hideLayer' */
   action: string;
   targetId: string;
+  /** For 'changeState' actions: the state to put the target element in. */
+  state?: string;
+  /**
+   * For 'stateChange' events: fires when the watched elements come to be in
+   * (or, with `not`, out of) `state`. All of them must match unless `any`.
+   */
+  stateWatch?: { ids: string[]; state: string; not?: boolean; any?: boolean };
   /** For 'atTime' events: time in seconds from slide start when the trigger fires. */
   time?: number;
   /**
@@ -87,9 +94,15 @@ export interface Trigger {
   conditions?: TriggerCondition[];
 }
 
-/** A single condition gating a trigger. Compares a course variable against a value. */
+/**
+ * A single condition gating a trigger. Compares a course variable against a
+ * value, or (when `elementId` is set) checks an element's state:
+ * operator 'equals' / 'notEquals' against `state`.
+ */
 export interface TriggerCondition {
   variableId: string;
+  elementId?: string;
+  state?: string;
   /**
    * Comparison operator.
    * Boolean / Text: 'equals' | 'notEquals'
@@ -133,6 +146,39 @@ export interface BaseElement {
    * and their accent line, and title-slide backgrounds ('cover').
    */
   brandRole?: 'logo' | 'titleBar' | 'titleText' | 'titleAccent' | 'cover';
+  /** Extra looks (Hover, Selected, custom…); see lib/states.ts. Normal is the element itself. */
+  states?: ElementState[];
+  /** State when the slide starts (default Normal). 'Hidden' starts the element hidden. */
+  initialState?: string;
+  /** Elements sharing a button set act like radio buttons: selecting one clears the others. */
+  buttonSet?: string;
+  /**
+   * An object placed inside another object's states (e.g. a tick in its
+   * Selected state): shown only while that object is drawn in one of `states`.
+   */
+  stateParent?: { id: string; states: string[] };
+}
+
+/** The properties a state changes, compared with the element's Normal look. */
+export interface StateLook {
+  content?: string;
+  textColor?: string;
+  backgroundColor?: string;
+  fontSize?: number;
+  fontWeight?: string;
+  fillColor?: string;
+  borderColor?: string;
+  borderWidth?: number;
+  text?: string;
+  boxShadow?: string;
+  borderRadius?: number;
+  src?: string;
+  fit?: 'contain' | 'cover' | 'fill';
+}
+
+export interface ElementState {
+  name: string;
+  look: StateLook;
 }
 
 /** Cubic bezier motion path in absolute canvas coordinates. */
@@ -154,8 +200,6 @@ export interface TextElement extends BaseElement {
   fontWeight: string;
   textColor: string;
   backgroundColor: string;
-  hoverTextColor?: string;
-  hoverBackgroundColor?: string;
   /** 'heading' text uses the course's heading font (courseSettings.headingFont). */
   fontRole?: 'heading';
 }
@@ -189,8 +233,6 @@ export interface ShapeElement extends BaseElement {
   fillColor: string;
   borderColor: string;
   borderWidth: number;
-  hoverFillColor?: string;
-  hoverBorderColor?: string;
   /** Optional embedded text rendered centered inside the shape. */
   text?: string;
   textColor?: string;
@@ -630,6 +672,8 @@ export interface CourseState {
   perQuestionTimerRemaining: Record<string, number>;
   /** Editor-only: when set, canvas enters motion-path drawing mode for the given element. */
   motionPathEditor: { elementId: string } | null;
+  /** Editing one of an element's states on the canvas (States tab → Edit, then Done). */
+  editingState?: { elementId: string; state: string } | null;
   /** Editor-only: id of the layer currently being edited on the active slide. */
   activeLayerId: string | null;
 }

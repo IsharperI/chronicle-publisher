@@ -14,6 +14,7 @@
  * pass. Frames are driven by a timer rather than requestAnimationFrame, so
  * recording keeps going (at a lower frame rate) if the tab is in the background.
  */
+import { atSlideStart } from '../states';
 import JSZip from 'jszip';
 import type { CourseState, QuizConfig, Slide, SlideElement, SlideLayer, TextElement } from '@/types/course';
 import { resolveColor } from '@/lib/themeVars';
@@ -95,14 +96,14 @@ export function elementAppearance(
 }
 
 /** Elements a learner sees when the slide opens: visible layers only (hidden layers are lightboxes etc.). */
-/** Hidden elements and empty image placeholders aren't in the video. */
+/** Hidden elements and empty image placeholders aren't in the video; the rest look as they do when the slide starts (lib/states.ts). */
 const shown = (e: SlideElement) => !e.isHidden && !(e.type === 'shape' && (e as { imagePlaceholder?: unknown }).imagePlaceholder);
 
 function slideElements(slide: Slide): SlideElement[] {
   if (slide.layers && slide.layers.length > 0) {
-    return slide.layers.flatMap((l: SlideLayer) => (l.visible === false ? [] : l.elements)).filter(shown);
+    return atSlideStart(slide.layers.flatMap((l: SlideLayer) => (l.visible === false ? [] : l.elements))).filter(shown);
   }
-  return slide.elements.filter(shown);
+  return atSlideStart(slide.elements).filter(shown);
 }
 
 function masterElements(state: AppState, slide: Slide): SlideElement[] {
