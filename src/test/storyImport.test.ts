@@ -61,7 +61,8 @@ async function makeStory(): Promise<Uint8Array> {
           <trig><data event="OnClick" action="showSubSlide" actSubType="spec"><sldLayer showG="lay-g1" /></data><condLst /></trig>
           <trig><data event="OnClick" action="adjustVar" actSubType="spec"><other varG="v1" op="add" dblVal="5" /></data>
             <condLst><trigCond varG="v1" op="lt" floatVal1="10" dataType="value" andOr="and" /></condLst></trig>
-          <trig><data event="OnClick" action="changeShapeState" actSubType="next"><shape /></data><condLst /></trig>
+          <trig><data event="OnClick" action="changeShapeState" actSubType="next"><shape setStateName="Disabled" /></data><condLst /></trig>
+          <trig><data event="OnClick" action="changeShapeState" actSubType="prev"><shape setStateName="Normal" /></data><condLst /></trig>
         </trigLst></roundRect>
       <pic g="p1" zOrder="0" assetG="img1">${tm(0, 2000)}${loc(700, 100, 1100, 400)}<animEffect><entr><fly dur="PT0.5S" dir="l" /></entr></animEffect></pic>
       <freeForm g="f1" zOrder="3">${loc(0, 0, 10, 10)}</freeForm>
@@ -77,7 +78,8 @@ async function makeStory(): Promise<Uint8Array> {
       <tableRow><cells><tableCell text="${rich('1', 'ForegroundColor="#333333"')}" /><tableCell text="${rich('2')}" /></cells></tableRow>
     </rows></table></rect>
     <textBox g="t2" zOrder="1">${tm(0, 1000)}${loc(10, 200, 400, 260)}<text>${rich('Back')}</text>
-      <trigLst><trig><data event="OnClick" action="jumpToScene" actSubType="spec"><scene jumpG="sc1" /></data><condLst /></trig></trigLst></textBox>
+      <trigLst><trig><data event="OnClick" action="jumpToScene" actSubType="spec"><scene jumpG="sc1" /></data><condLst /></trig>
+        <trig><data event="OnClick" action="jumpToSlide" actSubType="prev"><slide /></data><condLst /></trig></trigLst></textBox>
     <group g="grp" zOrder="2">${tm(9000, 500)}${loc(0, 0, 500, 500)}<animEffect><entr><wipe dur="PT1S" wd="b" /></entr></animEffect><childLst><g>m1</g></childLst></group>
     <rect g="m1" zOrder="0" parentG="grp">${tm(2000, 3000)}${loc(0, 0, 100, 100)}<bG><solidFill><clr><srgbClr val="123456" /></clr></solidFill></bG>
       <animEffect><exit><wipe dur="PT0.5S" wd="r" /></exit></animEffect></rect>
@@ -145,6 +147,9 @@ describe('importStory', () => {
       { event: 'onClick', action: 'showLayer', targetId: 'lay-g1' },
       { event: 'onClick', action: 'adjustVariable', targetId: '', variableId: 'v1', variableOperator: 'add', variableValue: 5,
         conditions: [{ variableId: 'v1', operator: 'lessThan', value: 10 }] },
+      // "Change state of the player's Next/Prev button" (no target object)
+      { event: 'onClick', action: 'setPlayerButton', targetId: 'next', state: 'Disabled' },
+      { event: 'onClick', action: 'setPlayerButton', targetId: 'prev', state: 'Normal' },
     ]);
 
     // Placeholder text inherits the layout's colour; size is scaled to px; "until end" lasts the whole slide.
@@ -163,7 +168,10 @@ describe('importStory', () => {
     expect(table.type).toBe('table');
     expect(table.cellData).toEqual([['A', 'B'], ['1', '2']]);
     expect(table.textColor).toBe('#333333');
-    expect(s2.elements[1].triggers).toEqual([{ event: 'onClick', action: 'jumpToSlide', targetId: '111' }]);
+    expect(s2.elements[1].triggers).toEqual([
+      { event: 'onClick', action: 'jumpToSlide', targetId: '111' },
+      { event: 'onClick', action: 'jumpToPrevious', targetId: '' },
+    ]);
 
     // Timing: the slide uses Storyline's own length; grouped objects keep their own timing but
     // play the group's animations; audio keeps its start time; layer audio belongs to its layer.
@@ -177,9 +185,9 @@ describe('importStory', () => {
 
     const messages = report.issues.map((i) => i.message);
     expect(messages).toContain('Freeform shapes');
-    expect(messages).toContain("Trigger: Change state of the player's Next button");
+    expect(messages.some((m) => /player's Next button|previous slide/.test(m))).toBe(false);
     expect(report.slides).toBe(3);
-    expect(report.triggersConverted).toBe(8);
+    expect(report.triggersConverted).toBe(11);
     // A layer's "when timeline starts" trigger goes on its first object (it runs when the layer is shown).
     expect(course.slides[2].layers![1].elements[0].triggers).toEqual([{ event: 'timelineStart', action: 'changeState', targetId: 'chk', state: 'Normal' }]);
 

@@ -809,12 +809,17 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
   function goNext(){if(hubLockedNow())return;var n=nextIndexOf(current);if(n>=0)goTo(n)}
   var hasBranching=false;
   for(var hb=0;hb<slides.length;hb++){if(slides[hb].next&&slides[hb].next.length>=2){hasBranching=true;break}}
+  /* "Change state of the player's Next/Prev button" triggers (lib/navButtons.ts): off for
+     the rest of the slide, or back on. render() turns both back on for each slide. */
+  var navButtonsOff={next:false,prev:false};
   function setNavLock(locked){
-    var noNext=nextIndexOf(current)<0||hubLockedNow();
+    var noNext=nextIndexOf(current)<0||hubLockedNow()||navButtonsOff.next;
     nextBtn.title=hubLockedNow()?"Complete every section to continue":"";
     if(navMode!=="restricted"){nextBtn.disabled=noNext;return}
     nextBtn.disabled=locked||noNext;
   }
+  function updatePrevBtn(){prevBtn.disabled=navHistory.length===0||navButtonsOff.prev}
+  function goBack(){if(navHistory.length)goTo(navHistory.pop(),true)}
 
   /* Audio: each clip starts at its startTime (seconds) on the slide's timeline; a layer's
      clips count from when the layer was shown. syncAudio (run every frame by tickTiming)
@@ -1286,6 +1291,15 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
     if(!evaluateConditions(t))return;
     if(t.action==="jumpToSlide"){
       for(var i=0;i<slides.length;i++){if(slides[i].id===t.targetId){goTo(i);return}}
+    } else if(t.action==="jumpToPrevious"){
+      goBack();
+    } else if(t.action==="setPlayerButton"){
+      var nb=t.targetId==="prev"?"prev":t.targetId==="next"?"next":"";
+      if(nb){
+        var st=String(t.state||"").toLowerCase();
+        navButtonsOff[nb]=st==="disabled"||st==="hidden";
+        if(nb==="prev")updatePrevBtn();else setNavLock(!unlocked);
+      }
     } else if(t.action==="hideElement"){
       var hc={};hc[t.targetId]="Hidden";setStates(hc,depth);
     } else if(t.action==="showElement"){
@@ -1554,7 +1568,7 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
     if(slide.slideType==="quiz")renderQuizSlide(slide);
     else if(slide.slideType==="results")renderResultsSlide(slide);
     if(meta)meta.textContent="Slide "+(current+1)+" / "+slides.length;
-    prevBtn.disabled=navHistory.length===0;
+    navButtonsOff={next:false,prev:false};updatePrevBtn();
     buildMenu();updateNotes();
     var revisit=slide.revisitMode||"reset";
     var saved=savedPlayheads[slide.id];
@@ -1607,8 +1621,8 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
     clearTransitionTimer();
     transitionTimer=setTimeout(function(){current=idx;render();void stage.offsetWidth;stage.classList.remove("fading")},halfMs);
   }
-  prevBtn.onclick=function(){if(navHistory.length)goTo(navHistory.pop(),true)};
-  nextBtn.onclick=function(){goNext()};
+  prevBtn.onclick=function(){if(!navButtonsOff.prev)goBack()};
+  nextBtn.onclick=function(){if(!navButtonsOff.next)goNext()};
 
   // ===== Captions =====
   var ccOverlay=document.getElementById("cc-overlay");
