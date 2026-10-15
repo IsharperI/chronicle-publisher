@@ -45,8 +45,10 @@ export type ShapeType =
   | 'star-8point'
   | 'burst-4'
   | 'burst-8';
-export type AnimationIn = 'none' | 'fade' | 'fly-in-left' | 'fly-in-right';
-export type AnimationOut = 'none' | 'fade' | 'fly-out-left' | 'fly-out-right';
+export type AnimationIn = 'none' | 'fade' | 'fly-in-left' | 'fly-in-right' | 'fly-in-top' | 'fly-in-bottom'
+  | 'wipe-from-left' | 'wipe-from-right' | 'wipe-from-top' | 'wipe-from-bottom' | 'split' | 'zoom';
+export type AnimationOut = 'none' | 'fade' | 'fly-out-left' | 'fly-out-right' | 'fly-out-top' | 'fly-out-bottom'
+  | 'wipe-to-left' | 'wipe-to-right' | 'wipe-to-top' | 'wipe-to-bottom' | 'split' | 'zoom';
 export type ViewMode = 'main' | 'master';
 
 export interface Trigger {
@@ -267,6 +269,12 @@ export interface SlideAudio {
   src: string;
   /** Duration in seconds */
   duration: number;
+  /**
+   * When the clip starts, in seconds: from the start of the slide for slide
+   * audio, or from when the layer is shown for layer audio. Default 0.
+   */
+  startTime?: number;
+  /** Caption times are seconds from the start of the clip itself. */
   captions: Caption[];
 }
 
@@ -412,6 +420,8 @@ export interface SlideLayer {
   locked: boolean;
   /** Elements belonging to this layer. */
   elements: SlideElement[];
+  /** Audio that plays when the layer is shown (not used on the Base Layer). */
+  audio?: SlideAudio[];
 }
 
 /** How the slide advances when its internal timeline reaches the end. */

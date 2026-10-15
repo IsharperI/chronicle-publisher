@@ -4,8 +4,11 @@ Usage: python3 compare.py <storyline capture dir> <chronicle capture dir> <mappi
 Pass '-' for mapping.json when Chronicle slides keep their Storyline slide ids (the in-app importer does);
 otherwise it maps Chronicle slide id -> Storyline slide id.
 
-Score per slide (0-100): 60% structural similarity (layout, shapes, text blocks; greyscale SSIM)
-+ 40% colour closeness (mean colour difference in Lab-ish RGB space). Both images are compared at 640x360.
+Each pair of screenshots is scored 0-100: 60% structural similarity (layout, shapes, text blocks;
+greyscale SSIM) + 40% colour closeness (mean colour difference). Both images are compared at 640x360.
+- Layout score: the pair captured just before the slide ends.
+- Timing score: the average of the pairs captured at 25%, 50% and 75% of the slide's timeline, which
+  shows whether things appear and disappear when they should (when the captures include those moments).
 """
 import sys, os, json, base64, io, html
 import numpy as np
@@ -42,23 +45,36 @@ def uri(img):
     buf = io.BytesIO(); img.save(buf, 'JPEG', quality=72)
     return 'data:image/jpeg;base64,' + base64.b64encode(buf.getvalue()).decode()
 
-rows, scores = [], []
+def moments(entry):
+    return {m['t']: m for m in entry.get('shots', []) if not m.get('end')}
+
+rows, scores, timings = [], [], []
 for s in sl:
     c = ch_by_sl.get(s['id'])
     a = load(os.path.join(sl_dir, s['file']))
     if c is None:
-        rows.append({'n': s['index'], 'title': s['title'], 'storyline_id': s['id'], 'score': None, 'sl': uri(a), 'ch': None, 'diff': None})
+        rows.append({'n': s['index'], 'title': s['title'], 'storyline_id': s['id'], 'score': None, 'timing': None,
+                     'sl': uri(a), 'ch': None, 'diff': None, 'moments': []})
         continue
     b = load(os.path.join(ch_dir, c['file']))
     sc = round(score(a, b), 1)
     scores.append(sc)
-    rows.append({'n': s['index'], 'title': s['title'], 'storyline_id': s['id'], 'chronicle_id': c['id'], 'score': sc,
-                 'sl': uri(a), 'ch': uri(b), 'diff': uri(heat(a, b))})
+    mine, theirs = moments(c), moments(s)
+    strip = []
+    for t in sorted(set(mine) & set(theirs)):
+        ma, mb = load(os.path.join(sl_dir, theirs[t]['file'])), load(os.path.join(ch_dir, mine[t]['file']))
+        strip.append({'t': t, 'score': round(score(ma, mb), 1), 'sl': uri(ma.resize((320, 180))), 'ch': uri(mb.resize((320, 180)))})
+    timing = round(sum(m['score'] for m in strip) / len(strip), 1) if strip else None
+    if timing is not None: timings.append(timing)
+    rows.append({'n': s['index'], 'title': s['title'], 'storyline_id': s['id'], 'chronicle_id': c['id'], 'score': sc, 'timing': timing,
+                 'sl': uri(a), 'ch': uri(b), 'diff': uri(heat(a, b)), 'moments': strip})
 
 avg = round(sum(scores) / len(scores), 1) if scores else 0
+timing_avg = round(sum(timings) / len(timings), 1) if timings else None
 missing = sum(1 for r in rows if r['score'] is None)
-json.dump({'course': course, 'average': avg, 'matched': len(scores), 'not_imported': missing,
-           'slides': [{k: r[k] for k in ('n', 'title', 'storyline_id', 'score')} for r in rows]},
+json.dump({'course': course, 'average': avg, 'timing_average': timing_avg, 'matched': len(scores), 'not_imported': missing,
+           'slides': [{**{k: r[k] for k in ('n', 'title', 'storyline_id', 'score', 'timing')},
+                       'moments': [{'t': m['t'], 'score': m['score']} for m in r['moments']]} for r in rows]},
           open(os.path.join(out_dir, 'scores.json'), 'w'), indent=1)
 
 def band(v):
@@ -68,15 +84,19 @@ def band(v):
 cards = []
 for r in rows:
     sc = '—' if r['score'] is None else f"{r['score']:.0f}"
-    imgs = f'<figure><img src="{r["sl"]}" alt=""><figcaption>Storyline</figcaption></figure>'
+    tc = '' if r['timing'] is None else f"<span class=\"tscore {band(r['timing'])}\" title=\"Timing score\">⏱ {r['timing']:.0f}</span>"
+    imgs = f'<figure><img src="{r["sl"]}" alt=""><figcaption>Storyline (end of slide)</figcaption></figure>'
     if r['ch']:
-        imgs += f'<figure><img src="{r["ch"]}" alt=""><figcaption>Chronicle</figcaption></figure>'
+        imgs += f'<figure><img src="{r["ch"]}" alt=""><figcaption>Chronicle (end of slide)</figcaption></figure>'
         imgs += f'<figure class="diff"><img src="{r["diff"]}" alt=""><figcaption>Differences</figcaption></figure>'
     else:
         imgs += '<figure class="missing"><div>Not imported</div><figcaption>Chronicle</figcaption></figure>'
-    cards.append(f'''<article class="slide {band(r['score'])}" data-score="{-1 if r['score'] is None else r['score']}" data-n="{r['n']}">
-<header><span class="num">{r['n']:02d}</span><span class="title">{html.escape(r['title'] or 'Untitled')}</span><span class="score">{sc}</span></header>
-<div class="imgs">{imgs}</div></article>''')
+    strip = ''.join(f'''<div class="moment {band(m['score'])}"><div class="pair"><img src="{m['sl']}" alt="" title="Storyline"><img src="{m['ch']}" alt="" title="Chronicle"></div>
+<span>{m['t'] / 1000:.1f}s · <b>{m['score']:.0f}</b></span></div>''' for m in r['moments'])
+    if strip: strip = f'<div class="moments"><span class="mlabel">During the slide (Storyline left, Chronicle right)</span><div class="mrow">{strip}</div></div>'
+    cards.append(f'''<article class="slide {band(r['score'])}" data-score="{-1 if r['score'] is None else r['score']}" data-timing="{-1 if r['timing'] is None else r['timing']}" data-n="{r['n']}">
+<header><span class="num">{r['n']:02d}</span><span class="title">{html.escape(r['title'] or 'Untitled')}</span>{tc}<span class="score" title="Layout score">{sc}</span></header>
+<div class="imgs">{imgs}</div>{strip}</article>''')
 
 page = f'''<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Import Fidelity Report</title>
@@ -96,21 +116,26 @@ h1{{font-size:22px;margin:0 0 4px}}.sub{{color:var(--muted);margin:0 0 20px}}
 .score{{font-weight:700;font-size:20px;font-variant-numeric:tabular-nums}}.good .score{{color:var(--good)}}.ok .score{{color:var(--ok)}}.bad .score{{color:var(--bad)}}.none .score{{color:var(--none)}}
 .imgs{{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:0 14px 14px}}
 figure{{margin:0}}figure img{{width:100%;display:block;border:1px solid var(--line);border-radius:4px}}figcaption{{color:var(--muted);font-size:12px;margin-top:4px}}
+.tscore{{font-weight:600;font-variant-numeric:tabular-nums;color:var(--muted)}}.tscore.good{{color:var(--good)}}.tscore.ok{{color:var(--ok)}}.tscore.bad{{color:var(--bad)}}
+.moments{{padding:0 14px 14px}}.mlabel{{display:block;color:var(--muted);font-size:12px;margin-bottom:6px}}
+.mrow{{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px}}
+.moment{{border:1px solid var(--line);border-radius:6px;padding:6px;font-size:12px;color:var(--muted)}}.moment.bad{{border-color:var(--bad)}}
+.pair{{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:4px}}.pair img{{width:100%;display:block;border-radius:3px}}
 .missing div{{aspect-ratio:16/9;display:grid;place-items:center;border:1px dashed var(--line);border-radius:4px;color:var(--muted)}}
 @media (max-width:760px){{.imgs{{grid-template-columns:1fr}}}}
 </style></head><body><main>
 <h1>{html.escape(course)}: import fidelity</h1>
-<p class="sub">Each Storyline slide (published output) next to the same slide imported into Chronicle. Score = how closely they match, out of 100.</p>
-<div class="stats"><div class="stat"><b>{avg}</b><span>Average score</span></div><div class="stat"><b>{len(scores)}</b><span>Slides compared</span></div>
+<p class="sub">Each Storyline slide (published output) next to the same slide imported into Chronicle, out of 100. Layout compares the end of each slide; timing (⏱) compares moments during it.</p>
+<div class="stats"><div class="stat"><b>{avg}</b><span>Layout score</span></div><div class="stat"><b>{timing_avg if timing_avg is not None else '—'}</b><span>Timing score</span></div><div class="stat"><b>{len(scores)}</b><span>Slides compared</span></div>
 <div class="stat"><b>{missing}</b><span>Not imported</span></div><div class="stat"><b>{sum(1 for v in scores if v >= 85)}</b><span>Score 85+</span></div></div>
-<div class="bar"><button data-sort="n" aria-pressed="true">Slide order</button><button data-sort="score" aria-pressed="false">Worst first</button></div>
+<div class="bar"><button data-sort="n" aria-pressed="true">Slide order</button><button data-sort="score" aria-pressed="false">Worst layout</button><button data-sort="timing" aria-pressed="false">Worst timing</button></div>
 <section id="list">{''.join(cards)}</section></main>
 <script>
 const list=document.getElementById('list');
 document.querySelectorAll('[data-sort]').forEach(b=>b.addEventListener('click',()=>{{
   document.querySelectorAll('[data-sort]').forEach(x=>x.setAttribute('aria-pressed',x===b));
-  const k=b.dataset.sort;[...list.children].sort((a,c)=>k==='n'?a.dataset.n-c.dataset.n:(+a.dataset.score<0?1e9:+a.dataset.score)-(+c.dataset.score<0?1e9:+c.dataset.score)).forEach(e=>list.appendChild(e));
+  const k=b.dataset.sort,v=e=>{{const x=+e.dataset[k];return x<0?1e9:x}};[...list.children].sort((a,c)=>k==='n'?a.dataset.n-c.dataset.n:v(a)-v(c)).forEach(e=>list.appendChild(e));
 }}));
 </script></body></html>'''
 open(os.path.join(out_dir, 'report.html'), 'w').write(page)
-print(json.dumps({'average': avg, 'matched': len(scores), 'not_imported': missing}))
+print(json.dumps({'layout': avg, 'timing': timing_avg, 'matched': len(scores), 'not_imported': missing}))

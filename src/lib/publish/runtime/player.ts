@@ -2,6 +2,18 @@ import type { CourseState } from '@/types/course';
 import { safeColor, safeFontFamily, safeNumber, safeImageSrc, safeEnum } from '../../sanitize';
 import { themeVarCssText } from '../../themeVars';
 import { SHAPE_SVG } from '../../shapes';
+import { ANIMATION_CSS, ENTRANCES, EXITS, entranceClass, exitClass } from '../../animations';
+
+/** Animation name → CSS class, for the player's timing code (see lib/animations.ts). */
+const ANIM_IN_CLASS: Record<string, string> = {
+  fade: 'anim-fade-in', 'fly-in-left': 'anim-fly-in-left', 'fly-in-right': 'anim-fly-in-right',
+  ...Object.fromEntries(Object.keys(ENTRANCES).map((k) => [k, entranceClass(k as keyof typeof ENTRANCES)])),
+};
+const ANIM_OUT_CLASS: Record<string, string> = {
+  fade: 'anim-fade-out', 'fly-out-left': 'anim-fly-out-left', 'fly-out-right': 'anim-fly-out-right',
+  ...Object.fromEntries(Object.keys(EXITS).map((k) => [k, exitClass(k as keyof typeof EXITS)])),
+};
+const ANIM_CLASSES = [...new Set([...Object.values(ANIM_IN_CLASS), ...Object.values(ANIM_OUT_CLASS)])];
 import type { PublishOptions } from '../types';
 
 /**
@@ -115,6 +127,7 @@ body{background-color:${ps.backgroundColor};${ps.backgroundImage ? `background-i
 .anim-fly-in-right{animation:anim-fly-in-right .5s ease forwards}
 .anim-fly-out-left{animation:anim-fly-out-left .5s ease forwards}
 .anim-fly-out-right{animation:anim-fly-out-right .5s ease forwards}
+${ANIMATION_CSS}
 @keyframes trigger-emph-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.15)}}
 @keyframes trigger-emph-shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-8px)}40%{transform:translateX(8px)}60%{transform:translateX(-6px)}80%{transform:translateX(6px)}}
 @keyframes trigger-emph-bounce{0%,100%{transform:translateY(0)}30%{transform:translateY(-18px)}60%{transform:translateY(0)}75%{transform:translateY(-8px)}}
@@ -501,9 +514,9 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
     return d;
   }
 
-  var ANIM_IN_CLASS={"fade":"anim-fade-in","fly-in-left":"anim-fly-in-left","fly-in-right":"anim-fly-in-right"};
-  var ANIM_OUT_CLASS={"fade":"anim-fade-out","fly-out-left":"anim-fly-out-left","fly-out-right":"anim-fly-out-right"};
-  var ANIM_CLASSES=["anim-fade-in","anim-fly-in-left","anim-fly-in-right","anim-fade-out","anim-fly-out-left","anim-fly-out-right"];
+  var ANIM_IN_CLASS=${JSON.stringify(ANIM_IN_CLASS)};
+  var ANIM_OUT_CLASS=${JSON.stringify(ANIM_OUT_CLASS)};
+  var ANIM_CLASSES=${JSON.stringify(ANIM_CLASSES)};
   function playAnim(n,cls,ms){
     for(var i=0;i<ANIM_CLASSES.length;i++)n.classList.remove(ANIM_CLASSES[i]);
     void n.offsetWidth; /* restart the CSS animation */
@@ -547,7 +560,7 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
   }
   var timingRaf=null;
   function stopTimingLoop(){if(timingRaf){cancelAnimationFrame(timingRaf);timingRaf=null}}
-  function tickTiming(){applyTiming(currentPlayhead());timingRaf=requestAnimationFrame(tickTiming)}
+  function tickTiming(){var ph=currentPlayhead();applyTiming(ph);syncAudio(ph);timingRaf=requestAnimationFrame(tickTiming)}
 
   /* Where Next goes (same rules as lib/navigation.ts resolveNext): slide.next
      omitted = the following slide; [] = no Next; 2+ ids = a branching slide
@@ -708,6 +721,10 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
     nextBtn.disabled=locked||noNext;
   }
 
+  /* Audio: each clip starts at its startTime (seconds) on the slide's timeline; a layer's
+     clips count from when the layer was shown. syncAudio (run every frame by tickTiming)
+     starts, pauses and re-seeks clips to match the playhead. activeAudio[i] is an <audio>
+     whose _track, _startMs and _layer say where it belongs. */
   var activeAudio=[];
   var audioById={};
   function stopAudio(){
@@ -715,15 +732,47 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
     activeAudio=[];
     audioById={};
   }
+  function addAudio(t,startMs,layerId){
+    if(!t||!t.src)return;
+    var a=new Audio();a.preload="auto";a.src=t.src;
+    a._track=t;a._startMs=startMs+(t.startTime||0)*1000;a._layer=layerId||"";
+    activeAudio.push(a);
+    if(t.id)audioById[t.id]=a;
+  }
   function startAudio(slide){
     stopAudio();
     var tracks=(slide&&slide.audio)||[];
-    for(var i=0;i<tracks.length;i++){
-      var t=tracks[i];if(!t||!t.src)continue;
-      var a=new Audio();a.preload="auto";a.src=t.src;
-      var p=a.play();if(p&&p.catch)p.catch(function(){});
-      activeAudio.push(a);
-      if(t.id)audioById[t.id]=a;
+    for(var i=0;i<tracks.length;i++)addAudio(tracks[i],0,"");
+    /* Layers that start visible play their audio from the start of the slide. */
+    var ls=(slide&&slide.layers)||[];
+    for(var li=1;li<ls.length;li++){if(ls[li].visible!==false)startLayerAudio(ls[li].id,0)}
+  }
+  function startLayerAudio(layerId,atMs){
+    stopLayerAudio(layerId);
+    var slide=slides[current];var ls=(slide&&slide.layers)||[];
+    for(var i=0;i<ls.length;i++){
+      if(ls[i].id!==layerId)continue;
+      var tr=ls[i].audio||[];
+      for(var j=0;j<tr.length;j++)addAudio(tr[j],atMs,layerId);
+    }
+  }
+  function stopLayerAudio(layerId){
+    var keep=[];
+    for(var i=0;i<activeAudio.length;i++){
+      var a=activeAudio[i];
+      if(a._layer===layerId){try{a.pause();a.src=""}catch(e){}if(a._track&&a._track.id)delete audioById[a._track.id]}
+      else keep.push(a);
+    }
+    activeAudio=keep;
+  }
+  function syncAudio(ph){
+    for(var i=0;i<activeAudio.length;i++){
+      var a=activeAudio[i];var rel=(ph-a._startMs)/1000;var dur=(a._track&&a._track.duration)||Infinity;
+      try{
+        if(rel<0){if(!a.paused)a.pause();if(a.currentTime)a.currentTime=0;continue}
+        if(!playing||rel>=dur){if(!a.paused)a.pause();continue}
+        if(a.paused){if(Math.abs(a.currentTime-rel)>0.3)a.currentTime=rel;var p=a.play();if(p&&p.catch)p.catch(function(){})}
+      }catch(e){}
     }
   }
 
@@ -1202,9 +1251,11 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
     } else if(t.action==="showLayer"){
       var _sl=stage.querySelectorAll('[data-layer-id="'+t.targetId+'"]');
       for(var _si=0;_si<_sl.length;_si++)_sl[_si].style.display=_sl[_si].getAttribute("data-disp")||"";
+      startLayerAudio(t.targetId,currentPlayhead());
     } else if(t.action==="hideLayer"){
       var _hl=stage.querySelectorAll('[data-layer-id="'+t.targetId+'"]');
       for(var _hi=0;_hi<_hl.length;_hi++)_hl[_hi].style.display="none";
+      stopLayerAudio(t.targetId);
     }
   }
   function closeLightbox(){
@@ -1399,7 +1450,8 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
   var playing=true;
   function setPlaying(v){
     playing=v;
-    for(var i=0;i<activeAudio.length;i++){try{if(playing){activeAudio[i].play().catch(function(){})}else{activeAudio[i].pause()}}catch(e){}}
+    /* Clips are started and paused by syncAudio on the next frame; pause them right away. */
+    if(!playing){for(var i=0;i<activeAudio.length;i++){try{activeAudio[i].pause()}catch(e){}}}
     if(playing){if(!slideTimerRunning)startSlideTimer(slideTimerOffset)}
     else{if(slideTimerRunning){slideTimerOffset=currentPlayhead();clearSlideTimer()}}
     if(ppBtn)ppBtn.innerHTML=playing?"\\u2759\\u2759":"\\u25B6";
@@ -1443,11 +1495,9 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
   function tickCaptions(){
     if(!ccOverlay)return;
     if(!ccEnabled){ccOverlay.innerHTML="";requestAnimationFrame(tickCaptions);return}
-    var slide=slides[current];
-    var tracks=(slide&&slide.audio)||[];
     var text="";
     for(var i=0;i<activeAudio.length;i++){
-      var a=activeAudio[i];var track=tracks[i];if(!track||!track.captions)continue;
+      var a=activeAudio[i];var track=a._track;if(!track||!track.captions||currentPlayhead()<a._startMs)continue;
       var t=a.currentTime||0;
       for(var j=0;j<track.captions.length;j++){
         var c=track.captions[j];var endT=c.endTime||(c.startTime+2);

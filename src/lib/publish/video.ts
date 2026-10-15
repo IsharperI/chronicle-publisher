@@ -81,6 +81,7 @@ export function elementAppearance(
     if (el.animationIn === 'fade') return { alpha: p, dx: 0 };
     if (el.animationIn === 'fly-in-left') return { alpha: p, dx: -(1 - p) * 0.3 };
     if (el.animationIn === 'fly-in-right') return { alpha: p, dx: (1 - p) * 0.3 };
+    return { alpha: p, dx: 0 }; // other entrances (wipe, split, zoom, fly up/down) are drawn as a fade in video
   }
   const outDur = el.exitDuration ?? 500;
   if (!lastsToEnd && el.animationOut !== 'none' && t >= end - outDur) {
@@ -88,6 +89,7 @@ export function elementAppearance(
     if (el.animationOut === 'fade') return { alpha: 1 - p, dx: 0 };
     if (el.animationOut === 'fly-out-left') return { alpha: 1 - p, dx: -p * 0.3 };
     if (el.animationOut === 'fly-out-right') return { alpha: 1 - p, dx: p * 0.3 };
+    return { alpha: 1 - p, dx: 0 }; // other exits are drawn as a fade in video
   }
   return { alpha: 1, dx: 0 };
 }
@@ -450,7 +452,9 @@ function drawFrame(rc: RenderContext, state: AppState, slide: Slide, t: number, 
 
 function captionAt(slide: Slide, tSec: number): string | null {
   for (const a of slide.audio ?? []) {
-    const c = a.captions?.find((c) => tSec >= c.startTime && tSec < c.endTime);
+    // Caption times count from the start of the clip.
+    const rel = tSec - (a.startTime ?? 0);
+    const c = a.captions?.find((c) => rel >= c.startTime && rel < c.endTime);
     if (c) return c.text;
   }
   return null;
@@ -521,7 +525,7 @@ async function recordSlides(
       const durMs = Math.max(1000, slide.duration || 5000);
 
       // Load this slide's audio and route it into the recording (not the speakers).
-      const audioEls: HTMLAudioElement[] = [];
+      const audioEls: (HTMLAudioElement & { startMs?: number; started?: boolean })[] = [];
       for (const a of slide.audio ?? []) {
         if (!a.src) continue;
         const el = document.createElement('audio');
@@ -536,14 +540,18 @@ async function recordSlides(
         );
         try {
           audioCtx.createMediaElementSource(el).connect(dest);
-          audioEls.push(el);
+          audioEls.push(Object.assign(el, { startMs: (a.startTime ?? 0) * 1000, started: false }));
         } catch {
           /* unsupported source: skip its audio */
         }
       }
-      audioEls.forEach((el) => {
-        el.currentTime = 0;
-        el.play().catch(() => {});
+      // Each clip starts at its own start time on the slide's timeline (see the tick below).
+      const startDue = (t: number) => audioEls.forEach((el) => {
+        if (!el.started && t >= (el.startMs ?? 0)) {
+          el.started = true;
+          el.currentTime = 0;
+          el.play().catch(() => {});
+        }
       });
 
       // A timer (not requestAnimationFrame) so recording continues if the tab is hidden.
@@ -556,6 +564,7 @@ async function recordSlides(
             return;
           }
           const t = Math.min(performance.now() - start, durMs);
+          startDue(t);
           drawFrame(rc, state, slide, t, opts.captions ? captionAt(slide, t / 1000) : null);
           progress(elapsedBefore + t, i);
           if (t >= durMs) resolve();

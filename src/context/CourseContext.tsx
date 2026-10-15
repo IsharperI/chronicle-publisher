@@ -768,9 +768,14 @@ function baseReducer(state: CourseState, action: Action): CourseState {
       return { ...state, slides };
     }
     case 'DELETE_AUDIO': {
+      // Slide audio or a layer's audio.
       const slides = getActiveSlides(state).map((slide, i) =>
         i === state.activeSlideIndex
-          ? { ...slide, audio: (slide.audio ?? []).filter((a) => a.id !== action.id) }
+          ? {
+              ...slide,
+              audio: (slide.audio ?? []).filter((a) => a.id !== action.id),
+              ...(slide.layers ? { layers: slide.layers.map((l) => (l.audio ? { ...l, audio: l.audio.filter((a) => a.id !== action.id) } : l)) } : {}),
+            }
           : slide
       );
       return {
@@ -787,6 +792,12 @@ function baseReducer(state: CourseState, action: Action): CourseState {
               audio: (slide.audio ?? []).map((a) =>
                 a.id === action.id ? { ...a, ...action.updates } : a
               ),
+              // Layer audio is edited the same way.
+              ...(slide.layers ? {
+                layers: slide.layers.map((l) => (l.audio
+                  ? { ...l, audio: l.audio.map((a) => (a.id === action.id ? { ...a, ...action.updates } : a)) }
+                  : l)),
+              } : {}),
             }
           : slide
       );

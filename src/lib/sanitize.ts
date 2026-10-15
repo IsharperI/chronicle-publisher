@@ -122,8 +122,10 @@ import type {
   Brand,
 } from '@/types/course';
 
-const ANIM_IN = ['none', 'fade', 'fly-in-left', 'fly-in-right'] as const;
-const ANIM_OUT = ['none', 'fade', 'fly-out-left', 'fly-out-right'] as const;
+const ANIM_IN = ['none', 'fade', 'fly-in-left', 'fly-in-right', 'fly-in-top', 'fly-in-bottom',
+  'wipe-from-left', 'wipe-from-right', 'wipe-from-top', 'wipe-from-bottom', 'split', 'zoom'] as const;
+const ANIM_OUT = ['none', 'fade', 'fly-out-left', 'fly-out-right', 'fly-out-top', 'fly-out-bottom',
+  'wipe-to-left', 'wipe-to-right', 'wipe-to-top', 'wipe-to-bottom', 'split', 'zoom'] as const;
 const SHAPE_TYPES = [
   'rectangle', 'circle', 'triangle',
   'rounded-rectangle', 'right-triangle', 'diamond', 'pentagon', 'hexagon',
@@ -385,6 +387,7 @@ function sanitizeAudio(raw: any) {
     name: safeString(raw.name, 'audio', 200),
     src,
     duration: safeNumber(raw.duration, 0, 0, 86_400),
+    ...(raw.startTime != null && safeNumber(raw.startTime, 0, 0, 86_400) > 0 ? { startTime: safeNumber(raw.startTime, 0, 0, 86_400) } : {}),
     captions: Array.isArray(raw.captions)
       ? raw.captions.slice(0, 500).map(sanitizeCaption)
       : [],
@@ -430,7 +433,7 @@ function sanitizeSlide(raw: any): Slide {
 /** Preserves slide layers (previously dropped on load, which merged every layer into one). */
 function sanitizeLayers(raw: unknown): SlideLayer[] | undefined {
   if (!Array.isArray(raw) || raw.length === 0) return undefined;
-  type RawLayer = { id?: unknown; name?: unknown; visible?: unknown; locked?: unknown; elements?: unknown };
+  type RawLayer = { id?: unknown; name?: unknown; visible?: unknown; locked?: unknown; elements?: unknown; audio?: unknown };
   return (raw.slice(0, 50).filter((l) => l && typeof l === 'object') as RawLayer[]).map((l) => ({
     id: safeId(l.id),
     name: safeString(l.name, 'Layer', 100) || 'Layer',
@@ -439,6 +442,9 @@ function sanitizeLayers(raw: unknown): SlideLayer[] | undefined {
     elements: Array.isArray(l.elements)
       ? l.elements.slice(0, 1000).map(sanitizeElement).filter((e): e is SlideElement => e !== null)
       : [],
+    ...(Array.isArray(l.audio) && l.audio.length
+      ? { audio: l.audio.slice(0, 20).map(sanitizeAudio).filter((a): a is NonNullable<ReturnType<typeof sanitizeAudio>> => a !== null) }
+      : {}),
   }));
 }
 

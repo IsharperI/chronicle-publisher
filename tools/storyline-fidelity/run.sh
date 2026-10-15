@@ -35,7 +35,7 @@ sleep 1
 node "$HERE/capture-storyline.mjs" "http://127.0.0.1:$PORT/story.html" "$OUT/storyline" "$CHROMIUM"
 
 echo "2/3 Importing into Chronicle and capturing its slides"
-node "$HERE/capture-chronicle.mjs" "$CHRONICLE_URL" "$STORY" "$OUT/chronicle" "$CHROMIUM"
+node "$HERE/capture-chronicle.mjs" "$CHRONICLE_URL" "$STORY" "$OUT/chronicle" "$OUT/storyline/manifest.json" "$CHROMIUM"
 
 echo "3/3 Scoring"
 python3 -I "$HERE/compare.py" "$OUT/storyline" "$OUT/chronicle" - "$OUT" "$NAME"

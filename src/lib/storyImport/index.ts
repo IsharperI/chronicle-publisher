@@ -136,15 +136,22 @@ type Scheme = Record<string, string>;
 const UNTIL_END = -1;
 
 /** Slide length = the latest object or audio end; then "until end" objects are stretched to it. */
-function finishTimeline(layers: SlideLayer[], audio: SlideAudio[], rawEnds: Map<string, number>): number {
+/**
+ * Slide length: Storyline's own timeline length when the file has it (tmProps "min"), otherwise
+ * the latest object or audio end. Then "until end" objects are stretched to their layer's end.
+ */
+function finishTimeline(layers: SlideLayer[], audio: SlideAudio[], rawEnds: Map<string, number>, declared: number[]): number {
   const base = layers[0]?.elements ?? [];
   const ends = [...base.filter((e) => e.duration < 3_600_000).map((e) => rawEnds.get(e.id) ?? e.startTime + Math.max(0, e.duration)),
-    ...audio.map((a) => a.duration * 1000)];
-  const end = Math.round(Math.max(1000, ...ends));
-  for (const l of layers) {
-    const lEnd = l === layers[0] ? end : Math.max(end, ...l.elements.map((e) => rawEnds.get(e.id) ?? e.startTime + Math.max(0, e.duration)));
-    for (const e of l.elements) if (e.duration === UNTIL_END) e.duration = Math.max(250, lEnd - e.startTime);
-  }
+    ...audio.map((a) => (a.startTime ?? 0) * 1000 + a.duration * 1000)];
+  const end = Math.round(declared[0] > 0 ? declared[0] : Math.max(1000, ...ends));
+  layers.forEach((l, i) => {
+    const lEnd = i === 0 ? end : declared[i] > 0 ? Math.max(end, declared[i])
+      : Math.max(end, ...l.elements.map((e) => rawEnds.get(e.id) ?? e.startTime + Math.max(0, e.duration)));
+    for (const e of l.elements) {
+      if (e.duration === UNTIL_END) e.duration = Math.max(250, lEnd - e.startTime);
+    }
+  });
   return end;
 }
 interface Ctx {
@@ -318,19 +325,27 @@ async function mediaUri(ctx: Ctx, assetG: string | null): Promise<string | null>
 
 function animations(el: El): Pick<SlideElement, 'animationIn' | 'animationOut' | 'entranceDuration' | 'exitDuration'> & { approx: string[] } {
   const approx: string[] = [];
+  const side: Record<string, string> = { l: 'left', r: 'right', t: 'top', b: 'bottom' };
   const pick = (node: El | null, dirIn: boolean): [AnimationIn | AnimationOut, number] => {
     const fx = kids(node)[0];
     if (!fx) return ['none', 500];
     const dur = isoMs(attr(fx, 'dur'), 500);
-    if (fx.localName === 'fade') return ['fade', dur];
-    if (fx.localName === 'fly') {
-      const d = attr(fx, 'dir');
-      if (d === 'l') return [dirIn ? 'fly-in-left' : 'fly-out-left', dur];
-      if (d === 'r') return [dirIn ? 'fly-in-right' : 'fly-out-right', dur];
-      approx.push('Fly-in from top or bottom (played as a fade)');
-      return ['fade', dur];
+    const name = fx.localName;
+    if (name === 'fade') return ['fade', dur];
+    if (name === 'fly' || name === 'float') {
+      const d = side[attr(fx, 'dir') ?? ''] ?? 'bottom';
+      return [(dirIn ? `fly-in-${d}` : `fly-out-${d}`) as AnimationIn | AnimationOut, dur];
     }
-    approx.push(`${fx.localName[0].toUpperCase() + fx.localName.slice(1)} animations (played as a fade)`);
+    if (name === 'wipe') {
+      // "wd" is the side the wipe starts from: entering from the left reveals left to right;
+      // leaving from the right hides right to left (so it wipes towards the left).
+      const d = side[attr(fx, 'wd') ?? attr(fx, 'dir') ?? ''] ?? 'left';
+      const opposite: Record<string, string> = { left: 'right', right: 'left', top: 'bottom', bottom: 'top' };
+      return [(dirIn ? `wipe-from-${d}` : `wipe-to-${opposite[d]}`) as AnimationIn | AnimationOut, dur];
+    }
+    if (name === 'split') return ['split', dur];
+    if (name === 'zoom' || name === 'grow' || name === 'shrink') return ['zoom', dur];
+    approx.push(`${name[0].toUpperCase() + name.slice(1)} animations (played as a fade)`);
     return ['fade', dur];
   };
   const [ai, ed] = pick(q(el, 'animEffect', 'entr'), true);
@@ -444,9 +459,24 @@ function stateShape(el: El, name: string): El | null {
 
 const STANDARD_STATES = new Set(['Normal', 'Hover', 'Visited', 'Disabled', 'Down', 'Selected', 'Hidden']);
 
+/** An object's own time window on its timeline; "show until end" objects end at Infinity. */
+function ownWindow(e: El): { start: number; end: number } {
+  const tm = kids(kid(e, 'tmCtxLst'))[0];
+  const start = Math.round(num(attr(tm, 'start')));
+  const untilEnd = attr(tm, 'untilEnd') === 'true' || attr(tm, 'alwysShw') === 'true';
+  return { start, end: untilEnd ? Infinity : start + Math.round(num(attr(tm, 'dur'), 5000)) };
+}
+
 async function convertObjects(list: El | null, ctx: Ctx, cv: Convert): Promise<SlideElement[]> {
   const els: SlideElement[] = [];
   const rep = (kind: ImportIssue['kind'], msg: string) => ctx.report.add(kind, msg, cv.slideTitle);
+  // Groups' animations apply to their members.
+  const byG = new Map(kids(list).filter((x) => attr(x, 'g')).map((x) => [attr(x, 'g')!, x] as const));
+  const groupsOf = (e: El): El[] => {
+    const out: El[] = [];
+    for (let p = byG.get(attr(e, 'parentG') ?? ''); p && !out.includes(p); p = byG.get(attr(p, 'parentG') ?? '')) out.push(p);
+    return out;
+  };
   for (const e of stackingOrder(list)) {
     const tag = e.localName;
     if (IGNORE.has(tag)) {
@@ -457,21 +487,32 @@ async function convertObjects(list: El | null, ctx: Ctx, cv: Convert): Promise<S
     if (!loc) continue;
     const l = num(attr(loc, 'l')), t = num(attr(loc, 't')), r = num(attr(loc, 'r')), b = num(attr(loc, 'b'));
     const tm = kids(kid(e, 'tmCtxLst'))[0];
+    // Grouped objects keep their own timing: in the published output a group simply shows while its
+    // members do (the group's own timing in the file can be stale). They do play the group's animations.
+    const own = ownWindow(e);
+    const { start, end } = own;
     const anim = animations(e);
     anim.approx.forEach((m) => rep('approximated', m));
+    for (const g of groupsOf(e)) {
+      const ga = animations(g);
+      if (anim.animationIn === 'none' && ga.animationIn !== 'none') {
+        anim.animationIn = ga.animationIn; anim.entranceDuration = ga.entranceDuration; ga.approx.forEach((m) => rep('approximated', m));
+      }
+      if (anim.animationOut === 'none' && ga.animationOut !== 'none') { anim.animationOut = ga.animationOut; anim.exitDuration = ga.exitDuration; }
+    }
     const base = {
       id: safeId(attr(e, 'g')),
       x: Math.round(Math.min(l, r)), y: Math.round(Math.min(t, b)),
       width: Math.max(1, Math.round(Math.abs(r - l))), height: Math.max(1, Math.round(Math.abs(b - t))),
-      startTime: Math.round(num(attr(tm, 'start'))),
+      startTime: start,
       // "Show until end" objects are stretched to the slide's end once it's known (see finishTimeline).
-      duration: attr(tm, 'untilEnd') === 'true' || attr(tm, 'alwysShw') === 'true' ? UNTIL_END : Math.round(num(attr(tm, 'dur'), 5000)),
+      duration: end === Infinity ? UNTIL_END : end - start,
       triggers: [] as Trigger[],
       animationIn: anim.animationIn, animationOut: anim.animationOut, entranceDuration: anim.entranceDuration, exitDuration: anim.exitDuration,
     };
     // Chronicle has no "starts hidden" yet (isHidden only hides objects in the editor), so they show from the start.
     if (attr(e, 'initState') === 'Hidden') rep('approximated', 'Objects that start hidden (shown from the start)');
-    ctx.rawEnds.set(base.id, base.startTime + Math.round(num(attr(tm, 'dur'), 0)));
+    ctx.rawEnds.set(base.id, own.start + Math.round(num(attr(tm, 'dur'), 0)));
     if (num(attr(e, 'rot'), -1) > 0 && num(attr(e, 'rot')) % 360 !== 0) rep('approximated', 'Rotated objects (shown unrotated)');
     const custom = kids(kid(e, 'stateLst'), 'state').map((s) => attr(s, 'name') ?? '').filter((n) => n && !STANDARD_STATES.has(n));
     if (custom.length) rep('skipped', 'Custom object states (e.g. Correct, Dropped)');
@@ -583,6 +624,22 @@ async function convertObjects(list: El | null, ctx: Ctx, cv: Convert): Promise<S
     rep('skipped', UNSUPPORTED[tag] ?? `Other objects (${tag})`);
   }
   return els;
+}
+
+/** The audio clips (sound objects) in a shape list, with their start times. */
+async function readAudio(list: El | null, ctx: Ctx): Promise<SlideAudio[]> {
+  const out: SlideAudio[] = [];
+  for (const snd of kids(list, 'sound')) {
+    const src = await mediaUri(ctx, attr(snd, 'assetG'));
+    if (!src) continue;
+    const tm = kids(kid(snd, 'tmCtxLst'))[0];
+    const start = num(attr(tm, 'start')) / 1000;
+    out.push({
+      id: safeId(attr(snd, 'g')), name: ctx.media.get(attr(snd, 'assetG')!)?.name ?? 'Audio', src,
+      duration: num(attr(tm, 'dur')) / 1000, ...(start > 0 ? { startTime: start } : {}), captions: [],
+    });
+  }
+  return out;
 }
 
 /** A background fill (slide, layout or master) as a full-size object, or null. */
@@ -747,7 +804,9 @@ export async function importStory(data: Blob | ArrayBuffer | Uint8Array, onProgr
       const lid = layerIds.get(attr(l, 'g')!)!;
       layers.push({ id: lid, name: (attr(l, 'name') || 'Layer').trim(), visible: false, locked: false, elements: await convertObjects(kid(l, 'shapeLst'), ctx, cv(lid)) });
       report.counts.layers++;
-      if (kids(kid(l, 'shapeLst'), 'sound').length) report.add('skipped', 'Audio on layers', title);
+      // Layer audio starts relative to when the layer is shown (each Storyline layer has its own timeline).
+      const layerAudio = await readAudio(kid(l, 'shapeLst'), ctx);
+      if (layerAudio.length) layers[layers.length - 1].audio = layerAudio;
     }
     // slide-level triggers (Chronicle triggers belong to objects, except Next-button navigation)
     for (const trg of kids(kid(s, 'trigLst'), 'trig')) {
@@ -755,19 +814,13 @@ export async function importStory(data: Blob | ArrayBuffer | Uint8Array, onProgr
       if (typeof res === 'string') { if (res) report.add('skipped', `Trigger: ${res}`, title); }
       else report.add('skipped', `Slide-level trigger: ${ACTION_NAMES[attr(kid(trg, 'data'), 'action') ?? ''] ?? 'other'}`, title);
     }
-    // audio on the base layer
-    const audio: SlideAudio[] = [];
-    for (const snd of kids(kid(s, 'shapeLst'), 'sound')) {
-      const src = await mediaUri(ctx, attr(snd, 'assetG'));
-      if (!src) continue;
-      const tm = kids(kid(snd, 'tmCtxLst'))[0];
-      audio.push({ id: safeId(attr(snd, 'g')), name: ctx.media.get(attr(snd, 'assetG')!)?.name ?? 'Audio', src, duration: num(attr(tm, 'dur')) / 1000, captions: [] });
-      if (num(attr(tm, 'start')) > 0) report.add('approximated', 'Audio that starts partway through a slide (starts at the beginning)', title);
-    }
+    // Audio on the base layer, at its start time on the slide's timeline.
+    const audio = await readAudio(kid(s, 'shapeLst'), ctx);
     if (kid(s, 'questionLst') || ctx.questionSlides.has(title)) {
       report.add('approximated', 'Question slides (content imported, scoring not yet)', title);
     }
-    const duration = finishTimeline(layers, audio, ctx.rawEnds);
+    const timelineLength = (el: El) => Math.round(num(attr(kid(el, 'tmProps'), 'min'), 0));
+    const duration = finishTimeline(layers, audio, ctx.rawEnds, [timelineLength(s), ...layerEls.map(timelineLength)]);
     const notes = (kid(s, 'note')?.textContent ?? '').trim();
     slides.push({
       id, title: title.slice(0, 30), group: r.scene || undefined, masterId,

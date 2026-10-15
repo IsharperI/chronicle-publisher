@@ -4,9 +4,11 @@ Measures how closely Chronicle reproduces an Articulate Storyline course after i
 
 It takes a `.story` file and the Storyline **Web** publish of that same file, then:
 
-1. opens the published course in a headless browser and screenshots every slide shortly before the end of its timeline (`capture-storyline.mjs`),
-2. imports the `.story` into Chronicle through Home → Storyline (the real importer, `src/lib/storyImport`) and screenshots the same slides in Preview (`capture-chronicle.mjs`),
+1. opens the published course in a headless browser and screenshots every slide at 25%, 50% and 75% of its timeline and shortly before its end (`capture-storyline.mjs`),
+2. imports the `.story` into Chronicle through Home → Storyline (the real importer, `src/lib/storyImport`) and screenshots the same slides in Preview at the same moments (`capture-chronicle.mjs`),
 3. scores each pair out of 100 and writes a side-by-side report with a difference heat map (`compare.py`).
+
+Two scores come out: **layout** (the end of each slide) and **timing** (the moments during it, which show whether things appear, animate and disappear when they should).
 
 The average score is the number to push up as the importer and Chronicle improve.
 
@@ -30,14 +32,23 @@ Needs Node (Playwright comes with the project's dev dependencies) and Python 3 w
 
 Both screenshots are scaled to 640×360. The score is 60% structural similarity (layout, shapes and text blocks, compared in greyscale) plus 40% colour closeness. Roughly: 85+ looks right, 70–85 is recognisably the same slide with visible differences, below 70 is missing important content.
 
-Storyline slides are reached the same way the player's own "jump to slide" triggers work, so courses with restricted navigation can still be captured, and the course's own automatic slide changes are blocked while capturing. Both sides are captured 250 ms before the slide's end, paused. Question-bank slides that the importer doesn't bring across yet are listed as "Not imported".
+Storyline slides are reached the same way the player's own "jump to slide" triggers work, so courses with restricted navigation can still be captured, and the course's own automatic slide changes are blocked while capturing. Both sides are paused at each moment; the end capture is 250 ms before the slide's end. Chronicle's entrance/exit animations are frozen at the point they'd have reached at that moment, as Storyline's seek does. Audio isn't checked (screenshots can't hear); it's covered by unit tests. Question-bank slides that the importer doesn't bring across yet are listed as "Not imported".
 
 ## Progress
+
+Layout scores:
 
 | | Prototype converter | Phase 1 importer |
 |---|---|---|
 | Course A (36-slide production template) | 74.6 | 87.7 |
 | Course B (19-slide technical course) | 58.0 | 86.0 |
+
+Timing scores (added with the timeline phase):
+
+| | Phase 1 importer | Timeline phase |
+|---|---|---|
+| Course A | 88.3 | 88.5 |
+| Course B | 85.7 | 86.5 |
 
 ## Output
 
