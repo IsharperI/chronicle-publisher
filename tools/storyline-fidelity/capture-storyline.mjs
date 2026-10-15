@@ -1,6 +1,7 @@
-// Capture one screenshot per slide from a Storyline web (HTML5) output.
+// Capture screenshots of every slide of a Storyline web (HTML5) output: at 25%, 50% and 75% of
+// each slide's timeline (to check timing and animations) and just before its end (layout).
 // Usage: node capture-storyline.mjs <story.html URL> <out dir> [chromium path]
-// Each slide is opened directly, its timeline is paused near the end, and the slide area is captured.
+// Each slide is opened directly; its timeline is paused and moved to each moment in turn.
 import { chromium } from 'playwright';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -46,15 +47,7 @@ for (const [i, s] of slides.entries()) {
     const cur = DS.windowManager.getCurrentWindowSlide();
     if (!cur || cur.absoluteId !== abs) return `ended up on ${cur ? cur.absoluteId : 'nothing'}`;
     await new Promise((r) => setTimeout(r, 600));
-    // Pause a little before the end: reaching the end can trigger the course's own
-    // "jump to next slide when timeline ends", which would capture the transition.
-    try {
-      const tl = cur.currentTimeline();
-      tl.pause();
-      const dur = tl.get('duration') || 0;
-      tl.seek(Math.max(0, dur - 250));
-      tl.pause();
-    } catch (e) { /* some slides have no timeline */ }
+    try { cur.currentTimeline().pause(); } catch (e) { /* some slides have no timeline */ }
     return true;
   }, s.absoluteId);
   if (ok !== true) { console.log('could not open', s.absoluteId, ok); continue; }
@@ -69,9 +62,24 @@ for (const [i, s] of slides.entries()) {
     const r = el.getBoundingClientRect();
     return { x: r.x, y: r.y, width: r.width, height: r.height };
   });
-  const file = `${String(i + 1).padStart(3, '0')}_${s.id}.png`;
-  await page.screenshot({ path: path.join(outDir, file), clip: box || undefined });
-  manifest.push({ ...s, index: i + 1, file });
+  const duration = await page.evaluate(() => {
+    try { return window.DS.windowManager.getCurrentWindowSlide().currentTimeline().get('duration') || 0; } catch (e) { return 0; }
+  });
+  // The moments: three through the slide, and 250 ms before the end. Stopping short of the end
+  // avoids the course's own "when the timeline ends" triggers.
+  const end = Math.max(0, duration - 250);
+  const times = [...new Set([0.25, 0.5, 0.75].map((f) => Math.round((duration * f) / 100) * 100).filter((t) => t < end))];
+  const shots = [];
+  for (const t of [...times, end]) {
+    await page.evaluate((ms) => {
+      try { const tl = window.DS.windowManager.getCurrentWindowSlide().currentTimeline(); tl.seek(ms); tl.pause(); } catch (e) { /* no timeline */ }
+    }, t);
+    await page.waitForTimeout(t === end ? 500 : 350);
+    const file = `${String(i + 1).padStart(3, '0')}_${s.id}${t === end ? '' : `_t${t}`}.png`;
+    await page.screenshot({ path: path.join(outDir, file), clip: box || undefined });
+    shots.push({ t, file, end: t === end });
+  }
+  manifest.push({ ...s, index: i + 1, duration, file: shots[shots.length - 1].file, shots });
   process.stdout.write('.');
 }
 fs.writeFileSync(path.join(outDir, 'manifest.json'), JSON.stringify(manifest, null, 1));

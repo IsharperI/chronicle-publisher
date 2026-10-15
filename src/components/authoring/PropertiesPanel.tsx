@@ -257,6 +257,15 @@ function AudioPanel({ audio }: { audio: SlideAudio }) {
         <div className="text-xs text-muted-foreground">
           Duration: {audio.duration.toFixed(1)}s · {audio.captions.length} caption{audio.captions.length === 1 ? '' : 's'}
         </div>
+        <div className="space-y-1">
+          <Label htmlFor="audio-start" className="text-xs">Starts at (s)</Label>
+          <Input
+            id="audio-start" type="number" min={0} step={0.1} className="h-8 w-28 text-sm"
+            value={Math.round((audio.startTime ?? 0) * 100) / 100}
+            onChange={(e) => dispatch({ type: 'UPDATE_AUDIO', id: audio.id, updates: { startTime: Math.max(0, Number(e.target.value) || 0) } })}
+          />
+          <p className="text-xs text-muted-foreground">Or drag the clip along the timeline.</p>
+        </div>
 
         <Button onClick={runAi} disabled={busy} className="w-full" size="sm">
           {busy ? (
@@ -509,7 +518,9 @@ export function PropertiesPanel() {
     ? state.masterSlides[state.activeSlideIndex]
     : state.slides[state.activeSlideIndex];
   const activeElement = activeSlide?.elements.find((el) => el.id === state.activeElementId);
-  const activeAudio = activeSlide?.audio?.find((a) => a.id === state.activeAudioId) ?? null;
+  const activeAudio = activeSlide?.audio?.find((a) => a.id === state.activeAudioId)
+    ?? activeSlide?.layers?.flatMap((l) => l.audio ?? []).find((a) => a.id === state.activeAudioId)
+    ?? null;
   const themeColors = state.courseSettings.themeColors;
 
   const update = (updates: Partial<SlideElement>) => {

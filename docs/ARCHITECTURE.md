@@ -39,6 +39,7 @@ User edits ──► dispatch(action) ──► courseReducer ──► CourseSt
 | `lib/autosave.ts` | Autosave storage (IndexedDB) and the saving/saved status shown in the ribbon. |
 | `lib/sanitize.ts` | Validates everything loaded from a file before it enters the app. See *Loading a course*. |
 | `lib/publish/` | Publishing: `index.ts` (zip builder), `runtime/` (the exported player and LMS APIs), `manifest/` (SCORM/xAPI manifests), `word.ts`, `video.ts`, `compat.ts`. |
+| `lib/animations.ts` | Entrance/exit animations beyond fade and fly left/right (fly top/bottom, wipes, split, zoom): their Animations-tab names and the CSS shared by the editor and the exported player. |
 | `lib/shapes.ts`, `lib/themeVars.ts`, `lib/motionPath.ts` | Shared helpers: SVG shape library, theme color variables, bezier motion paths. Used by the editor and the exported player. |
 | `lib/questionBank.ts`, `lib/quizTemplates.ts` | Question bank and quiz style templates, stored in the browser's `localStorage` (not in the course file). |
 | `test/` | Vitest unit tests (`npm test`). |
@@ -73,6 +74,7 @@ See `types/course.ts` for every field. Key points:
 - **Layers are the source of truth.** Each slide has `layers` (bottom to top; index 0 is the "Base Layer"). `slide.elements` is a **flattened copy of all layers' elements**, kept for older code paths. The reducer rebuilds it whenever layers change (`rebuildElements` / `mapElementsInSlide` in `CourseContext.tsx`). When you write code that edits elements, go through those helpers.
 - A layer's `visible` flag is its **starting state** during playback. Show Layer / Hide Layer triggers override it at runtime. That's how lightboxes (blueprint `reveal` slides) work: hidden layers that buttons reveal.
 - **Mixed time units:** slide `duration` and element `startTime`/`duration` are in **milliseconds**; audio `duration` and caption `startTime`/`endTime` are in **seconds**.
+- **Audio timing:** a clip's `startTime` (seconds) is when it starts on the slide's timeline; a layer's `audio` counts from when the layer is shown and stops when it's hidden. Caption times count from the start of the clip, not the slide.
 - In the editor preview, an element appears when its timeline bar starts and disappears when it ends. An element whose bar reaches the end of the slide **stays visible after the timeline ends** (as in Storyline). The exported player (`applyTiming` in `player.ts`) and the video exporter (`elementAppearance` in `video.ts`) follow the same rules, including entrance and exit animations.
 - Colors can be hex values or theme references like `var(--theme-primary)` (see `lib/themeVars.ts`), so changing a theme color restyles every element that uses it.
 - Quiz and results slides are ordinary slides with `slideType: 'quiz' | 'results'` and a `quiz` / `results` config. The quiz card is drawn by the renderer, not built from elements.

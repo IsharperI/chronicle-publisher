@@ -17,6 +17,7 @@ describe('md5Hex', () => {
 
 // A tiny hand-made .story: one master + layout, two scenes, a slide with a layer.
 const PNG = Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='), (c) => c.charCodeAt(0));
+const MP3 = new TextEncoder().encode('ID3 not really audio');
 const rich = (text: string, style = '') => `<Document><Content><Block><Span Text="${text}"><Style ${style} /></Span></Block></Content></Document>`
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const tm = (start: number, dur: number, untilEnd = false) => `<tmCtxLst><tmCtx start="${start}" dur="${dur}" untilEnd="${untilEnd}" /></tmCtxLst>`;
@@ -25,6 +26,7 @@ const loc = (l: number, t: number, r: number, b: number) => `<loc l="${l}" t="${
 async function makeStory(): Promise<Uint8Array> {
   const zip = new JSZip();
   zip.file('story/media/Rabc.png', PNG);
+  zip.file('story/media/Rsnd.mp3', MP3);
   zip.file('story/_rels/story.xml.rels', `<Relationships>
     <Relationship Type="slide" Target="/story/slides/slide.xml" Id="R111" />
     <Relationship Type="slide" Target="/story/slides/slide2.xml" Id="R222" /></Relationships>`);
@@ -33,7 +35,8 @@ async function makeStory(): Promise<Uint8Array> {
       <var g="v1" name="Score" dataType="num" val="0" type="user" />
       <var g="v2" name="Player.Volume" dataType="num" val="0" type="builtIn" />
     </varLst>
-    <mediaLst><mediaLst><media g="img1" displayName="photo.png"><md5Checksum><stream>${md5Hex(PNG)}</stream></md5Checksum></media></mediaLst></mediaLst>
+    <mediaLst><mediaLst><media g="img1" displayName="photo.png"><md5Checksum><stream>${md5Hex(PNG)}</stream></md5Checksum></media>
+      <audio g="aud1" displayName="voice.mp3"><md5Checksum><stream>${md5Hex(MP3)}</stream></md5Checksum></audio></mediaLst></mediaLst>
     <sceneLst>
       <scene g="sc1" name="Intro"><sldIdLst><sldId>R111</sldId></sldIdLst></scene>
       <scene g="sc2" name="End"><sldIdLst><sldId>R222</sldId></sldIdLst></scene>
@@ -67,14 +70,21 @@ async function makeStory(): Promise<Uint8Array> {
         <trigLst><trig><data event="OnClick" action="hideSubSlide" actSubType="me"><sldLayer /></data><condLst /></trig></trigLst></rect>
     </shapeLst></sldLayer></sldLayerLst>
     <trigLst><trig><data event="OnNextButtonClick" action="jumpToSlide" actSubType="next"><slide /></data></trig></trigLst></sld>`);
-  zip.file('story/slides/slide2.xml', `<sld g="s2" name="Goodbye" layoutG="lay1"><shapeLst>
+  zip.file('story/slides/slide2.xml', `<sld g="s2" name="Goodbye" layoutG="lay1"><tmProps min="12000" /><shapeLst>
     <rect g="tb1" zOrder="0">${loc(10, 10, 300, 100)}<table><columns><tableColumn /><tableColumn /></columns><rows>
       <tableRow><cells><tableCell text="${rich('A')}" /><tableCell text="${rich('B')}" /></cells></tableRow>
       <tableRow><cells><tableCell text="${rich('1', 'ForegroundColor="#333333"')}" /><tableCell text="${rich('2')}" /></cells></tableRow>
     </rows></table></rect>
     <textBox g="t2" zOrder="1">${tm(0, 1000)}${loc(10, 200, 400, 260)}<text>${rich('Back')}</text>
       <trigLst><trig><data event="OnClick" action="jumpToScene" actSubType="spec"><scene jumpG="sc1" /></data><condLst /></trig></trigLst></textBox>
-  </shapeLst></sld>`);
+    <group g="grp" zOrder="2">${tm(9000, 500)}${loc(0, 0, 500, 500)}<animEffect><entr><wipe dur="PT1S" wd="b" /></entr></animEffect><childLst><g>m1</g></childLst></group>
+    <rect g="m1" zOrder="0" parentG="grp">${tm(2000, 3000)}${loc(0, 0, 100, 100)}<bG><solidFill><clr><srgbClr val="123456" /></clr></solidFill></bG>
+      <animEffect><exit><wipe dur="PT0.5S" wd="r" /></exit></animEffect></rect>
+    <sound g="snd1" zOrder="3" assetG="aud1">${tm(1500, 2000)}</sound>
+  </shapeLst>
+  <sldLayerLst><sldLayer g="L2" name="Popup"><tmProps min="4000" /><shapeLst>
+    <sound g="snd2" zOrder="0" assetG="aud1">${tm(250, 1000)}</sound>
+  </shapeLst></sldLayer></sldLayerLst></sld>`);
   return zip.generateAsync({ type: 'uint8array' });
 }
 
@@ -132,6 +142,16 @@ describe('importStory', () => {
     expect(table.cellData).toEqual([['A', 'B'], ['1', '2']]);
     expect(table.textColor).toBe('#333333');
     expect(s2.elements[1].triggers).toEqual([{ event: 'onClick', action: 'jumpToSlide', targetId: '111' }]);
+
+    // Timing: the slide uses Storyline's own length; grouped objects keep their own timing but
+    // play the group's animations; audio keeps its start time; layer audio belongs to its layer.
+    expect(s2.duration).toBe(12000);
+    const member = s2.layers![0].elements.find((e) => e.id === 'm1')!;
+    expect([member.startTime, member.duration]).toEqual([2000, 3000]);
+    expect([member.animationIn, member.entranceDuration]).toEqual(['wipe-from-bottom', 1000]);
+    expect(member.animationOut).toBe('wipe-to-left');
+    expect(s2.audio).toEqual([expect.objectContaining({ id: 'snd1', startTime: 1.5, duration: 2 })]);
+    expect(s2.layers![1].audio).toEqual([expect.objectContaining({ id: 'snd2', startTime: 0.25, duration: 1 })]);
 
     const messages = report.issues.map((i) => i.message);
     expect(messages).toContain('Freeform shapes');

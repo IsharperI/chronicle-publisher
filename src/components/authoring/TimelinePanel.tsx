@@ -12,7 +12,7 @@ import { Label } from '@/components/ui/label';
 import { ChevronUp, ChevronDown, Type, ImageIcon, Square, Play, Pause, Music, X, Eye, EyeOff, Lock, Unlock } from 'lucide-react';
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { cn } from '@/lib/utils';
-import type { SlideElement, TextElement, ShapeElement } from '@/types/course';
+import type { SlideElement, TextElement, ShapeElement, SlideAudio } from '@/types/course';
 import { themeVarRef, themeVarIndex, resolveColor } from '@/lib/themeVars';
 
 const TRACK_HEIGHT = 28;
@@ -264,6 +264,55 @@ function StatesPanel() {
   );
 }
 
+/**
+ * One audio clip on the timeline. Drag it sideways to change when it starts
+ * (slide audio: from the start of the slide; layer audio: from when the layer is shown).
+ */
+function AudioBar({ audio, timelineWidth, slideDuration, label }: { audio: SlideAudio; timelineWidth: number; slideDuration: number; label?: string }) {
+  const { state, dispatch } = useCourse();
+  const [dragStart, setDragStart] = useState<number | null>(null);
+  const start = dragStart ?? audio.startTime ?? 0;
+  const leftPx = Math.min(1, (start * 1000) / slideDuration) * timelineWidth;
+  const widthPx = Math.max(8, (Math.min(audio.duration * 1000, Math.max(0, slideDuration - start * 1000)) / slideDuration) * timelineWidth);
+  const selected = state.activeAudioId === audio.id;
+  const onMouseDown = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    dispatch({ type: 'SET_ACTIVE_AUDIO', id: audio.id });
+    const x0 = e.clientX, s0 = audio.startTime ?? 0;
+    let latest = s0;
+    const move = (ev: MouseEvent) => {
+      const secs = ((ev.clientX - x0) / timelineWidth) * (slideDuration / 1000);
+      latest = Math.max(0, Math.round((s0 + secs) * 20) / 20);
+      setDragStart(latest);
+    };
+    const up = () => {
+      window.removeEventListener('mousemove', move);
+      window.removeEventListener('mouseup', up);
+      setDragStart(null);
+      if (latest !== s0) dispatch({ type: 'UPDATE_AUDIO', id: audio.id, updates: { startTime: latest } });
+    };
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', up);
+  };
+  return (
+    <div className="relative h-7 w-full timeline-groove my-0.5">
+      <div
+        className={cn(
+          'absolute top-0.5 h-6 rounded bg-amber-500/80 flex items-center text-[10px] text-white font-medium select-none overflow-hidden px-1.5 cursor-grab active:cursor-grabbing',
+          selected && 'ring-2 ring-primary ring-offset-1 ring-offset-background'
+        )}
+        style={{ left: leftPx, width: widthPx }}
+        title={`${label ? label + ': ' : ''}${audio.name}: starts at ${start.toFixed(2)}s, ${audio.duration.toFixed(1)}s long. Drag to move.`}
+        onMouseDown={onMouseDown}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <Music className="h-3 w-3 mr-1 shrink-0" />
+        <span className="truncate">{audio.name} · {audio.duration.toFixed(1)}s</span>
+      </div>
+    </div>
+  );
+}
+
 export function TimelinePanel() {
   const { state, dispatch } = useCourse();
   const [open, setOpen] = useState(true);
@@ -302,6 +351,11 @@ export function TimelinePanel() {
   const displayGroups = [...groups].reverse();
   const elements = activeSlide?.elements ?? [];
   const slideDuration = activeSlide?.duration ?? 5000;
+  // Slide audio, then each layer's audio (which plays when that layer is shown).
+  const allAudio: { audio: SlideAudio; layer?: string }[] = [
+    ...(activeSlide?.audio ?? []).map((audio) => ({ audio })),
+    ...(activeSlide?.layers ?? []).slice(1).flatMap((l) => (l.audio ?? []).map((audio) => ({ audio, layer: l.name }))),
+  ];
   const [collapsedLayers, setCollapsedLayers] = useState<Set<string>>(new Set());
   const toggleLayerCollapsed = (id: string) => {
     setCollapsedLayers((prev) => {
@@ -506,7 +560,7 @@ export function TimelinePanel() {
                 {elements.length === 0 && layers.length === 0 && (
                   <p className="text-xs text-muted-foreground text-center py-4">No elements</p>
                 )}
-                {(activeSlide?.audio ?? []).map((a) => (
+                {allAudio.map(({ audio: a, layer }) => (
                   <button
                     key={a.id}
                     onClick={() => dispatch({ type: 'SET_ACTIVE_AUDIO', id: a.id })}
@@ -516,7 +570,7 @@ export function TimelinePanel() {
                     )}
                   >
                     <Music className="h-3 w-3 text-amber-600 shrink-0" />
-                    <span className="truncate flex-1">{a.name}</span>
+                    <span className="truncate flex-1" title={layer ? `Plays when layer "${layer}" is shown` : undefined}>{layer ? `${layer}: ` : ''}{a.name}</span>
                     <span
                       role="button"
                       tabIndex={0}
@@ -566,26 +620,9 @@ export function TimelinePanel() {
                       </div>
                     );
                   })}
-                  {(activeSlide?.audio ?? []).map((a) => {
-                    const widthPx = Math.max(8, Math.min(slideDuration, a.duration * 1000) / slideDuration * trackWidth);
-                    const selected = state.activeAudioId === a.id;
-                    return (
-                      <div key={a.id} className="relative h-7 w-full timeline-groove my-0.5">
-                        <div
-                          className={cn(
-                            'absolute top-0.5 h-6 rounded bg-amber-500/80 flex items-center text-[10px] text-white font-medium select-none overflow-hidden px-1.5 cursor-pointer',
-                            selected && 'ring-2 ring-primary ring-offset-1 ring-offset-background'
-                          )}
-                          style={{ left: 0, width: widthPx }}
-                          title={`${a.name} — ${a.duration.toFixed(1)}s`}
-                          onClick={(e) => { e.stopPropagation(); dispatch({ type: 'SET_ACTIVE_AUDIO', id: a.id }); }}
-                        >
-                          <Music className="h-3 w-3 mr-1 shrink-0" />
-                          <span className="truncate">{a.name} · {a.duration.toFixed(1)}s</span>
-                        </div>
-                      </div>
-                    );
-                  })}
+                  {allAudio.map(({ audio, layer }) => (
+                    <AudioBar key={audio.id} audio={audio} label={layer} timelineWidth={trackWidth} slideDuration={slideDuration} />
+                  ))}
                 </div>
                 <div
                   className="absolute top-0 bottom-0 w-0.5 bg-destructive pointer-events-none z-20"

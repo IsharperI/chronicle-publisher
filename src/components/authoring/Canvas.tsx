@@ -30,13 +30,14 @@ import { themeVarStyle } from '@/lib/themeVars';
 import { fontStyle, HEADING_FONT } from '@/lib/brand';
 import { MotionPathLayer } from './MotionPathLayer';
 import { motionPathOffset } from '@/lib/motionPath';
+import { ANIMATION_CSS, entranceClass, exitClass } from '@/lib/animations';
 
 function getAnimInClass(anim: AnimationIn): string {
   switch (anim) {
     case 'fade': return 'anim-fade-in';
     case 'fly-in-left': return 'anim-fly-in-left';
     case 'fly-in-right': return 'anim-fly-in-right';
-    default: return '';
+    default: return entranceClass(anim);
   }
 }
 
@@ -45,7 +46,7 @@ function getAnimOutClass(anim: AnimationOut): string {
     case 'fade': return 'anim-fade-out';
     case 'fly-out-left': return 'anim-fly-out-left';
     case 'fly-out-right': return 'anim-fly-out-right';
-    default: return '';
+    default: return exitClass(anim);
   }
 }
 
@@ -391,6 +392,10 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
   // to the author's `layer.visible` value. Reset on slide change so author
   // data is never mutated.
   const [layerRuntimeVis, setLayerRuntimeVis] = useState<Record<string, boolean>>({});
+  // When each layer was last shown (playhead ms), so its audio can start relative to that.
+  const layerShownAtRef = useRef<Map<string, number>>(new Map());
+  const playheadRef = useRef(0);
+  playheadRef.current = state.playheadTime;
   const audioRefs = useRef<Map<string, HTMLAudioElement>>(new Map());
   const previewAccumRef = useRef(0);
   const isPlayingRef = useRef(state.isPlaying);
@@ -399,7 +404,7 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
   const onPreviewNextRef = useRef(onPreviewNext);
   useEffect(() => { onPreviewNextRef.current = onPreviewNext; }, [onPreviewNext]);
   useEffect(() => { isPlayingRef.current = state.isPlaying; }, [state.isPlaying]);
-  useEffect(() => { setLightboxSlideId(null); setLayerRuntimeVis({}); }, [state.activeSlideIndex]);
+  useEffect(() => { setLightboxSlideId(null); setLayerRuntimeVis({}); layerShownAtRef.current.clear(); }, [state.activeSlideIndex]);
 
 
   const isPreview = state.previewMode;
@@ -548,6 +553,7 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
       dispatch({ type: 'SET_PLAYING', playing: false });
       setLightboxSlideId(t.targetId);
     } else if (t.action === 'showLayer') {
+      layerShownAtRef.current.set(t.targetId, playheadRef.current);
       setLayerRuntimeVis((m) => ({ ...m, [t.targetId]: true }));
     } else if (t.action === 'hideLayer') {
       setLayerRuntimeVis((m) => ({ ...m, [t.targetId]: false }));
@@ -603,7 +609,7 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
     return () => window.removeEventListener('keydown', handler);
   }, [state.activeElementId, state.selectedElementIds, state.previewMode, dispatch]);
 
-  // Audio playback synced to playhead. Plays slide audio from t=0 in preview
+  // Audio playback synced to playhead. Plays each clip from its start time in preview
   // (and in author mode while the timeline is "playing"); pauses when paused.
   const audioTracks = activeSlide?.audio ?? [];
   const slideKey = activeSlide?.id ?? '';
@@ -707,17 +713,35 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
     };
   }, [slideKey, isPreview]);
 
+  // Every clip that should be playing now, with when it starts (playhead ms): slide audio at its
+  // start time, and audio of the visible layers counted from when the layer was shown.
+  const playingTracks = useMemo(() => {
+    const list = audioTracks.map((track) => ({ track, offsetMs: (track.startTime ?? 0) * 1000 }));
+    for (const l of (activeSlide?.layers ?? []).slice(1)) {
+      if (!l.audio?.length || !(layerRuntimeVis[l.id] ?? l.visible)) continue;
+      const shown = layerShownAtRef.current.get(l.id) ?? 0;
+      for (const track of l.audio) list.push({ track, offsetMs: shown + (track.startTime ?? 0) * 1000 });
+    }
+    return list;
+  }, [audioTracks, activeSlide?.layers, layerRuntimeVis]);
+
   // Drive playback based on isPlaying / playheadTime.
   useEffect(() => {
     const map = audioRefs.current;
-    audioTracks.forEach((track) => {
+    playingTracks.forEach(({ track, offsetMs }) => {
       let el = map.get(track.id);
       if (!el) {
         el = new Audio(track.src);
         el.preload = 'auto';
         map.set(track.id, el);
       }
-      const targetSec = state.playheadTime / 1000;
+      const targetSec = (state.playheadTime - offsetMs) / 1000;
+      if (targetSec < 0) {
+        // Not started yet.
+        if (!el.paused) el.pause();
+        if (el.currentTime !== 0) { try { el.currentTime = 0; } catch { /* noop */ } }
+        return;
+      }
       // Resync if drift > 250ms
       if (Math.abs(el.currentTime - targetSec) > 0.25) {
         try { el.currentTime = Math.max(0, targetSec); } catch { /* noop */ }
@@ -729,11 +753,11 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
       }
     });
     // Pause/cleanup any audio elements no longer in the track list
-    const liveIds = new Set(audioTracks.map((t) => t.id));
+    const liveIds = new Set(playingTracks.map((t) => t.track.id));
     map.forEach((el, id) => {
       if (!liveIds.has(id)) { try { el.pause(); } catch { /* noop */ } map.delete(id); }
     });
-  }, [audioTracks, state.isPlaying, state.playheadTime]);
+  }, [playingTracks, state.isPlaying, state.playheadTime]);
 
   // ===== Media event triggers (mediaStart / mediaEnd / mediaPause) =====
   // Wires play/ended/pause listeners on audio + video media sources to the
@@ -826,13 +850,14 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
   // window contains the playhead (in seconds).
   const activeCaption = useMemo(() => {
     if (!ccEnabled) return '';
-    const tSec = state.playheadTime / 1000;
-    for (const track of audioTracks) {
+    for (const { track, offsetMs } of playingTracks) {
+      // Caption times count from the start of the clip.
+      const tSec = (state.playheadTime - offsetMs) / 1000;
       const cap = track.captions?.find((c) => tSec >= c.startTime && tSec < (c.endTime || c.startTime + 2));
       if (cap?.text) return cap.text;
     }
     return '';
-  }, [ccEnabled, state.playheadTime, audioTracks]);
+  }, [ccEnabled, state.playheadTime, playingTracks]);
 
   return (
     <div
@@ -840,6 +865,7 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
       className="flex-1 flex flex-col items-center justify-center overflow-hidden min-w-0 bg-gradient-to-br from-slate-200 to-slate-300"
       style={{ ...themeVarStyle(state.courseSettings.themeColors), ...fontStyle(state.courseSettings) }}
     >
+      <style>{ANIMATION_CSS}</style>
       <input ref={placeholderInput} type="file" accept="image/*" hidden aria-label="Image for placeholder"
         onChange={(e) => { void fillPlaceholder(e.target.files?.[0]); e.target.value = ''; }} />
       <div

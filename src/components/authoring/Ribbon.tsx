@@ -48,6 +48,7 @@ import { StorySizeControl, ThemeColorsControl } from './DesignControls';
 import { QuizThemesOverlay, QuestionBankOverlay } from './QuizOverlays';
 import { VariableManagerOverlay } from './VariableManagerOverlay';
 import { ShapePicker } from './ShapePicker';
+import { ENTRANCES, EXITS } from '@/lib/animations';
 
 const TABS = ['Home', 'Insert', 'Design', 'Transitions', 'Animations', 'View', 'Quiz'] as const;
 type RibbonTab = typeof TABS[number];
@@ -839,6 +840,7 @@ const ENTRANCE_OPTIONS: Array<{ value: AnimationIn; label: string }> = [
   { value: 'fade', label: 'Fade In' },
   { value: 'fly-in-left', label: 'Fly In Left' },
   { value: 'fly-in-right', label: 'Fly In Right' },
+  ...Object.entries(ENTRANCES).map(([value, a]) => ({ value: value as AnimationIn, label: a.label })),
 ];
 
 const EXIT_OPTIONS: Array<{ value: AnimationOut; label: string }> = [
@@ -846,6 +848,7 @@ const EXIT_OPTIONS: Array<{ value: AnimationOut; label: string }> = [
   { value: 'fade', label: 'Fade Out' },
   { value: 'fly-out-left', label: 'Fly Out Left' },
   { value: 'fly-out-right', label: 'Fly Out Right' },
+  ...Object.entries(EXITS).map(([value, a]) => ({ value: value as AnimationOut, label: a.label })),
 ];
 
 function AnimationsTab() {

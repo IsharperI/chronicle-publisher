@@ -146,7 +146,8 @@ function buildRightColumn(slide: Slide, slideNumber: number): Paragraph[] {
   for (const audio of slide.audio ?? []) {
     const caps = [...(audio.captions ?? [])].sort((a, b) => a.startTime - b.startTime);
     for (const c of caps) {
-      const t = formatTime(c.startTime);
+      // Slide time: the clip's start time plus the caption's time within the clip.
+      const t = formatTime(c.startTime + (audio.startTime ?? 0));
       captionLines.push(`[${t}] ${c.text}`);
     }
   }
