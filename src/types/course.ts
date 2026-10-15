@@ -52,7 +52,8 @@ export type AnimationOut = 'none' | 'fade' | 'fly-out-left' | 'fly-out-right' | 
 export type ViewMode = 'main' | 'master';
 
 export interface Trigger {
-  /** 'onClick' | 'onHover' | 'timelineStart' | 'timelineEnd' | 'atTime' | 'mediaStart' | 'mediaEnd' | 'mediaPause' | 'stateChange' */
+  /** 'onClick' | 'onHover' | 'timelineStart' | 'timelineEnd' | 'atTime' | 'mediaStart' | 'mediaEnd' | 'mediaPause' | 'stateChange'
+   * | 'onDrop' | 'onDropOutside' | 'onDragOver' (drag and drop, see lib/dragDrop.ts) */
   event: string;
   /** 'jumpToSlide' | 'showElement' | 'hideElement' | 'changeState' | 'playMedia' | 'pauseMedia' | 'stopMedia' | 'restartCourse' | 'exitCourse' | 'completeCourse' | 'jumpToTime' | 'emphasizeElement' | 'openUrl' | 'adjustVariable' | 'pauseTimeline' | 'resumeTimeline' | 'lightboxSlide' | 'showLayer' | 'hideLayer' | 'setPlayerButton' | 'jumpToPrevious'
    * ('setPlayerButton': targetId 'next' | 'prev', state 'Disabled' | 'Normal'; see lib/navButtons.ts) */
@@ -65,6 +66,11 @@ export interface Trigger {
    * (or, with `not`, out of) `state`. All of them must match unless `any`.
    */
   stateWatch?: { ids: string[]; state: string; not?: boolean; any?: boolean };
+  /**
+   * For 'onDrop' / 'onDragOver' events (on a draggable object): the drop
+   * targets that count. Empty or missing means any drop target.
+   */
+  dropTargets?: string[];
   /** For 'atTime' events: time in seconds from slide start when the trigger fires. */
   time?: number;
   /**
@@ -158,6 +164,32 @@ export interface BaseElement {
    * Selected state): shown only while that object is drawn in one of `states`.
    */
   stateParent?: { id: string; states: string[] };
+  /** Learners can drag this object during playback (see lib/dragDrop.ts). */
+  drag?: DragSettings;
+  /** Draggable objects can be dropped on this object. */
+  dropTarget?: DropTargetSettings;
+}
+
+/** A draggable object's settings. */
+export interface DragSettings {
+  /** Send it back to where it started when it isn't dropped on a drop target (default true). */
+  returnIfMissed?: boolean;
+  /** The drop target(s) it belongs on. Gives it the Drop Correct / Drop Incorrect states when dropped. */
+  correctTargets?: string[];
+  /**
+   * Keep Drop Correct / Drop Incorrect until the answer is submitted (shows
+   * Dropped meanwhile). Submitting comes with quiz scoring; until then those
+   * states stay hidden.
+   */
+  holdResult?: boolean;
+}
+
+/** A drop target's settings. */
+export interface DropTargetSettings {
+  /** Where dropped objects land: centred on it (default), tiled across it, or left where they're let go. */
+  snap?: 'center' | 'tile' | 'free';
+  /** Accept only one object at a time (others are treated as dropped elsewhere). */
+  onlyOne?: boolean;
 }
 
 /** The properties a state changes, compared with the element's Normal look. */

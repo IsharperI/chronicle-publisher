@@ -64,8 +64,10 @@ function duplicateSlide(slide: Slide): Slide {
       targetId: re(t.targetId),
       ...(t.stateWatch ? { stateWatch: { ...t.stateWatch, ids: t.stateWatch.ids.map(re) } } : {}),
       ...(t.conditions ? { conditions: t.conditions.map((c) => (c.elementId ? { ...c, elementId: re(c.elementId) } : c)) } : {}),
+      ...(t.dropTargets ? { dropTargets: t.dropTargets.map(re) } : {}),
     })),
     ...(e.stateParent ? { stateParent: { ...e.stateParent, id: re(e.stateParent.id) } } : {}),
+    ...(e.drag?.correctTargets ? { drag: { ...e.drag, correctTargets: e.drag.correctTargets.map(re) } } : {}),
   } as SlideElement);
   const layers = slide.layers?.map((l) => ({ ...l, id: fresh(l.id), elements: l.elements.map(copyEl) }));
   const copy: Slide = {
