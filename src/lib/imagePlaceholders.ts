@@ -143,9 +143,9 @@ export function fitImage(box: { x: number; y: number; width: number; height: num
 export function imageFromPlaceholder(ph: ShapeElement, src: string, natural: { width: number; height: number }): ImageElement {
   const {
     shapeType: _a, fillColor: _b, borderColor: _c, borderWidth: _d, text: _e, textColor: _f, fontSize: _g,
-    hoverFillColor: _h, hoverBorderColor: _i, borderRadius: _j, boxShadow: _k, imagePlaceholder, autoBranchTarget: _l, ...rest
+    borderRadius: _j, boxShadow: _k, imagePlaceholder, autoBranchTarget: _l, ...rest
   } = ph;
-  void _a; void _b; void _c; void _d; void _e; void _f; void _g; void _h; void _i; void _j; void _k; void _l;
+  void _a; void _b; void _c; void _d; void _e; void _f; void _g; void _j; void _k; void _l;
   return {
     ...rest,
     ...fitImage(ph, natural),

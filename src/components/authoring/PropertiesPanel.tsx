@@ -28,6 +28,7 @@ import { Switch } from '@/components/ui/switch';
 import { themeVarRef, themeVarIndex, resolveColor } from '@/lib/themeVars';
 import { transcribeAudio } from '@/lib/transcribe';
 import { SHAPE_CATEGORIES } from '@/lib/shapes';
+import { NORMAL, stateNames, withState } from '@/lib/states';
 
 function NumField({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
   return (
@@ -517,7 +518,10 @@ export function PropertiesPanel() {
   const activeSlide = isMasterMode
     ? state.masterSlides[state.activeSlideIndex]
     : state.slides[state.activeSlideIndex];
-  const activeElement = activeSlide?.elements.find((el) => el.id === state.activeElementId);
+  const selectedElement = activeSlide?.elements.find((el) => el.id === state.activeElementId);
+  // While a state is being edited (States tab), the fields show and change that state's look.
+  const editingStateName = selectedElement && state.editingState?.elementId === selectedElement.id ? state.editingState.state : null;
+  const activeElement = selectedElement && editingStateName ? withState(selectedElement, editingStateName) : selectedElement;
   const activeAudio = activeSlide?.audio?.find((a) => a.id === state.activeAudioId)
     ?? activeSlide?.layers?.flatMap((l) => l.audio ?? []).find((a) => a.id === state.activeAudioId)
     ?? null;
@@ -702,6 +706,12 @@ export function PropertiesPanel() {
 
           <TabsContent value="properties" className="flex-1 overflow-y-auto p-3 space-y-4 mt-0">
             <p className="text-sm font-medium capitalize text-foreground">{activeElement.type} Element</p>
+            {editingStateName && (
+              <div className="rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900 space-y-1.5">
+                <p>Editing the <b>{editingStateName}</b> state. Colours, text and pictures you change here apply to this state; position and size apply to every state.</p>
+                <Button size="sm" className="h-6 w-full text-xs" onClick={() => dispatch({ type: 'SET_EDITING_STATE', editing: null })}>Done</Button>
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-2">
               <NumField label="X" value={Math.round(activeElement.x)} onChange={(v) => update({ x: v })} />
@@ -984,6 +994,11 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
   const [newVarOp, setNewVarOp] = useState<string>('');
   const [newVarValue, setNewVarValue] = useState<string>('');
   const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
+  const [newState, setNewState] = useState('');
+  const [newWatchId, setNewWatchId] = useState('');
+  const [newWatchNot, setNewWatchNot] = useState(false);
+  const isChangeState = newAction === 'changeState';
+  const isStateEvent = newEvent === 'stateChange';
   const isSlideAction = newAction === 'jumpToSlide' || newAction === 'lightboxSlide';
   const isElementAction = newAction === 'showElement' || newAction === 'hideElement';
   const isMediaAction = newAction === 'playMedia' || newAction === 'pauseMedia' || newAction === 'stopMedia';
@@ -1042,6 +1057,12 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
   };
   const slideElements = (activeSlide?.elements ?? []).map((el, i) => ({ id: el.id, label: elementName(el, i) }));
   const elementLabel = (id: string) => slideElements.find((e) => e.id === id)?.label || id.slice(0, 8);
+  /** States an element on this slide has (Normal first). */
+  const statesOf = (id: string) => {
+    const el = activeSlide?.elements.find((e) => e.id === id);
+    return el ? stateNames(el) : [NORMAL];
+  };
+  const watchId = newWatchId || element.id;
 
   // Layer picker source: all layers on the active slide except the Base Layer
   // (index 0). Stored value is the layer id.
@@ -1072,6 +1093,8 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
 
   const addTrigger = () => {
     if (isMediaEvent && !newMediaId) return;
+    if (isStateEvent && !newState && statesOf(watchId).length < 2) return;
+    if (isChangeState && (!newTarget || !newState)) return;
     if (isAdjustVariable) {
       if (!newVarId || !newVarOp) return;
       if (opNeedsValue(newVarOp) && newVarValue === '' && selectedVar?.type !== 'text') return;
@@ -1101,6 +1124,12 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
     if (isMediaEvent) {
       t.mediaId = newMediaId;
     }
+    if (isStateEvent) {
+      t.stateWatch = { ids: [watchId], state: newState || NORMAL, ...(newWatchNot ? { not: true } : {}) };
+    }
+    if (isChangeState) {
+      t.state = newState;
+    }
     if (isEmphasize) {
       t.emphasis = newEmphasis;
     }
@@ -1126,6 +1155,7 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
     setNewMediaId('');
     setNewUrl('');
     setNewVarValue('');
+    setNewState('');
   };
 
   const removeTrigger = (idx: number) => {
@@ -1152,6 +1182,12 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
       { value: 'equals', label: 'equals' },
       { value: 'notEquals', label: 'not equals' },
     ];
+  };
+
+  const addStateCondition = (idx: number) => {
+    const t = triggers[idx];
+    const newCond = { variableId: '', elementId: element.id, operator: 'equals', state: NORMAL, value: '' } as any;
+    updateTrigger(idx, { conditions: [...((t.conditions as any[]) || []), newCond] } as any);
   };
 
   const addCondition = (idx: number) => {
@@ -1192,12 +1228,18 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
         else if (t.event === 'mediaStart') eventPhrase = `when ${mediaLabel(t.mediaId)} starts`;
         else if (t.event === 'mediaEnd') eventPhrase = `when ${mediaLabel(t.mediaId)} ends`;
         else if (t.event === 'mediaPause') eventPhrase = `when ${mediaLabel(t.mediaId)} pauses`;
+        else if (t.event === 'stateChange' && t.stateWatch) {
+          const w = t.stateWatch;
+          const who = w.ids.length ? w.ids.map(elementLabel).join(w.any ? ' or ' : ', ') : 'this object';
+          eventPhrase = `when ${who} ${w.ids.length > 1 ? (w.not ? 'are not' : 'are') : (w.not ? 'is not' : 'is')} ${w.state}`;
+        }
         else eventPhrase = t.event;
         let actionPhrase: string;
         if (t.action === 'jumpToSlide') actionPhrase = `Jump to ${slideLabel(t.targetId)}`;
         else if (t.action === 'lightboxSlide') actionPhrase = `Lightbox ${slideLabel(t.targetId)}`;
         else if (t.action === 'hideElement') actionPhrase = `Hide Element '${elementLabel(t.targetId)}'`;
         else if (t.action === 'showElement') actionPhrase = `Show Element '${elementLabel(t.targetId)}'`;
+        else if (t.action === 'changeState') actionPhrase = `Change state of '${elementLabel(t.targetId)}' to ${t.state || NORMAL}`;
         else if (t.action === 'playMedia') actionPhrase = `Play Media '${mediaLabel(t.targetId)}'`;
         else if (t.action === 'pauseMedia') actionPhrase = `Pause Media '${mediaLabel(t.targetId)}'`;
         else if (t.action === 'stopMedia') actionPhrase = `Stop Media '${mediaLabel(t.targetId)}'`;
@@ -1265,6 +1307,34 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
                 <p className="text-[11px] text-slate-400 italic">Always fires (no conditions)</p>
               )}
               {conds.map((c, ci) => {
+                if (c.elementId) {
+                  return (
+                    <div key={ci} className="flex items-center gap-1">
+                      <Select value={c.elementId} onValueChange={(val) => updateCondition(i, ci, { elementId: val, state: NORMAL })}>
+                        <SelectTrigger className="h-7 text-[11px] flex-1 min-w-0 bg-white text-slate-800"><SelectValue placeholder="Object" /></SelectTrigger>
+                        <SelectContent>
+                          {slideElements.map((e) => <SelectItem key={e.id} value={e.id}>{e.label}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                      <Select value={c.operator} onValueChange={(val) => updateCondition(i, ci, { operator: val })}>
+                        <SelectTrigger className="h-7 text-[11px] w-[70px] bg-white text-slate-800"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="equals">is</SelectItem>
+                          <SelectItem value="notEquals">is not</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Select value={c.state} onValueChange={(val) => updateCondition(i, ci, { state: val })}>
+                        <SelectTrigger className="h-7 text-[11px] w-[84px] bg-white text-slate-800"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {statesOf(c.elementId).map((n) => <SelectItem key={n} value={n}>{n}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                      <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0 text-slate-500 hover:text-destructive" onClick={() => removeCondition(i, ci)} aria-label="Remove condition">
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  );
+                }
                 const cVar = variables.find((v) => v.id === c.variableId);
                 const ops = cVar ? condOperatorsFor(cVar.type) : [];
                 return (
@@ -1341,7 +1411,10 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
                 onClick={() => addCondition(i)}
               >
                 <Plus className="h-3 w-3 mr-1" />
-                {variables.length === 0 ? 'No variables defined' : 'Add Condition'}
+                {variables.length === 0 ? 'No variables defined' : 'Add Variable Condition'}
+              </Button>
+              <Button variant="outline" size="sm" className="w-full h-6 text-[11px]" onClick={() => addStateCondition(i)}>
+                <Plus className="h-3 w-3 mr-1" />Add State Condition
               </Button>
             </div>
             )}
@@ -1360,8 +1433,32 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
             <SelectItem value="mediaStart">When media starts</SelectItem>
             <SelectItem value="mediaEnd">When media ends</SelectItem>
             <SelectItem value="mediaPause">When media pauses</SelectItem>
+            <SelectItem value="stateChange">When state changes</SelectItem>
           </SelectContent>
         </Select>
+        {isStateEvent && (
+          <div className="flex items-center gap-1">
+            <Select value={watchId} onValueChange={(v) => { setNewWatchId(v); setNewState(''); }}>
+              <SelectTrigger className="h-7 text-xs flex-1 min-w-0 bg-white text-slate-800"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {slideElements.map((e) => <SelectItem key={e.id} value={e.id}>{e.id === element.id ? 'This object' : e.label}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select value={newWatchNot ? 'not' : 'is'} onValueChange={(v) => setNewWatchNot(v === 'not')}>
+              <SelectTrigger className="h-7 text-xs w-[72px] bg-white text-slate-800"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="is">is</SelectItem>
+                <SelectItem value="not">is not</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={newState} onValueChange={setNewState}>
+              <SelectTrigger className="h-7 text-xs w-[90px] bg-white text-slate-800"><SelectValue placeholder="State" /></SelectTrigger>
+              <SelectContent>
+                {statesOf(watchId).map((n) => <SelectItem key={n} value={n}>{n}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
         {newEvent === 'atTime' && (
           <Input
             type="number"
@@ -1391,6 +1488,7 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
             <SelectItem value="jumpToSlide">Jump to Slide</SelectItem>
             <SelectItem value="showElement">Show Element</SelectItem>
             <SelectItem value="hideElement">Hide Element</SelectItem>
+            <SelectItem value="changeState">Change State</SelectItem>
             <SelectItem value="playMedia">Play Media</SelectItem>
             <SelectItem value="pauseMedia">Pause Media</SelectItem>
             <SelectItem value="stopMedia">Stop Media</SelectItem>
@@ -1429,6 +1527,24 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
               ))}
             </SelectContent>
           </Select>
+        )}
+        {isChangeState && (
+          <div className="flex items-center gap-1">
+            <Select value={newTarget} onValueChange={(v) => { setNewTarget(v); setNewState(''); }}>
+              <SelectTrigger className="h-7 text-xs flex-1 min-w-0 bg-white text-slate-800 rounded-md">
+                <SelectValue placeholder={slideElements.length ? 'Select element…' : 'No elements on slide'} />
+              </SelectTrigger>
+              <SelectContent>
+                {slideElements.map((e) => <SelectItem key={e.id} value={e.id}>{e.label}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select value={newState} onValueChange={setNewState} disabled={!newTarget}>
+              <SelectTrigger className="h-7 text-xs w-[100px] bg-white text-slate-800"><SelectValue placeholder="to state" /></SelectTrigger>
+              <SelectContent>
+                {newTarget && statesOf(newTarget).map((n) => <SelectItem key={n} value={n}>{n}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
         )}
         {isLayerAction && (
           <Select value={newTarget} onValueChange={setNewTarget}>

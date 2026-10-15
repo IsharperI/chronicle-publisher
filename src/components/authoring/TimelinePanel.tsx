@@ -1,9 +1,10 @@
 /**
  * Bottom timeline panel: one track per element on the active slide (drag or
  * resize to change start time and duration), the playhead and play/pause, and a
- * "States" tab for editing hover colors. Times are in milliseconds.
+ * States tab (StatesPanel.tsx). Times are in milliseconds.
  */
 import { useCourse } from '@/context/CourseContext';
+import { StatesPanel } from './StatesPanel';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -189,77 +190,6 @@ function TimelineTrack({ element, timelineWidth, slideDuration }: { element: Sli
           onMouseDown={(e) => handleMouseDown(e, 'resize-right')}
         />
       </div>
-    </div>
-  );
-}
-
-function StatesPanel() {
-  const { state, dispatch } = useCourse();
-  const isMasterMode = state.viewMode === 'master';
-  const activeSlide = isMasterMode
-    ? state.masterSlides[state.activeSlideIndex]
-    : state.slides[state.activeSlideIndex];
-  const activeElement = activeSlide?.elements.find((el) => el.id === state.activeElementId);
-  const themeColors = state.courseSettings.themeColors;
-
-  const [activeState, setActiveState] = useState<'normal' | 'hover'>('normal');
-
-  const update = (updates: Partial<SlideElement>) => {
-    if (!activeElement) return;
-    dispatch({ type: 'UPDATE_ELEMENT', id: activeElement.id, updates });
-  };
-
-  if (!activeElement || (activeElement.type !== 'text' && activeElement.type !== 'shape')) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <p className="text-xs text-muted-foreground">Select a shape or text element to view its states.</p>
-      </div>
-    );
-  }
-
-  if (activeElement.type === 'text') {
-    const te = activeElement as TextElement;
-    return (
-      <div className="p-3 space-y-3">
-        <div className="flex gap-2">
-          <Button variant={activeState === 'normal' ? 'default' : 'outline'} size="sm" className="text-xs h-7 flex-1" onClick={() => setActiveState('normal')}>Normal</Button>
-          <Button variant={activeState === 'hover' ? 'default' : 'outline'} size="sm" className="text-xs h-7 flex-1" onClick={() => setActiveState('hover')}>Hover</Button>
-        </div>
-        {activeState === 'normal' ? (
-          <>
-            <ColorField label="Text Color" value={te.textColor} onChange={(v) => update({ textColor: v } as any)} themeColors={themeColors} />
-            <ColorField label="Background" value={te.backgroundColor} onChange={(v) => update({ backgroundColor: v } as any)} themeColors={themeColors} />
-          </>
-        ) : (
-          <>
-            <ColorField label="Hover Text Color" value={te.hoverTextColor ?? ''} onChange={(v) => update({ hoverTextColor: v } as any)} themeColors={themeColors} />
-            <ColorField label="Hover Background" value={te.hoverBackgroundColor ?? ''} onChange={(v) => update({ hoverBackgroundColor: v } as any)} themeColors={themeColors} />
-            <p className="text-xs text-muted-foreground">Colors applied on hover during preview.</p>
-          </>
-        )}
-      </div>
-    );
-  }
-
-  const se = activeElement as ShapeElement;
-  return (
-    <div className="p-3 space-y-3">
-      <div className="flex gap-2">
-        <Button variant={activeState === 'normal' ? 'default' : 'outline'} size="sm" className="text-xs h-7 flex-1" onClick={() => setActiveState('normal')}>Normal</Button>
-        <Button variant={activeState === 'hover' ? 'default' : 'outline'} size="sm" className="text-xs h-7 flex-1" onClick={() => setActiveState('hover')}>Hover</Button>
-      </div>
-      {activeState === 'normal' ? (
-        <>
-          <ColorField label="Fill Color" value={se.fillColor} onChange={(v) => update({ fillColor: v } as any)} themeColors={themeColors} />
-          <ColorField label="Border Color" value={se.borderColor} onChange={(v) => update({ borderColor: v } as any)} themeColors={themeColors} />
-        </>
-      ) : (
-        <>
-          <ColorField label="Hover Fill Color" value={se.hoverFillColor ?? ''} onChange={(v) => update({ hoverFillColor: v } as any)} themeColors={themeColors} />
-          <ColorField label="Hover Border Color" value={se.hoverBorderColor ?? ''} onChange={(v) => update({ hoverBorderColor: v } as any)} themeColors={themeColors} />
-          <p className="text-xs text-muted-foreground">Colors applied on hover during preview.</p>
-        </>
-      )}
     </div>
   );
 }
@@ -634,7 +564,7 @@ export function TimelinePanel() {
             </div>
           </TabsContent>
 
-          <TabsContent value="states" className="mt-0 h-[calc(180px-36px)] overflow-y-auto">
+          <TabsContent value="states" className="mt-0 h-[calc(180px-36px)] overflow-hidden">
             <StatesPanel />
           </TabsContent>
         </Tabs>

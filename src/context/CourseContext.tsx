@@ -19,6 +19,7 @@ import { applyBrandToCourse } from '@/lib/brand';
 import type { CourseState, Slide, SlideElement, SlideLayer, ViewMode, PlayerSettings, CourseSettings, SlideAudio, QuizConfig, ResultsConfig, SlideKind, CourseVariable, Brand } from '@/types/course';
 import { defaultPlayerSettings, defaultCourseSettings } from '@/types/course';
 import { TTS_AUDIO_NAME } from '@/lib/tts/narration';
+import { hasState, routeStateEdit } from '@/lib/states';
 
 const createBaseLayer = (elements: SlideElement[] = []): SlideLayer => ({
   id: crypto.randomUUID(),
@@ -54,10 +55,17 @@ function duplicateSlide(slide: Slide): Slide {
     for (const e of l.elements) fresh(e.id);
   }
   for (const e of slide.elements) fresh(e.id);
+  const re = (id: string) => idMap.get(id) ?? id;
   const copyEl = (e: SlideElement): SlideElement => ({
     ...structuredClone(e),
     id: fresh(e.id),
-    triggers: (e.triggers ?? []).map((t) => ({ ...t, targetId: idMap.get(t.targetId) ?? t.targetId })),
+    triggers: (e.triggers ?? []).map((t) => ({
+      ...t,
+      targetId: re(t.targetId),
+      ...(t.stateWatch ? { stateWatch: { ...t.stateWatch, ids: t.stateWatch.ids.map(re) } } : {}),
+      ...(t.conditions ? { conditions: t.conditions.map((c) => (c.elementId ? { ...c, elementId: re(c.elementId) } : c)) } : {}),
+    })),
+    ...(e.stateParent ? { stateParent: { ...e.stateParent, id: re(e.stateParent.id) } } : {}),
   } as SlideElement);
   const layers = slide.layers?.map((l) => ({ ...l, id: fresh(l.id), elements: l.elements.map(copyEl) }));
   const copy: Slide = {
@@ -293,7 +301,11 @@ type Action =
   | { type: 'TOGGLE_LAYER_VISIBILITY'; layerId: string }
   | { type: 'TOGGLE_LAYER_LOCK'; layerId: string }
   | { type: 'SET_ACTIVE_LAYER'; layerId: string }
-  | { type: 'REORDER_LAYERS'; layerId: string; direction: 'up' | 'down' };
+  | { type: 'REORDER_LAYERS'; layerId: string; direction: 'up' | 'down' }
+  /** Start editing one of an element's states on the canvas (null = Done). */
+  | { type: 'SET_EDITING_STATE'; editing: { elementId: string; state: string } | null }
+  /** Rename a state, updating triggers and conditions on the slide that use it. */
+  | { type: 'RENAME_STATE'; elementId: string; from: string; to: string };
 
 function getActiveSlides(state: CourseState): Slide[] {
   return state.viewMode === 'master' ? state.masterSlides : state.slides;
@@ -322,13 +334,22 @@ function withUpdatedActiveSlide(
   return updateActiveSlides(state, next);
 }
 
+/** Leaves state editing when its element is no longer selected (or gone, or Preview starts). */
+function endStaleStateEdit(s: CourseState): CourseState {
+  const es = s.editingState;
+  if (!es) return s;
+  const el = getActiveSlides(s)[s.activeSlideIndex]?.elements.find((e) => e.id === es.elementId);
+  const ok = !s.previewMode && s.activeElementId === es.elementId && !!el && hasState(el, es.state);
+  return ok ? s : { ...s, editingState: null };
+}
+
 /**
  * The reducer. After every change to the slide list, reconcileBranching()
  * keeps branching slides' auto-generated buttons in step with their
  * connections (lib/navigation.ts).
  */
 export function courseReducer(state: CourseState, action: Action): CourseState {
-  const next = baseReducer(state, action);
+  const next = endStaleStateEdit(baseReducer(state, action));
   // A loaded course replaces everything: don't compare it with the old one
   // (same slide ids would look like the author deleted branch buttons).
   const before = action.type === 'LOAD_COURSE' ? [] : state?.slides ?? [];
@@ -398,16 +419,58 @@ function baseReducer(state: CourseState, action: Action): CourseState {
       return { ...state, ...updated, activeElementId: action.element.id, selectedElementIds: [action.element.id], activeAudioId: null };
     }
     case 'UPDATE_ELEMENT': {
+      // While a state is being edited, look changes (colours, text…) go into that state.
+      const es = state.editingState;
+      const intoState = es && es.elementId === action.id && es.state !== 'Normal' ? es.state : null;
+      // Objects inside the element's states move with it.
+      const target = getActiveSlides(state)[state.activeSlideIndex]?.elements.find((e) => e.id === action.id);
+      const dx = target && typeof action.updates.x === 'number' ? action.updates.x - target.x : 0;
+      const dy = target && typeof action.updates.y === 'number' ? action.updates.y - target.y : 0;
       const updated = withUpdatedActiveSlide(state, (slide) =>
         mapElementsInSlide(slide, (el) =>
-          el.id === action.id ? ({ ...el, ...action.updates } as SlideElement) : el
+          el.id === action.id
+            ? (intoState ? routeStateEdit(el, intoState, action.updates) : ({ ...el, ...action.updates } as SlideElement))
+            : (dx || dy) && el.stateParent?.id === action.id ? ({ ...el, x: el.x + dx, y: el.y + dy } as SlideElement)
+            : el
         )
       );
       return { ...state, ...updated };
     }
-    case 'DELETE_ELEMENT': {
+    case 'SET_EDITING_STATE':
+      return { ...state, editingState: action.editing };
+    case 'RENAME_STATE': {
+      const { elementId, from, to } = action;
+      if (!to || from === to || from === 'Normal') return state;
+      const fixTrigger = (t: SlideElement['triggers'][number]) => ({
+        ...t,
+        ...(t.action === 'changeState' && t.targetId === elementId && t.state === from ? { state: to } : {}),
+        ...(t.stateWatch && t.stateWatch.state === from && t.stateWatch.ids.includes(elementId) ? { stateWatch: { ...t.stateWatch, state: to } } : {}),
+        ...(t.conditions ? { conditions: t.conditions.map((c) => (c.elementId === elementId && c.state === from ? { ...c, state: to } : c)) } : {}),
+      });
       const updated = withUpdatedActiveSlide(state, (slide) =>
-        filterElementsInSlide(slide, (el) => el.id !== action.id)
+        mapElementsInSlide(slide, (el) => {
+          const triggers = el.triggers.map(fixTrigger);
+          if (el.id !== elementId) {
+            const sp = el.stateParent?.id === elementId
+              ? { stateParent: { ...el.stateParent, states: el.stateParent.states.map((n) => (n === from ? to : n)) } } : {};
+            return { ...el, triggers, ...sp } as SlideElement;
+          }
+          return {
+            ...el,
+            triggers,
+            states: (el.states ?? []).map((st) => (st.name === from ? { ...st, name: to } : st)),
+            ...(el.initialState === from ? { initialState: to } : {}),
+          } as SlideElement;
+        })
+      );
+      const editingState = state.editingState?.elementId === elementId && state.editingState.state === from
+        ? { elementId, state: to } : state.editingState;
+      return { ...state, ...updated, editingState };
+    }
+    case 'DELETE_ELEMENT': {
+      // Objects inside the element's states go with it.
+      const updated = withUpdatedActiveSlide(state, (slide) =>
+        filterElementsInSlide(slide, (el) => el.id !== action.id && el.stateParent?.id !== action.id)
       );
       const nextSelected = state.selectedElementIds.filter((id) => id !== action.id);
       return {

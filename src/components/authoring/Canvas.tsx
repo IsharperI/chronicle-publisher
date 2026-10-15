@@ -23,7 +23,7 @@ import { PlaceholderBox } from './PlaceholderBox';
 import { imageFromPlaceholder, readImageFile } from '@/lib/imagePlaceholders';
 import { toast } from 'sonner';
 import { useCourse } from '@/context/CourseContext';
-import type { SlideElement, TextElement, ShapeElement, ImageElement, AnimationIn, AnimationOut, TableElement, Slide, QuizConfig, QuizChoice, QuizMatchPair, QuizSortItem } from '@/types/course';
+import type { Trigger, SlideElement, TextElement, ShapeElement, ImageElement, AnimationIn, AnimationOut, TableElement, Slide, QuizConfig, QuizChoice, QuizMatchPair, QuizSortItem } from '@/types/course';
 import { isExtendedShapeType, resolveShapeSvg } from '@/lib/shapes';
 import { resolveQuizStyle, type ResolvedQuizStyle } from '@/lib/quizTemplates';
 import { themeVarStyle } from '@/lib/themeVars';
@@ -31,6 +31,7 @@ import { fontStyle, HEADING_FONT } from '@/lib/brand';
 import { MotionPathLayer } from './MotionPathLayer';
 import { motionPathOffset } from '@/lib/motionPath';
 import { ANIMATION_CSS, entranceClass, exitClass } from '@/lib/animations';
+import { childShown, clickState, hasState, initialStateOf, NORMAL, reactsToClick, shownState, watchHolds, withState } from '@/lib/states';
 
 function getAnimInClass(anim: AnimationIn): string {
   switch (anim) {
@@ -113,27 +114,17 @@ function BranchTick({ target }: { target?: string }) {
 }
 
 function ElementRenderer({ element, isPreview }: { element: SlideElement; isPreview?: boolean }) {
-  const [hovered, setHovered] = useState(false);
   const { dispatch } = useCourse();
-
-  const hoverProps = isPreview ? {
-    onMouseEnter: () => setHovered(true),
-    onMouseLeave: () => setHovered(false),
-  } : {};
 
   if (element.type === 'text') {
     const te = element as TextElement;
-    const bg = hovered && te.hoverBackgroundColor ? te.hoverBackgroundColor : te.backgroundColor;
-    const color = hovered && te.hoverTextColor ? te.hoverTextColor : te.textColor;
     return (
       <div
-        {...hoverProps}
         style={{
           width: '100%', height: '100%', fontSize: te.fontSize, fontWeight: te.fontWeight,
           fontFamily: te.fontRole === 'heading' ? HEADING_FONT : undefined,
-          color, backgroundColor: bg, padding: 8, overflow: 'hidden', wordBreak: 'break-word', whiteSpace: 'pre-wrap',
+          color: te.textColor, backgroundColor: te.backgroundColor, padding: 8, overflow: 'hidden', wordBreak: 'break-word', whiteSpace: 'pre-wrap',
           transition: isPreview ? 'color 0.2s, background-color 0.2s' : undefined,
-          cursor: isPreview && (te.hoverBackgroundColor || te.hoverTextColor) ? 'pointer' : undefined,
         }}
       >
         <TextLines content={te.content} />
@@ -164,20 +155,18 @@ function ElementRenderer({ element, isPreview }: { element: SlideElement; isPrev
   }
   if (element.type === 'shape') {
     const se = element as ShapeElement;
-    const fill = hovered && se.hoverFillColor ? se.hoverFillColor : se.fillColor;
-    const border = hovered && se.hoverBorderColor ? se.hoverBorderColor : se.borderColor;
+    const fill = se.fillColor;
+    const border = se.borderColor;
 
     if (se.shapeType === 'circle') {
       return (
         <div
-          {...hoverProps}
           style={{
             position: 'relative',
             width: '100%', height: '100%', borderRadius: '50%', backgroundColor: fill,
             border: `${se.borderWidth}px solid ${border}`,
             boxShadow: se.boxShadow,
             transition: isPreview ? 'background-color 0.2s, border-color 0.2s' : undefined,
-            cursor: isPreview && (se.hoverFillColor || se.hoverBorderColor) ? 'pointer' : undefined,
           }}
         >
           <ShapeText se={se} isPreview={isPreview} />
@@ -187,7 +176,7 @@ function ElementRenderer({ element, isPreview }: { element: SlideElement; isPrev
     }
     if (se.shapeType === 'triangle') {
       return (
-        <div {...hoverProps} style={{ position: 'relative', width: '100%', height: '100%' }}>
+        <div style={{ position: 'relative', width: '100%', height: '100%' }}>
           <svg viewBox="0 0 100 100" preserveAspectRatio="none" style={{ width: '100%', height: '100%', display: 'block', overflow: 'visible' }}>
             <polygon
               points="50,0 100,100 0,100"
@@ -207,7 +196,7 @@ function ElementRenderer({ element, isPreview }: { element: SlideElement; isPrev
     if (isExtendedShapeType(se.shapeType)) {
       const svgInner = resolveShapeSvg(se.shapeType, fill, border, se.borderWidth);
       return (
-        <div {...hoverProps} style={{ position: 'relative', width: '100%', height: '100%' }}>
+        <div style={{ position: 'relative', width: '100%', height: '100%' }}>
           <svg
             viewBox="0 0 100 100"
             preserveAspectRatio="none"
@@ -221,7 +210,6 @@ function ElementRenderer({ element, isPreview }: { element: SlideElement; isPrev
     }
     return (
       <div
-        {...hoverProps}
         style={{
           position: 'relative',
           width: '100%', height: '100%', backgroundColor: fill,
@@ -229,7 +217,6 @@ function ElementRenderer({ element, isPreview }: { element: SlideElement; isPrev
           borderRadius: se.borderRadius != null ? se.borderRadius : 4,
           boxShadow: se.boxShadow,
           transition: isPreview ? 'background-color 0.2s, border-color 0.2s' : undefined,
-          cursor: isPreview && (se.hoverFillColor || se.hoverBorderColor) ? 'pointer' : undefined,
         }}
       >
         <ShapeText se={se} isPreview={isPreview} />
@@ -409,13 +396,54 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
 
   const isPreview = state.previewMode;
 
-  // Shared trigger-action runner used by all event sources (timeline, click, hover, media).
-  const runTriggerAction = useCallback((t: { action: string; targetId: string; conditions?: any[] }) => {
+  // ===== Object states during Preview (lib/states.ts) =====
+  // Each element's current state (runtime only), the element under the pointer,
+  // and which "when state changes" triggers currently hold (they fire when that becomes true).
+  const elStatesRef = useRef<Record<string, string>>({});
+  const [elStates, setElStates] = useState<Record<string, string>>({});
+  const [pointer, setPointer] = useState<{ id: string | null; down: boolean }>({ id: null, down: false });
+  const watchHeldRef = useRef<Map<string, boolean>>(new Map());
+  const slideElsRef = useRef<SlideElement[]>([]);
+  const runActionRef = useRef<(t: Trigger, depth?: number) => void>(() => {});
+  // Non-base layers shown right now (their "when timeline starts" triggers ran when they were shown).
+  const layerShownRef = useRef<Set<string>>(new Set());
+  const watchersHolding = useCallback((states: Record<string, string>) => {
+    const held: { key: string; t: Trigger; holds: boolean }[] = [];
+    for (const el of slideElsRef.current) {
+      (el.triggers ?? []).forEach((t, i) => {
+        if (t.event !== 'stateChange' || !t.stateWatch) return;
+        const w = t.stateWatch.ids.length ? t.stateWatch : { ...t.stateWatch, ids: [el.id] };
+        held.push({ key: `${el.id}:${i}`, t, holds: watchHolds(w, states) });
+      });
+    }
+    return held;
+  }, []);
+  const applyStates = useCallback((changes: Record<string, string>, depth = 0) => {
+    const ids = Object.keys(changes).filter((id) => (elStatesRef.current[id] ?? NORMAL) !== changes[id]);
+    if (!ids.length) return;
+    const next = { ...elStatesRef.current };
+    for (const id of ids) next[id] = changes[id];
+    elStatesRef.current = next;
+    setElStates(next);
+    if (depth > 10) return; // triggers changing each other's states in a loop
+    for (const w of watchersHolding(next)) {
+      const was = watchHeldRef.current.get(w.key) ?? false;
+      watchHeldRef.current.set(w.key, w.holds);
+      if (w.holds && !was) runActionRef.current(w.t, depth + 1);
+    }
+  }, [watchersHolding]);
+
+  // Shared trigger-action runner used by all event sources (timeline, click, hover, media, state changes).
+  const runTriggerAction = useCallback((t: { action: string; targetId: string; conditions?: any[]; state?: string }, depth = 0) => {
     // Evaluate conditions (AND). If any fail, skip firing.
     const conds = (t as any).conditions;
     if (Array.isArray(conds) && conds.length) {
       const pass = conds.every((c: any) => {
         if (!c || typeof c !== 'object') return true;
+        if (c.elementId) {
+          const cur = elStatesRef.current[c.elementId] ?? NORMAL;
+          return c.operator === 'notEquals' ? cur !== c.state : cur === c.state;
+        }
         const def = state.variables.find((v) => v.id === c.variableId);
         if (!def) return false;
         const cur = state.variableValues[c.variableId];
@@ -456,9 +484,15 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
         dispatch({ type: 'SET_ACTIVE_SLIDE', index: idx });
       }
     } else if (t.action === 'hideElement') {
-      dispatch({ type: 'UPDATE_ELEMENT', id: t.targetId, updates: { isHidden: true } as any });
+      applyStates({ [t.targetId]: 'Hidden' }, depth);
     } else if (t.action === 'showElement') {
-      dispatch({ type: 'UPDATE_ELEMENT', id: t.targetId, updates: { isHidden: false } as any });
+      if ((elStatesRef.current[t.targetId] ?? NORMAL) === 'Hidden') {
+        const el = slideElsRef.current.find((e) => e.id === t.targetId);
+        const start = el ? initialStateOf(el) : NORMAL;
+        applyStates({ [t.targetId]: start === 'Hidden' ? NORMAL : start }, depth);
+      }
+    } else if (t.action === 'changeState') {
+      if (t.state) applyStates({ [t.targetId]: t.state }, depth);
     } else if (t.action === 'playMedia' || t.action === 'pauseMedia' || t.action === 'stopMedia') {
       const mid = t.targetId || '';
       const colon = mid.indexOf(':');
@@ -555,10 +589,18 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
     } else if (t.action === 'showLayer') {
       layerShownAtRef.current.set(t.targetId, playheadRef.current);
       setLayerRuntimeVis((m) => ({ ...m, [t.targetId]: true }));
+      // A layer's "when timeline starts" triggers run each time it's shown.
+      const layer = state.slides[state.activeSlideIndex]?.layers?.find((l) => l.id === t.targetId);
+      if (layer && !layerShownRef.current.has(layer.id)) {
+        layerShownRef.current.add(layer.id);
+        for (const el of layer.elements) for (const tr of el.triggers ?? []) if (tr.event === 'timelineStart') runActionRef.current(tr, depth);
+      }
     } else if (t.action === 'hideLayer') {
       setLayerRuntimeVis((m) => ({ ...m, [t.targetId]: false }));
+      layerShownRef.current.delete(t.targetId);
     }
-  }, [state.slides, state.activeSlideIndex, state.variables, state.variableValues, dispatch]);
+  }, [state.slides, state.activeSlideIndex, state.variables, state.variableValues, dispatch, applyStates]);
+  runActionRef.current = runTriggerAction;
 
   const isMasterMode = state.viewMode === 'master';
 
@@ -573,6 +615,28 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
     const master = state.masterSlides.find(m => m.id === activeSlide.masterId);
     return master?.elements ?? [];
   })();
+
+  // Every element starts each slide in its initial state (or where it was left, for "resume" slides).
+  slideElsRef.current = activeSlide?.elements ?? [];
+  const savedStatesRef = useRef<Map<string, Record<string, string>>>(new Map());
+  const stateSlideId = activeSlide?.id;
+  useEffect(() => {
+    const slide = activeSlide;
+    if (!slide) return;
+    const init: Record<string, string> = {};
+    for (const el of [...masterElements, ...slide.elements]) init[el.id] = initialStateOf(el);
+    const savedMap = savedStatesRef.current;
+    const saved = isPreview && slide.revisitMode === 'resume' ? savedMap.get(slide.id) : undefined;
+    const start = saved ? { ...init, ...saved } : init;
+    elStatesRef.current = start;
+    setElStates(start);
+    setPointer({ id: null, down: false });
+    watchHeldRef.current = new Map(watchersHolding(start).map((w) => [w.key, w.holds]));
+    return () => { if (isPreview) savedMap.set(slide.id, elStatesRef.current); };
+    // Only when the slide or mode changes, not on every edit.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stateSlideId, isPreview]);
+  useEffect(() => { if (!isPreview) savedStatesRef.current.clear(); }, [isPreview]);
 
   const { width: CANVAS_W, height: CANVAS_H } = state.courseSettings.canvasDimensions;
 
@@ -642,6 +706,10 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
     // Track which timeline triggers have already fired this play-through.
     const fired = new Set<string>();
     const runAction = runTriggerAction;
+    // Objects on hidden (non-base) layers: their "when timeline starts" triggers wait for the layer to be shown.
+    const layersAtStart = activeSlide.layers ?? [];
+    layerShownRef.current = new Set(layersAtStart.slice(1).filter((l) => l.visible).map((l) => l.id));
+    const waitsForLayer = new Set(layersAtStart.slice(1).filter((l) => !l.visible).flatMap((l) => l.elements.map((e) => e.id)));
     const fireTimelineTriggers = (prev: number, curr: number, isStart: boolean, isEnd: boolean) => {
       const els = activeSlide.elements || [];
       for (const el of els) {
@@ -651,6 +719,7 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
           const key = el.id + ':' + i;
           if (fired.has(key)) continue;
           if (t.event === 'timelineStart' && isStart) {
+            if (waitsForLayer.has(el.id)) continue;
             fired.add(key); runAction(t);
           } else if (t.event === 'timelineEnd' && isEnd) {
             fired.add(key); runAction(t);
@@ -859,13 +928,35 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
     return '';
   }, [ccEnabled, state.playheadTime, playingTracks]);
 
+  // The state each element is drawn in right now (objects inside states follow their parent's).
+  const drawnState = new Map<string, string>();
+  for (const el of [...masterElements, ...editElements]) {
+    if (isPreview) {
+      const cur = elStates[el.id] ?? initialStateOf(el);
+      drawnState.set(el.id, shownState(el, cur, { hover: pointer.id === el.id, down: pointer.id === el.id && pointer.down }));
+    } else {
+      drawnState.set(el.id, state.editingState?.elementId === el.id ? state.editingState.state : NORMAL);
+    }
+  }
+  const hiddenInParent = (el: SlideElement) => !!el.stateParent && !childShown(el, drawnState.get(el.stateParent.id));
+
   return (
     <div
       ref={containerRef}
-      className="flex-1 flex flex-col items-center justify-center overflow-hidden min-w-0 bg-gradient-to-br from-slate-200 to-slate-300"
+      className="relative flex-1 flex flex-col items-center justify-center overflow-hidden min-w-0 bg-gradient-to-br from-slate-200 to-slate-300"
       style={{ ...themeVarStyle(state.courseSettings.themeColors), ...fontStyle(state.courseSettings) }}
     >
       <style>{ANIMATION_CSS}</style>
+      {!isPreview && state.editingState && (
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 z-30 flex items-center gap-3 rounded-full border border-amber-300 bg-amber-50 px-4 py-1.5 text-xs text-amber-900 shadow">
+          <span>Editing the <b>{state.editingState.state}</b> state. Change it with the usual controls.</span>
+          <button
+            type="button"
+            className="rounded-full bg-amber-600 px-3 py-0.5 font-semibold text-white hover:bg-amber-700"
+            onClick={() => dispatch({ type: 'SET_EDITING_STATE', editing: null })}
+          >Done</button>
+        </div>
+      )}
       <input ref={placeholderInput} type="file" accept="image/*" hidden aria-label="Image for placeholder"
         onChange={(e) => { void fillPlaceholder(e.target.files?.[0]); e.target.value = ''; }} />
       <div
@@ -884,7 +975,10 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
         onClick={handleCanvasClick}
       >
         {/* Master slide background layer (locked, non-interactive) */}
-        {masterElements.map((el) => {
+        {masterElements.map((master) => {
+          const masterState = isPreview ? (elStates[master.id] ?? initialStateOf(master)) : NORMAL;
+          if (masterState === 'Hidden' || hiddenInParent(master)) return null;
+          const el = withState(master, masterState);
           const visible = isElementVisible(el, state.playheadTime, activeSlide?.duration);
           if (!visible && !isPreview) return (
             <div
@@ -915,6 +1009,8 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
           ? editElements.map((el) => {
               const phase = getAnimationPhase(el, state.playheadTime, activeSlide?.duration);
               if (phase === 'before' || phase === 'after') return null;
+              const cur = elStates[el.id] ?? initialStateOf(el);
+              if (cur === 'Hidden' || hiddenInParent(el)) return null;
               const animClass = phase === 'entering' ? getAnimInClass(el.animationIn)
                 : phase === 'exiting' ? getAnimOutClass(el.animationOut) : '';
               const animDurMs = phase === 'entering' ? (el.entranceDuration ?? 500)
@@ -922,26 +1018,41 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
               const clickTriggers = (el.triggers ?? []).filter(
                 (t) => (t.event === 'onClick' || t.event === 'click')
               );
-              const hasClickTrigger = clickTriggers.length > 0;
-              const handleTriggerClick = hasClickTrigger ? (e: React.MouseEvent) => {
+              const disabled = cur === 'Disabled';
+              const clickable = !disabled && (clickTriggers.length > 0 || reactsToClick(el));
+              const pointed = !disabled && (clickable || hasState(el, 'Hover') || hasState(el, 'Down'));
+              const handleTriggerClick = clickable ? (e: React.MouseEvent) => {
                 e.stopPropagation();
+                // Built-in Selected/Visited changes first, so the click's own triggers see them.
+                applyStates(clickState(el, elStatesRef.current, slideElsRef.current));
                 for (const t of clickTriggers) runTriggerAction(t);
-              } : undefined;
+              } : disabled ? (e: React.MouseEvent) => e.stopPropagation() : undefined;
+              const pointerHandlers = pointed ? {
+                onMouseEnter: () => setPointer({ id: el.id, down: false }),
+                onMouseLeave: () => setPointer((p) => (p.id === el.id ? { id: null, down: false } : p)),
+                onMouseDown: () => setPointer({ id: el.id, down: true }),
+                onMouseUp: () => setPointer({ id: el.id, down: false }),
+              } : {};
+              const shown = drawnState.get(el.id) ?? cur;
               const mpOffset = motionPathOffset(el, state.playheadTime);
               const baseTransform = mpOffset ? `translate(${mpOffset.dx}px, ${mpOffset.dy}px)` : undefined;
               return (
                 <div
                   key={el.id}
                   data-el-id={el.id}
-                  className={`${animClass}${hasClickTrigger ? ' cursor-pointer' : ''}`}
+                  data-state={cur}
+                  className={`${animClass}${clickable ? ' cursor-pointer' : ''}`}
                   style={{
                     position: 'absolute', left: el.x, top: el.y, width: el.width, height: el.height, zIndex: 2,
+                    // Objects inside another object's states let the pointer through to it (hover, clicks).
+                    ...(el.stateParent ? { pointerEvents: 'none' as const } : {}),
                     ...(baseTransform ? { transform: baseTransform } : {}),
                     ...(animClass ? { animationDuration: `${animDurMs}ms` } : {}),
                   }}
                   onClick={handleTriggerClick}
+                  {...pointerHandlers}
                 >
-                  <ElementRenderer element={el} isPreview />
+                  <ElementRenderer element={withState(el, shown)} isPreview />
                 </div>
               );
             })
@@ -952,8 +1063,12 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
               const layerLocked = !!meta?.layerLocked;
               const onActiveLayer = !meta || meta.layerId === activeLayerId;
               const locked = !!el.isLocked || layerLocked || !onActiveLayer;
-              const hidden = !!el.isHidden;
+              const hidden = !!el.isHidden || hiddenInParent(el);
               if (hidden) return null;
+              // Editing a state (States tab): that element shows the state; the rest fade back.
+              const es = state.editingState;
+              const shownEl = es && es.elementId === el.id ? withState(el, es.state) : el;
+              const dimmed = !!es && es.elementId !== el.id && el.stateParent?.id !== es.elementId;
               // Elements outside the active layer (or on a locked layer)
               // render as non-interactive overlays — visible but un-selectable.
               if (!onActiveLayer || layerLocked) {
@@ -1035,12 +1150,12 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
                         ? '2px dashed hsl(var(--primary))'
                         : 'none',
                     zIndex: state.activeElementId === el.id ? 10 : 2,
-                    opacity: visible ? 1 : 0.3,
+                    opacity: dimmed ? 0.35 : visible ? 1 : 0.3,
                     pointerEvents: locked ? 'none' : undefined,
                     transform: mpTransform,
                   }}
                 >
-                  <ElementRenderer element={el} />
+                  <ElementRenderer element={shownEl} />
                   {isEditing && (
                     <div
                       contentEditable
@@ -1071,15 +1186,15 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
                         position: 'absolute', inset: 0, zIndex: 20,
                         display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center',
                         overflow: 'hidden', padding: 4,
-                        color: (el as ShapeElement).textColor ?? '#000000',
-                        fontSize: (el as ShapeElement).fontSize ?? 16,
+                        color: (shownEl as ShapeElement).textColor ?? '#000000',
+                        fontSize: (shownEl as ShapeElement).fontSize ?? 16,
                         outline: '2px dashed hsl(var(--primary))',
                         background: 'transparent',
                         cursor: 'text',
                         wordBreak: 'break-word',
                       }}
                     >
-                      {(el as ShapeElement).text ?? ''}
+                      {(shownEl as ShapeElement).text ?? ''}
                     </div>
                   )}
                 </Rnd>
@@ -1170,13 +1285,13 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
                   aria-label="Close lightbox"
                 >×</button>
                 <div style={{ position: 'absolute', inset: 0, transform: 'scale(0.8)', transformOrigin: 'top left', width: CANVAS_W, height: CANVAS_H }}>
-                  {(lbSlide.elements ?? []).map((el) => (
+                  {(lbSlide.elements ?? []).filter((el) => initialStateOf(el) !== 'Hidden').map((el) => (
                     <div
                       key={el.id}
                       data-el-id={el.id}
                       style={{ position: 'absolute', left: el.x, top: el.y, width: el.width, height: el.height }}
                     >
-                      <ElementRenderer element={el} isPreview />
+                      <ElementRenderer element={withState(el, initialStateOf(el))} isPreview />
                     </div>
                   ))}
                 </div>

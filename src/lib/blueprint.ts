@@ -185,6 +185,8 @@ export function blueprintToCourse(bp: CourseBlueprint, canvas: CanvasDimensions 
     ...base(x, y, w, h), type: 'text', content, fontSize, fontWeight, textColor, backgroundColor: 'transparent', ...extra,
   });
   const heading = { fontRole: 'heading' } as const;
+  /** A Hover state that changes the fill colour. */
+  const hover = (fillColor: string) => [{ name: 'Hover', look: { fillColor } }];
   const shape = (x: number, y: number, w: number, h: number, fillColor: string, extra: Partial<ShapeElement> = {}, shapeType: ShapeType = 'rectangle'): ShapeElement => ({
     ...base(x, y, w, h), type: 'shape', shapeType, fillColor, borderColor: fillColor, borderWidth: 0, ...extra,
   });
@@ -282,7 +284,7 @@ export function blueprintToCourse(bp: CourseBlueprint, canvas: CanvasDimensions 
             const x = areaX + (areaW - rowW) / 2 + c * (bw + gap);
             return shape(x, areaY + r * (bh + gap), bw, bh, PRIMARY, {
               text: it.label, textColor: LIGHT, fontSize: it.label.length > 24 ? 18 : 22,
-              hoverFillColor: SECONDARY, borderRadius: 12, triggers: onClick('showLayer', layerIds[i]),
+              states: hover(SECONDARY), borderRadius: 12, triggers: onClick('showLayer', layerIds[i]),
             });
           }),
         ];
@@ -297,7 +299,7 @@ export function blueprintToCourse(bp: CourseBlueprint, canvas: CanvasDimensions 
             shape(112, 84, 800, 12, PRIMARY),
             text(152, 116, 660, 70, itemHeading, 30, PRIMARY, '700', heading),
             shape(848, 112, 44, 44, PRIMARY, {
-              text: '✕', textColor: LIGHT, fontSize: 20, hoverFillColor: SECONDARY, triggers: close,
+              text: '✕', textColor: LIGHT, fontSize: 20, states: hover(SECONDARY), triggers: close,
             }, 'circle'),
           ];
           if (it.imageDescription) {
@@ -367,7 +369,7 @@ export function blueprintToCourse(bp: CourseBlueprint, canvas: CanvasDimensions 
       const rowW = inRow * bw + (inRow - 1) * gap;
       const x = areaX + (areaW - rowW) / 2 + c * (bw + gap);
       return shape(x, areaY + r * (bh + gap), bw, bh, PRIMARY, {
-        text: b.label, textColor: LIGHT, fontSize: b.label.length > 24 ? 18 : 22, hoverFillColor: SECONDARY, borderRadius: 12,
+        text: b.label, textColor: LIGHT, fontSize: b.label.length > 24 ? 18 : 22, states: hover(SECONDARY), borderRadius: 12,
         triggers: [{ event: 'onClick', action: 'jumpToSlide', targetId: targets[i] }],
         autoBranchTarget: targets[i],
       });

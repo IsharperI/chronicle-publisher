@@ -114,6 +114,7 @@ body{background-color:${ps.backgroundColor};${ps.backgroundImage ? `background-i
 #cc-overlay{position:absolute;left:5%;right:5%;bottom:6%;text-align:center;pointer-events:none;z-index:50;font-family:${ps.fontFamily}}
 #cc-overlay span{display:inline-block;background:rgba(0,0,0,0.75);color:#fff;padding:8px 16px;border-radius:6px;font-size:clamp(12px,2.4vw,28px);line-height:1.3;max-width:90%;white-space:pre-wrap}
 .el{position:absolute;transition:all .2s ease}
+.st-hidden,.st-off{display:none!important}
 .branch-tick{position:absolute;top:-10px;right:-10px;width:26px;height:26px;border-radius:50%;background:#16a34a;color:#fff;font:700 16px/26px system-ui,sans-serif;text-align:center;box-shadow:0 2px 6px rgba(0,0,0,.3);pointer-events:none;z-index:2}
 @keyframes anim-fade-in{from{opacity:0}to{opacity:1}}
 @keyframes anim-fade-out{from{opacity:1}to{opacity:0}}
@@ -346,23 +347,116 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
 
   /* Builds the DOM for one element. One of three renderers that must stay in
      sync (also Canvas.tsx ElementRenderer and SlidePanel.tsx ThumbElement). */
-  function renderElement(el){
-    var d=document.createElement("div");
-    d.className="el";
-    d.style.left=el.x+"px";d.style.top=el.y+"px";
-    d.style.width=el.width+"px";d.style.height=el.height+"px";
-    if(el.id){d.setAttribute("data-el-id",el.id);}
-    if(el.autoBranchTarget){d.setAttribute("data-branch-target",el.autoBranchTarget);}
-    if(el.motionPath){
-      d.setAttribute("data-motion-path","1");
-      d.setAttribute("data-mp-start",el.startTime||0);
-      d.setAttribute("data-mp-dur",el.duration||1);
+  /* ===== Object states (same rules as lib/states.ts) =====
+     Each element's current state; Hover/Down are shown while the pointer is
+     on it, Selected/Visited change on click, Disabled ignores clicks, Hidden
+     isn't shown. "When state changes" triggers fire when their test becomes true. */
+  var elStates={};var elById={};var stateWatchers=[];var savedStates={};var statesSlideId=null;
+  function findLook(el,name){
+    if(!name||name==="Normal"||!el.states)return null;
+    for(var i=0;i<el.states.length;i++)if(el.states[i].name===name)return el.states[i].look||{};
+    return null;
+  }
+  function hasStateOf(el,name){return name==="Normal"||findLook(el,name)!==null}
+  function initialStateOf(el){return el.initialState&&hasStateOf(el,el.initialState)?el.initialState:"Normal"}
+  function mergedLook(el,name){
+    var lk=findLook(el,name);if(!lk)return el;
+    var o={},k;for(k in el)o[k]=el[k];for(k in lk)o[k]=lk[k];return o;
+  }
+  function shownStateOf(el,cur,hover,down){
+    if(cur==="Hidden"||cur==="Disabled")return cur;
+    var tr=down?"Down":hover?"Hover":null;if(!tr)return cur;
+    if(cur!=="Normal"&&hasStateOf(el,tr+" "+cur))return tr+" "+cur;
+    if(cur==="Normal"||cur==="Visited"){
+      if(hasStateOf(el,tr))return tr;
+      if(tr==="Down"&&hasStateOf(el,"Hover"))return "Hover";
     }
-    if(el.animationOut&&el.animationOut!=="none"){
-      d.setAttribute("data-anim-out",el.animationOut);
-      d.setAttribute("data-exit-dur",String(el.exitDuration!=null?el.exitDuration:500));
+    return cur;
+  }
+  function stateNode(id){return stage.querySelector('[data-el-id="'+id+'"]')}
+  function paintState(n){
+    var el=n._el;if(!el)return;
+    var cur=elStates[el.id]||initialStateOf(el);
+    n.setAttribute("data-state",cur);
+    if(cur==="Hidden")n.classList.add("st-hidden");else n.classList.remove("st-hidden");
+    var shown=shownStateOf(el,cur,n._hover,n._down);
+    /* Objects inside this one's states show only while it's drawn in one of them. */
+    var kidsN=stage.querySelectorAll('[data-state-parent="'+el.id+'"]');
+    for(var ki=0;ki<kidsN.length;ki++){
+      var kEl=kidsN[ki]._el,on=cur!=="Hidden"&&kEl&&kEl.stateParent.states.indexOf(shown)>=0;
+      if(on)kidsN[ki].classList.remove("st-off");else kidsN[ki].classList.add("st-off");
     }
+    if(n._shown===shown)return;
+    var before=findLook(el,n._shown),after=findLook(el,shown);
+    n._shown=shown;
+    /* Only repaint when the look changes (repainting a video would restart it). */
+    if((before||after)&&(el.type==="text"||el.type==="shape"||el.type==="image"))paintElement(n,mergedLook(el,shown));
+  }
+  function bindStatePointer(d,el){
+    if(hasStateOf(el,"Hover")||hasStateOf(el,"Down")||hasStateOf(el,"Selected")||hasStateOf(el,"Visited"))d.style.cursor="pointer";
+    d.addEventListener("mouseenter",function(){d._hover=true;paintState(d)});
+    d.addEventListener("mouseleave",function(){d._hover=false;d._down=false;paintState(d)});
+    d.addEventListener("mousedown",function(){d._down=true;paintState(d)});
+    d.addEventListener("mouseup",function(){d._down=false;paintState(d)});
+  }
+  function watchHolds(w){
+    if(!w.ids||!w.ids.length)return false;
+    var any=false,all=true;
+    for(var i=0;i<w.ids.length;i++){var ok=((elStates[w.ids[i]]||"Normal")===w.state)!==!!w.not;if(ok)any=true;else all=false}
+    return w.any?any:all;
+  }
+  function setStates(ch,depth){
+    depth=depth||0;var changed=false;
+    for(var id in ch){
+      if((elStates[id]||"Normal")===ch[id])continue;
+      elStates[id]=ch[id];changed=true;
+      var n=stateNode(id);if(n)paintState(n);
+    }
+    if(!changed||depth>10)return;
+    for(var i=0;i<stateWatchers.length;i++){
+      var sw=stateWatchers[i],h=watchHolds(sw.watch),was=sw.held;sw.held=h;
+      if(h&&!was)runTriggerAction(sw.t,depth+1);
+    }
+  }
+  /* Built-in Selected/Visited changes when an element is clicked. */
+  function clickStates(el){
+    var now=elStates[el.id]||"Normal",out={};
+    if(now==="Disabled"||now==="Hidden")return out;
+    if(hasStateOf(el,"Selected")){
+      if(now==="Selected"){if(!el.buttonSet)out[el.id]=hasStateOf(el,"Visited")?"Visited":"Normal"}
+      else{
+        out[el.id]="Selected";
+        if(el.buttonSet){for(var id in elById){var o=elById[id];if(o.id!==el.id&&o.buttonSet===el.buttonSet&&elStates[o.id]==="Selected")out[o.id]="Normal"}}
+      }
+    } else if(hasStateOf(el,"Visited")&&now==="Normal")out[el.id]="Visited";
+    return out;
+  }
+  /* Every element on the slide starts in its initial state (or where it was left, on "resume" slides). */
+  function initStates(slide,els){
+    if(statesSlideId)savedStates[statesSlideId]=elStates;
+    statesSlideId=slide.id;
+    elStates={};elById={};
+    for(var i=0;i<els.length;i++){var e=els[i];if(!e||!e.id)continue;elById[e.id]=e;elStates[e.id]=initialStateOf(e)}
+    var sv=slide.revisitMode==="resume"?savedStates[slide.id]:null;
+    if(sv){for(var k in sv)if(k in elStates)elStates[k]=sv[k]}
+    var nodes=stage.querySelectorAll("[data-el-id]");
+    for(var j=0;j<nodes.length;j++){
+      var nd=nodes[j],el=nd._el;if(!el)continue;
+      if((el.states&&el.states.length)||sv)paintState(nd);
+      /* Disabled objects ignore clicks: this listener runs before the trigger listeners. */
+      (function(nd,el){nd.addEventListener("click",function(e){
+        var now=elStates[el.id]||"Normal";
+        if(now==="Disabled"){e.stopImmediatePropagation();return}
+        setStates(clickStates(el));
+      })})(nd,el);
+    }
+  }
 
+  /* Draws an element's content into its node d. Called again (with the state's
+     look merged in) when an object's state changes; d keeps its listeners. */
+  function paintElement(d,el){
+    /* Keep the hub's completed tick (added after rendering) when repainting. */
+    for(var _c=d.childNodes.length-1;_c>=0;_c--){var _n=d.childNodes[_c];if(!(_n.classList&&_n.classList.contains("branch-tick")))d.removeChild(_n)}
     if(el.type==="text"){
       d.style.fontSize=(el.fontSize||24)+"px";
       d.style.fontWeight=el.fontWeight||"400";
@@ -371,11 +465,6 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
       d.style.backgroundColor=el.backgroundColor||"transparent";
       d.style.padding="4px";d.style.whiteSpace="pre-wrap";d.style.overflow="hidden";d.style.wordWrap="break-word";
       fillText(d,el.content);
-      if(el.hoverTextColor||el.hoverBackgroundColor){
-        var baseTC=el.textColor||"#000",baseBG=el.backgroundColor||"transparent";
-        d.addEventListener("mouseenter",function(){if(el.hoverTextColor)d.style.color=el.hoverTextColor;if(el.hoverBackgroundColor)d.style.backgroundColor=el.hoverBackgroundColor;d.style.cursor="pointer"});
-        d.addEventListener("mouseleave",function(){d.style.color=baseTC;d.style.backgroundColor=baseBG});
-      }
     } else if(el.type==="image"){
       var img=document.createElement("img");
       img.src=el.src||"";img.alt=el.alt||"";
@@ -419,43 +508,19 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
         poly.setAttribute("stroke-width",String(borderWidth*2));
         svg.appendChild(poly);
         d.appendChild(svg);
-        if(el.hoverFillColor||el.hoverBorderColor){
-          d.addEventListener("mouseenter",function(){if(el.hoverFillColor)poly.setAttribute("fill",el.hoverFillColor);if(el.hoverBorderColor)poly.setAttribute("stroke",el.hoverBorderColor);d.style.cursor="pointer"});
-          d.addEventListener("mouseleave",function(){poly.setAttribute("fill",fillColor);poly.setAttribute("stroke",borderColor)});
-        }
       } else if(st!=="rectangle"&&st!=="circle"&&EXT_SHAPE_SVG[st]){
         var inner=EXT_SHAPE_SVG[st]
           .replace(/\\{fill\\}/g,fillColor)
           .replace(/\\{stroke\\}/g,borderColor)
           .replace(/\\{strokeWidth\\}/g,String(borderWidth));
         d.innerHTML='<svg viewBox="0 0 100 100" preserveAspectRatio="none" style="width:100%;height:100%;display:block;overflow:visible">'+inner+'</svg>';
-        if(el.hoverFillColor||el.hoverBorderColor){
-          /* Recolour the existing SVG nodes in place. Rebuilding innerHTML on hover wiped the
-             shape's text label and swapped the node under the pointer, which cancelled clicks. */
-          var _fillNodes=[],_strokeNodes=[],_all=d.querySelectorAll("svg *");
-          for(var _k=0;_k<_all.length;_k++){
-            if(_all[_k].getAttribute("fill")===fillColor)_fillNodes.push(_all[_k]);
-            if(_all[_k].getAttribute("stroke")===borderColor)_strokeNodes.push(_all[_k]);
-          }
-          var _paint=function(f,b){
-            var i;
-            for(i=0;i<_fillNodes.length;i++)_fillNodes[i].setAttribute("fill",f);
-            for(i=0;i<_strokeNodes.length;i++)_strokeNodes[i].setAttribute("stroke",b);
-          };
-          d.addEventListener("mouseenter",function(){_paint(el.hoverFillColor||fillColor,el.hoverBorderColor||borderColor);d.style.cursor="pointer"});
-          d.addEventListener("mouseleave",function(){_paint(fillColor,borderColor)});
-        }
       } else {
         d.style.backgroundColor=fillColor;
         d.style.border=borderWidth+"px solid "+borderColor;
         if(st==="circle"){d.style.borderRadius="50%"}
         else if(typeof el.borderRadius==="number"){d.style.borderRadius=el.borderRadius+"px"}
         else{d.style.borderRadius="4px"}
-        if(typeof el.boxShadow==="string"&&el.boxShadow.length<200&&!/[<>"'\\\\]/.test(el.boxShadow)){d.style.boxShadow=el.boxShadow}
-        if(el.hoverFillColor||el.hoverBorderColor){
-          d.addEventListener("mouseenter",function(){if(el.hoverFillColor)d.style.backgroundColor=el.hoverFillColor;if(el.hoverBorderColor)d.style.borderColor=el.hoverBorderColor;d.style.cursor="pointer"});
-          d.addEventListener("mouseleave",function(){d.style.backgroundColor=fillColor;d.style.borderColor=borderColor});
-        }
+        d.style.boxShadow=(typeof el.boxShadow==="string"&&el.boxShadow.length<200&&!/[<>"'\\\\]/.test(el.boxShadow))?el.boxShadow:"";
       }
       if(el.text){
         var txt=document.createElement("div");
@@ -499,6 +564,36 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
         tbody.appendChild(tr);
       }
       tbl.appendChild(tbody);d.appendChild(tbl);
+    }
+  }
+
+  function renderElement(el){
+    var d=document.createElement("div");
+    d.className="el";
+    d.style.left=el.x+"px";d.style.top=el.y+"px";
+    d.style.width=el.width+"px";d.style.height=el.height+"px";
+    if(el.id){d.setAttribute("data-el-id",el.id);}
+    if(el.autoBranchTarget){d.setAttribute("data-branch-target",el.autoBranchTarget);}
+    if(el.motionPath){
+      d.setAttribute("data-motion-path","1");
+      d.setAttribute("data-mp-start",el.startTime||0);
+      d.setAttribute("data-mp-dur",el.duration||1);
+    }
+    if(el.animationOut&&el.animationOut!=="none"){
+      d.setAttribute("data-anim-out",el.animationOut);
+      d.setAttribute("data-exit-dur",String(el.exitDuration!=null?el.exitDuration:500));
+    }
+
+    d._el=el;
+    var _init=initialStateOf(el);
+    d._shown=_init;
+    paintElement(d,mergedLook(el,_init));
+    if(_init==="Hidden")d.classList.add("st-hidden");
+    if(el.states&&el.states.length)bindStatePointer(d,el);
+    if(el.stateParent){
+      d.setAttribute("data-state-parent",el.stateParent.id);
+      d.style.pointerEvents="none";
+      if(el.stateParent.states.indexOf("Normal")<0)d.classList.add("st-off");
     }
 
     /* Element timing: applyTiming() shows the element at its start time (with
@@ -1152,6 +1247,11 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
     if(!conds||!conds.length)return true;
     for(var ci=0;ci<conds.length;ci++){
       var c=conds[ci];if(!c)continue;
+      if(c.elementId){
+        var cs=elStates[c.elementId]||"Normal";
+        if(c.operator==="notEquals"?cs===c.state:cs!==c.state)return false;
+        continue;
+      }
       var def=null;
       for(var di=0;di<variableDefs.length;di++){if(variableDefs[di].id===c.variableId){def=variableDefs[di];break}}
       if(!def)return false;
@@ -1181,15 +1281,20 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
     }
     return true;
   }
-  function runTriggerAction(t){
+  function runTriggerAction(t,depth){
     if(!t)return;
     if(!evaluateConditions(t))return;
     if(t.action==="jumpToSlide"){
       for(var i=0;i<slides.length;i++){if(slides[i].id===t.targetId){goTo(i);return}}
     } else if(t.action==="hideElement"){
-      var n=stage.querySelector('[data-el-id="'+t.targetId+'"]');if(n)n.style.display="none";
+      var hc={};hc[t.targetId]="Hidden";setStates(hc,depth);
     } else if(t.action==="showElement"){
-      var n2=stage.querySelector('[data-el-id="'+t.targetId+'"]');if(n2)n2.style.display="";
+      if((elStates[t.targetId]||"Normal")==="Hidden"){
+        var se=elById[t.targetId],s0=se?initialStateOf(se):"Normal",sc={};
+        sc[t.targetId]=s0==="Hidden"?"Normal":s0;setStates(sc,depth);
+      }
+    } else if(t.action==="changeState"){
+      if(t.state){var cc={};cc[t.targetId]=t.state;setStates(cc,depth)}
     } else if(t.action==="playMedia"){
       var pm=resolveMediaTarget(t.targetId);if(pm){try{pm.play()}catch(e){}}
     } else if(t.action==="pauseMedia"){
@@ -1252,10 +1357,17 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
       var _sl=stage.querySelectorAll('[data-layer-id="'+t.targetId+'"]');
       for(var _si=0;_si<_sl.length;_si++)_sl[_si].style.display=_sl[_si].getAttribute("data-disp")||"";
       startLayerAudio(t.targetId,currentPlayhead());
+      /* A layer's "when timeline starts" triggers run each time it's shown. */
+      if(!layerShown[t.targetId]){
+        layerShown[t.targetId]=true;
+        var _lt=layerStartTriggers[t.targetId]||[];
+        for(var _li2=0;_li2<_lt.length;_li2++)runTriggerAction(_lt[_li2],depth);
+      }
     } else if(t.action==="hideLayer"){
       var _hl=stage.querySelectorAll('[data-layer-id="'+t.targetId+'"]');
       for(var _hi=0;_hi<_hl.length;_hi++)_hl[_hi].style.display="none";
       stopLayerAudio(t.targetId);
+      layerShown[t.targetId]=false;
     }
   }
   function closeLightbox(){
@@ -1310,8 +1422,10 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
   }
   var triggerRaf=null;
   var timelineTriggers=[];
+  /* Layers currently shown, and the "when timeline starts" triggers of each non-base layer's objects. */
+  var layerShown={};var layerStartTriggers={};
   var triggerLastPh=0;
-  function stopTriggerLoop(){if(triggerRaf){cancelAnimationFrame(triggerRaf);triggerRaf=null}timelineTriggers=[]}
+  function stopTriggerLoop(){if(triggerRaf){cancelAnimationFrame(triggerRaf);triggerRaf=null}timelineTriggers=[];stateWatchers=[]}
   function tickTriggers(){
     var ph=currentPlayhead();
     var slideDur=(slides[current]&&slides[current].duration)||5000;
@@ -1342,8 +1456,16 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
      copy of every layer's elements) so buttons inside hidden layers, such as a
      lightbox's close button, are wired too; they are rendered but hidden until
      a showLayer trigger reveals them. */
+  /* The non-base layer a node belongs to (null for the base layer and slides without layers). */
+  function layerOf(node){
+    var lid=node.getAttribute("data-layer-id"),ls=slides[current]&&slides[current].layers;
+    return lid&&ls&&ls.length&&ls[0].id!==lid?lid:null;
+  }
   function startTriggersFor(slide){
     stopTriggerLoop();
+    layerShown={};layerStartTriggers={};
+    var _ls=slide.layers||[];
+    for(var _q=0;_q<_ls.length;_q++)layerShown[_ls[_q].id]=_ls[_q].visible!==false;
     var els=(slide.elements||[]);
     for(var i=0;i<els.length;i++){
       var el=els[i];if(!el||!el.id)continue;
@@ -1358,6 +1480,13 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
             (function(t){node.addEventListener("click",function(e){e.stopPropagation();runTriggerAction(t)})})(t);
           } else if(t.event==="onHover"||t.event==="hover"){
             (function(t){node.addEventListener("mouseenter",function(){runTriggerAction(t)})})(t);
+          } else if(t.event==="stateChange"&&t.stateWatch){
+            var sw0=t.stateWatch,sw={ids:sw0.ids&&sw0.ids.length?sw0.ids:[el.id],state:sw0.state,not:sw0.not,any:sw0.any};
+            stateWatchers.push({t:t,watch:sw,held:watchHolds(sw)});
+          } else if(t.event==="timelineStart"&&layerOf(node)){
+            var _lid=layerOf(node);
+            (layerStartTriggers[_lid]=layerStartTriggers[_lid]||[]).push(t);
+            if(layerShown[_lid])timelineTriggers.push({t:t,fired:false});
           } else if(t.event==="timelineStart"||t.event==="timelineEnd"||t.event==="atTime"){
             timelineTriggers.push({t:t,fired:false});
           } else if((t.event==="mediaStart"||t.event==="mediaEnd"||t.event==="mediaPause")&&t.mediaId){
@@ -1421,6 +1550,7 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
     } else {
       (slide.elements||[]).forEach(function(el){stage.appendChild(renderElement(el))});
     }
+    initStates(slide,masterEls.concat(slide.elements||[]));
     if(slide.slideType==="quiz")renderQuizSlide(slide);
     else if(slide.slideType==="results")renderResultsSlide(slide);
     if(meta)meta.textContent="Slide "+(current+1)+" / "+slides.length;
