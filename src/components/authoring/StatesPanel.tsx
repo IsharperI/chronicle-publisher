@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
+import { DRAG_STATE_NAMES } from '@/lib/dragDrop';
 import { BUILT_IN_STATES, hasState, initialStateOf, NORMAL, stateNames, withState } from '@/lib/states';
 import type { SlideElement } from '@/types/course';
 import { ThumbElement } from './SlidePanel';
@@ -25,8 +26,12 @@ const HINTS: Record<string, string> = {
   Visited: 'Shown after it has been clicked',
   Disabled: 'It ignores clicks while in this state',
   Hidden: 'It is not shown while in this state',
+  'Drag Over': 'Shown while a dragged object is held over this drop target',
+  Dropped: 'Shown after it is dropped on a drop target',
+  'Drop Correct': 'Shown after it is dropped on its correct target',
+  'Drop Incorrect': 'Shown after it is dropped on a wrong target',
 };
-const BUILT_IN = new Set<string>(BUILT_IN_STATES);
+const BUILT_IN = new Set<string>([...BUILT_IN_STATES, ...DRAG_STATE_NAMES]);
 
 function StatePreview({ el, name, themeColors }: { el: SlideElement; name: string; themeColors: string[] }) {
   if (name === 'Hidden') {
@@ -63,7 +68,9 @@ export function StatesPanel() {
 
   const editing = state.editingState?.elementId === el.id ? state.editingState.state : NORMAL;
   const names = stateNames(el);
-  const missingBuiltIns = BUILT_IN_STATES.filter((n) => !hasState(el, n));
+  // Drag states are offered on draggable objects (Drop…) and drop targets (Drag Over).
+  const dragBuiltIns = DRAG_STATE_NAMES.filter((n) => (n === 'Drag Over' ? !!el.dropTarget : !!el.drag));
+  const missingBuiltIns = [...BUILT_IN_STATES, ...dragBuiltIns].filter((n) => !hasState(el, n));
   const edit = (name: string) => dispatch({ type: 'SET_EDITING_STATE', editing: name === NORMAL ? null : { elementId: el.id, state: name } });
   const update = (updates: Partial<SlideElement>) => dispatch({ type: 'UPDATE_ELEMENT', id: el.id, updates });
 

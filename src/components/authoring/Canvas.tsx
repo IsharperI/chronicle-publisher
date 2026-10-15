@@ -31,6 +31,7 @@ import { fontStyle, HEADING_FONT } from '@/lib/brand';
 import { MotionPathLayer } from './MotionPathLayer';
 import { motionPathOffset } from '@/lib/motionPath';
 import { ANIMATION_CSS, entranceClass, exitClass } from '@/lib/animations';
+import { dragOverState, dragOverTriggers, dropOutcome, targetUnder } from '@/lib/dragDrop';
 import { childShown, clickState, hasState, initialStateOf, NORMAL, reactsToClick, shownState, watchHolds, withState } from '@/lib/states';
 
 function getAnimInClass(anim: AnimationIn): string {
@@ -415,6 +416,14 @@ export function Canvas({ onPreviewNext, onPreviewPrev, onPlayerButton }: {
   const watchHeldRef = useRef<Map<string, boolean>>(new Map());
   const slideElsRef = useRef<SlideElement[]>([]);
   const runActionRef = useRef<(t: Trigger, depth?: number) => void>(() => {});
+  // ===== Drag and drop during Preview (lib/dragDrop.ts) =====
+  // Where dragged objects sit now, which target each sits on, the target being hovered,
+  // and the drag in progress (pointer start in screen px, object start in canvas px).
+  const [dragPos, setDragPos] = useState<Record<string, { x: number; y: number }>>({});
+  const dropOnRef = useRef<Record<string, string | null>>({});
+  const [dragOver, setDragOver] = useState<string | null>(null);
+  const dragRef = useRef<{ id: string; pointerId: number; sx: number; sy: number; ox: number; oy: number; moved: boolean; over: string | null } | null>(null);
+  const justDraggedRef = useRef<string | null>(null);
   // Non-base layers shown right now (their "when timeline starts" triggers ran when they were shown).
   const layerShownRef = useRef<Set<string>>(new Set());
   const watchersHolding = useCallback((states: Record<string, string>) => {
@@ -646,6 +655,7 @@ export function Canvas({ onPreviewNext, onPreviewPrev, onPlayerButton }: {
     elStatesRef.current = start;
     setElStates(start);
     setPointer({ id: null, down: false });
+    setDragPos({}); setDragOver(null); dropOnRef.current = {}; dragRef.current = null;
     watchHeldRef.current = new Map(watchersHolding(start).map((w) => [w.key, w.holds]));
     return () => { if (isPreview) savedMap.set(slide.id, elStatesRef.current); };
     // Only when the slide or mode changes, not on every edit.
@@ -948,12 +958,17 @@ export function Canvas({ onPreviewNext, onPreviewPrev, onPlayerButton }: {
   for (const el of [...masterElements, ...editElements]) {
     if (isPreview) {
       const cur = elStates[el.id] ?? initialStateOf(el);
-      drawnState.set(el.id, shownState(el, cur, { hover: pointer.id === el.id, down: pointer.id === el.id && pointer.down }));
+      const over = dragOver === el.id ? dragOverState(el, cur) : null;
+      drawnState.set(el.id, over ?? shownState(el, cur, { hover: pointer.id === el.id, down: pointer.id === el.id && pointer.down }));
     } else {
       drawnState.set(el.id, state.editingState?.elementId === el.id ? state.editingState.state : NORMAL);
     }
   }
   const hiddenInParent = (el: SlideElement) => !!el.stateParent && !childShown(el, drawnState.get(el.stateParent.id));
+  /** Drop targets on screen now (stacking order), where they currently are. */
+  const dropTargetsNow = () => slideElsRef.current
+    .filter((t) => t.dropTarget && (elStatesRef.current[t.id] ?? NORMAL) !== 'Hidden')
+    .map((t) => (dragPos[t.id] ? { ...t, ...dragPos[t.id] } : t));
 
   return (
     <div
@@ -1038,6 +1053,7 @@ export function Canvas({ onPreviewNext, onPreviewPrev, onPlayerButton }: {
               const pointed = !disabled && (clickable || hasState(el, 'Hover') || hasState(el, 'Down'));
               const handleTriggerClick = clickable ? (e: React.MouseEvent) => {
                 e.stopPropagation();
+                if (justDraggedRef.current === el.id) { justDraggedRef.current = null; return; } // a drag, not a click
                 // Built-in Selected/Visited changes first, so the click's own triggers see them.
                 applyStates(clickState(el, elStatesRef.current, slideElsRef.current));
                 for (const t of clickTriggers) runTriggerAction(t);
@@ -1049,6 +1065,45 @@ export function Canvas({ onPreviewNext, onPreviewPrev, onPlayerButton }: {
                 onMouseUp: () => setPointer({ id: el.id, down: false }),
               } : {};
               const shown = drawnState.get(el.id) ?? cur;
+              const pos = dragPos[el.id];
+              const draggable = !!el.drag && !disabled;
+              const dragHandlers = draggable ? {
+                onPointerDown: (e: React.PointerEvent) => {
+                  if (e.button !== 0) return;
+                  e.currentTarget.setPointerCapture?.(e.pointerId);
+                  const p = dragPos[el.id] ?? { x: el.x, y: el.y };
+                  dragRef.current = { id: el.id, pointerId: e.pointerId, sx: e.clientX, sy: e.clientY, ox: p.x, oy: p.y, moved: false, over: null };
+                },
+                onPointerMove: (e: React.PointerEvent) => {
+                  const d = dragRef.current;
+                  if (!d || d.id !== el.id || d.pointerId !== e.pointerId) return;
+                  const dx = (e.clientX - d.sx) / scale, dy = (e.clientY - d.sy) / scale;
+                  if (!d.moved && Math.hypot(dx, dy) < 3) return;
+                  d.moved = true;
+                  const at = { x: d.ox + dx, y: d.oy + dy };
+                  setDragPos((m) => ({ ...m, [el.id]: at }));
+                  const over = targetUnder(el, at, dropTargetsNow());
+                  if (over !== d.over) {
+                    for (const t of dragOverTriggers(el, d.over, over)) runTriggerAction(t);
+                    d.over = over;
+                    setDragOver(over);
+                  }
+                },
+                onPointerUp: (e: React.PointerEvent) => {
+                  const d = dragRef.current;
+                  if (!d || d.id !== el.id || d.pointerId !== e.pointerId) return;
+                  dragRef.current = null;
+                  setDragOver(null);
+                  if (!d.moved) return;
+                  justDraggedRef.current = el.id;
+                  const at = { x: d.ox + (e.clientX - d.sx) / scale, y: d.oy + (e.clientY - d.sy) / scale };
+                  const out = dropOutcome(el, at, dropTargetsNow(), dropOnRef.current, elStatesRef.current);
+                  dropOnRef.current = { ...dropOnRef.current, [el.id]: out.target };
+                  setDragPos((m) => ({ ...m, [el.id]: out.pos }));
+                  applyStates(out.states);
+                  for (const t of out.triggers) runTriggerAction(t);
+                },
+              } : {};
               const mpOffset = motionPathOffset(el, state.playheadTime);
               const baseTransform = mpOffset ? `translate(${mpOffset.dx}px, ${mpOffset.dy}px)` : undefined;
               return (
@@ -1058,7 +1113,9 @@ export function Canvas({ onPreviewNext, onPreviewPrev, onPlayerButton }: {
                   data-state={cur}
                   className={`${animClass}${clickable ? ' cursor-pointer' : ''}`}
                   style={{
-                    position: 'absolute', left: el.x, top: el.y, width: el.width, height: el.height, zIndex: 2,
+                    position: 'absolute', left: pos?.x ?? el.x, top: pos?.y ?? el.y, width: el.width, height: el.height,
+                    zIndex: dragRef.current?.id === el.id ? 3 : 2,
+                    ...(draggable ? { cursor: 'grab', touchAction: 'none' as const } : {}),
                     // Objects inside another object's states let the pointer through to it (hover, clicks).
                     ...(el.stateParent ? { pointerEvents: 'none' as const } : {}),
                     ...(baseTransform ? { transform: baseTransform } : {}),
@@ -1066,6 +1123,7 @@ export function Canvas({ onPreviewNext, onPreviewPrev, onPlayerButton }: {
                   }}
                   onClick={handleTriggerClick}
                   {...pointerHandlers}
+                  {...dragHandlers}
                 >
                   <ElementRenderer element={withState(el, shown)} isPreview />
                 </div>

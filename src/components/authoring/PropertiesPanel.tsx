@@ -30,6 +30,8 @@ import { transcribeAudio } from '@/lib/transcribe';
 import { SHAPE_CATEGORIES } from '@/lib/shapes';
 import { NORMAL, stateNames, withState } from '@/lib/states';
 import { navButtonLabel, PLAYER_BUTTON_STATES } from '@/lib/navButtons';
+import { dragEventLabel } from '@/lib/dragDrop';
+import { DragDropSection } from './DragDropSection';
 
 function NumField({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
   return (
@@ -998,6 +1000,8 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
   const [newState, setNewState] = useState('');
   const [newWatchId, setNewWatchId] = useState('');
   const [newWatchNot, setNewWatchNot] = useState(false);
+  const [newDropTarget, setNewDropTarget] = useState('any');
+  const isDropEvent = newEvent === 'onDrop' || newEvent === 'onDragOver';
   const isChangeState = newAction === 'changeState';
   const isStateEvent = newEvent === 'stateChange';
   const isSlideAction = newAction === 'jumpToSlide' || newAction === 'lightboxSlide';
@@ -1057,7 +1061,7 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
     if (el.type === 'shape') return ((el as ShapeElement).text || fallback).slice(0, 30);
     return fallback;
   };
-  const slideElements = (activeSlide?.elements ?? []).map((el, i) => ({ id: el.id, label: elementName(el, i) }));
+  const slideElements = (activeSlide?.elements ?? []).map((el, i) => ({ id: el.id, label: elementName(el, i), dropTarget: !!el.dropTarget }));
   const elementLabel = (id: string) => slideElements.find((e) => e.id === id)?.label || id.slice(0, 8);
   /** States an element on this slide has (Normal first). */
   const statesOf = (id: string) => {
@@ -1128,6 +1132,7 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
     if (isMediaEvent) {
       t.mediaId = newMediaId;
     }
+    if (isDropEvent && newDropTarget !== 'any') t.dropTargets = [newDropTarget];
     if (isStateEvent) {
       t.stateWatch = { ids: [watchId], state: newState || NORMAL, ...(newWatchNot ? { not: true } : {}) };
     }
@@ -1221,6 +1226,7 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
 
   return (
     <div className="space-y-2">
+      <DragDropSection element={element} onUpdate={onUpdate} slideElements={slideElements.filter((e) => e.id !== element.id)} />
       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Triggers</p>
       {triggers.map((t, i) => {
         let eventPhrase: string;
@@ -1236,6 +1242,9 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
           const w = t.stateWatch;
           const who = w.ids.length ? w.ids.map(elementLabel).join(w.any ? ' or ' : ', ') : 'this object';
           eventPhrase = `when ${who} ${w.ids.length > 1 ? (w.not ? 'are not' : 'are') : (w.not ? 'is not' : 'is')} ${w.state}`;
+        }
+        else if (t.event === 'onDrop' || t.event === 'onDragOver' || t.event === 'onDropOutside') {
+          eventPhrase = dragEventLabel(t, elementLabel).replace(/^When/, 'when');
         }
         else eventPhrase = t.event;
         let actionPhrase: string;
@@ -1440,8 +1449,20 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
             <SelectItem value="mediaEnd">When media ends</SelectItem>
             <SelectItem value="mediaPause">When media pauses</SelectItem>
             <SelectItem value="stateChange">When state changes</SelectItem>
+            {element.drag && <SelectItem value="onDrop">When dropped on</SelectItem>}
+            {element.drag && <SelectItem value="onDragOver">When dragged over</SelectItem>}
+            {element.drag && <SelectItem value="onDropOutside">When dropped anywhere else</SelectItem>}
           </SelectContent>
         </Select>
+        {isDropEvent && (
+          <Select value={newDropTarget} onValueChange={setNewDropTarget}>
+            <SelectTrigger className="h-7 text-xs bg-white text-slate-800"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="any">Any drop target</SelectItem>
+              {slideElements.filter((e) => e.dropTarget && e.id !== element.id).map((e) => <SelectItem key={e.id} value={e.id}>{e.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        )}
         {isStateEvent && (
           <div className="flex items-center gap-1">
             <Select value={watchId} onValueChange={(v) => { setNewWatchId(v); setNewState(''); }}>

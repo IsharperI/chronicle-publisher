@@ -379,7 +379,7 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
     var cur=elStates[el.id]||initialStateOf(el);
     n.setAttribute("data-state",cur);
     if(cur==="Hidden")n.classList.add("st-hidden");else n.classList.remove("st-hidden");
-    var shown=shownStateOf(el,cur,n._hover,n._down);
+    var shown=(n._dragOver&&cur!=="Hidden"&&cur!=="Disabled"&&hasStateOf(el,"Drag Over"))?"Drag Over":shownStateOf(el,cur,n._hover,n._down);
     /* Objects inside this one's states show only while it's drawn in one of them. */
     var kidsN=stage.querySelectorAll('[data-state-parent="'+el.id+'"]');
     for(var ki=0;ki<kidsN.length;ki++){
@@ -431,11 +431,105 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
     } else if(hasStateOf(el,"Visited")&&now==="Normal")out[el.id]="Visited";
     return out;
   }
+  /* ===== Drag and drop (same rules as lib/dragDrop.ts) =====
+     Draggable objects follow the pointer; let go with their centre over a drop
+     target they land on it (centred, tiled or where let go), take Drop Correct /
+     Drop Incorrect (or Dropped) and run their "when dropped on" triggers.
+     Anywhere else they go back (unless returnIfMissed is false). A target shows
+     Drag Over while an object is held over it. */
+  var dropOn={};
+  var DROP_STATES=["Dropped","Drop Correct","Drop Incorrect"];
+  function dropTargetsNow(){
+    var out=[],nodes=stage.querySelectorAll("[data-el-id]");
+    for(var i=0;i<nodes.length;i++){
+      var n=nodes[i],el=n._el;if(!el||!el.dropTarget)continue;
+      if((elStates[el.id]||"Normal")==="Hidden"||n.style.display==="none"||n.style.visibility==="hidden")continue;
+      out.push({id:el.id,x:parseFloat(n.style.left)||0,y:parseFloat(n.style.top)||0,width:el.width,height:el.height,dropTarget:el.dropTarget,_n:n});
+    }
+    return out;
+  }
+  function targetUnder(item,at,ts){
+    var cx=at.x+item.width/2,cy=at.y+item.height/2;
+    for(var i=ts.length-1;i>=0;i--){var t=ts[i];if(t.id===item.id||!t.dropTarget)continue;
+      if(cx>=t.x&&cx<=t.x+t.width&&cy>=t.y&&cy<=t.y+t.height)return t.id}
+    return null;
+  }
+  function landing(item,t,index,at){
+    var snap=(t.dropTarget&&t.dropTarget.snap)||"center";
+    if(snap==="free")return {x:Math.round(at.x),y:Math.round(at.y)};
+    if(snap==="tile"){
+      var cols=Math.max(1,Math.floor(t.width/Math.max(1,item.width))),col=index%cols,row=Math.floor(index/cols);
+      var left=t.x+Math.max(0,(t.width-cols*item.width)/2);
+      return {x:Math.round(left+col*item.width),y:Math.round(t.y+row*item.height)};
+    }
+    return {x:Math.round(t.x+(t.width-item.width)/2),y:Math.round(t.y+(t.height-item.height)/2)};
+  }
+  function matchesTarget(t,id){return !t.dropTargets||!t.dropTargets.length||t.dropTargets.indexOf(id)>=0}
+  function dropOutcome(item,at,ts,on){
+    var target=targetUnder(item,at,ts),t=null,i,others=0,trigs=item.triggers||[],out=[],st={};
+    for(i=0;i<ts.length;i++)if(ts[i].id===target)t=ts[i];
+    if(target)for(var k in on)if(k!==item.id&&on[k]===target)others++;
+    if(t&&t.dropTarget.onlyOne&&others>0){target=null;t=null}
+    var now=elStates[item.id]||"Normal",d=item.drag||{};
+    if(t){
+      var c=d.correctTargets,next=null;
+      if(c&&c.length&&!d.holdResult){var ok=c.indexOf(target)>=0;if(hasStateOf(item,ok?"Drop Correct":"Drop Incorrect"))next=ok?"Drop Correct":"Drop Incorrect"}
+      if(!next&&hasStateOf(item,"Dropped"))next="Dropped";
+      if(next&&next!==now&&now!=="Disabled"&&now!=="Hidden")st[item.id]=next;
+      for(i=0;i<trigs.length;i++)if(trigs[i].event==="onDrop"&&matchesTarget(trigs[i],target))out.push(trigs[i]);
+      return {target:target,pos:landing(item,t,others,at),states:st,triggers:out};
+    }
+    var back=d.returnIfMissed!==false;
+    if(back&&DROP_STATES.indexOf(now)>=0)st[item.id]="Normal";
+    for(i=0;i<trigs.length;i++)if(trigs[i].event==="onDropOutside")out.push(trigs[i]);
+    return {target:null,pos:back?{x:item.x,y:item.y}:{x:Math.round(at.x),y:Math.round(at.y)},states:st,triggers:out};
+  }
+  function setDragOver(id){
+    var nodes=stage.querySelectorAll("[data-el-id]");
+    for(var i=0;i<nodes.length;i++){var n=nodes[i],on=!!id&&n._el&&n._el.id===id;if(!!n._dragOver!==on){n._dragOver=on;paintState(n)}}
+  }
+  function bindDrag(n,el){
+    var g=null;
+    n.style.cursor="grab";n.style.touchAction="none";
+    /* A drag isn't a click: stop the click that follows it before other listeners see it. */
+    n.addEventListener("click",function(e){if(n._dragged){n._dragged=false;e.stopImmediatePropagation();e.preventDefault()}},true);
+    n.addEventListener("pointerdown",function(e){
+      if(e.button!==0||(elStates[el.id]||"Normal")==="Disabled")return;
+      if(n.setPointerCapture)try{n.setPointerCapture(e.pointerId)}catch(_e){}
+      var r=stage.getBoundingClientRect(),sc=r.width/${dims.width}||1;
+      g={pid:e.pointerId,sx:e.clientX,sy:e.clientY,ox:parseFloat(n.style.left)||0,oy:parseFloat(n.style.top)||0,sc:sc,moved:false,over:null};
+    });
+    function at(e){return {x:g.ox+(e.clientX-g.sx)/g.sc,y:g.oy+(e.clientY-g.sy)/g.sc}}
+    n.addEventListener("pointermove",function(e){
+      if(!g||e.pointerId!==g.pid)return;
+      var p=at(e);
+      if(!g.moved&&Math.abs(p.x-g.ox)+Math.abs(p.y-g.oy)<3)return;
+      g.moved=true;n.style.left=p.x+"px";n.style.top=p.y+"px";n.style.zIndex="1000";
+      var over=targetUnder(el,p,dropTargetsNow());
+      if(over!==g.over){
+        g.over=over;setDragOver(over);
+        if(over){var tr=el.triggers||[];for(var i=0;i<tr.length;i++)if(tr[i].event==="onDragOver"&&matchesTarget(tr[i],over))runTriggerAction(tr[i])}
+      }
+    });
+    function end(e){
+      if(!g||e.pointerId!==g.pid)return;
+      var moved=g.moved,p=at(e);g=null;setDragOver(null);n.style.zIndex="";
+      if(!moved)return;
+      n._dragged=true;setTimeout(function(){n._dragged=false},0);
+      var o=dropOutcome(el,p,dropTargetsNow(),dropOn);
+      dropOn[el.id]=o.target;
+      n.style.left=o.pos.x+"px";n.style.top=o.pos.y+"px";
+      setStates(o.states);
+      for(var i=0;i<o.triggers.length;i++)runTriggerAction(o.triggers[i]);
+    }
+    n.addEventListener("pointerup",end);
+    n.addEventListener("pointercancel",function(e){if(g&&e.pointerId===g.pid){n.style.left=g.ox+"px";n.style.top=g.oy+"px";g=null;setDragOver(null);n.style.zIndex=""}});
+  }
   /* Every element on the slide starts in its initial state (or where it was left, on "resume" slides). */
   function initStates(slide,els){
     if(statesSlideId)savedStates[statesSlideId]=elStates;
     statesSlideId=slide.id;
-    elStates={};elById={};
+    elStates={};elById={};dropOn={};
     for(var i=0;i<els.length;i++){var e=els[i];if(!e||!e.id)continue;elById[e.id]=e;elStates[e.id]=initialStateOf(e)}
     var sv=slide.revisitMode==="resume"?savedStates[slide.id]:null;
     if(sv){for(var k in sv)if(k in elStates)elStates[k]=sv[k]}
@@ -443,6 +537,7 @@ function PLAYER_RUNTIME(dims: { width: number; height: number }): string {
     for(var j=0;j<nodes.length;j++){
       var nd=nodes[j],el=nd._el;if(!el)continue;
       if((el.states&&el.states.length)||sv)paintState(nd);
+      if(el.drag)bindDrag(nd,el);
       /* Disabled objects ignore clicks: this listener runs before the trigger listeners. */
       (function(nd,el){nd.addEventListener("click",function(e){
         var now=elStates[el.id]||"Normal";

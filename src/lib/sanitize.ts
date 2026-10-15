@@ -222,6 +222,10 @@ function sanitizeTrigger(t: any): Trigger {
       ...(w.any === true ? { any: true } : {}),
     };
   }
+  if (Array.isArray(t?.dropTargets)) {
+    const ids = t.dropTargets.filter(isSafeId).slice(0, 100);
+    if (ids.length) out.dropTargets = ids;
+  }
   if (Array.isArray(t?.conditions)) {
     const condOps = ['equals', 'notEquals', 'greaterThan', 'lessThan', 'greaterThanOrEqual', 'lessThanOrEqual'];
     const conds = t.conditions.slice(0, 20).map((c: any) => {
@@ -280,6 +284,28 @@ function sanitizeLook(raw: any): StateLook {
 }
 
 /** States, plus the hover colours older courses had (they become a Hover state). */
+/** Drag-and-drop settings (lib/dragDrop.ts). */
+function sanitizeDrag(raw: any): Pick<SlideElement, 'drag' | 'dropTarget'> {
+  const out: Pick<SlideElement, 'drag' | 'dropTarget'> = {};
+  const d = raw?.drag;
+  if (d && typeof d === 'object') {
+    const correct = Array.isArray(d.correctTargets) ? d.correctTargets.filter(isSafeId).slice(0, 100) : [];
+    out.drag = {
+      ...(d.returnIfMissed === false ? { returnIfMissed: false } : {}),
+      ...(correct.length ? { correctTargets: correct } : {}),
+      ...(d.holdResult === true ? { holdResult: true } : {}),
+    };
+  }
+  const t = raw?.dropTarget;
+  if (t && typeof t === 'object') {
+    out.dropTarget = {
+      ...(t.snap === 'tile' || t.snap === 'free' ? { snap: t.snap } : {}),
+      ...(t.onlyOne === true ? { onlyOne: true } : {}),
+    };
+  }
+  return out;
+}
+
 function sanitizeStates(raw: any): Pick<SlideElement, 'states' | 'initialState' | 'buttonSet' | 'stateParent'> {
   const states: ElementState[] = [];
   if (Array.isArray(raw.states)) {
@@ -323,6 +349,7 @@ function sanitizeElement(raw: any): SlideElement | null {
     ...(raw.isHidden === true ? { isHidden: true } : {}),
     ...(BRAND_ROLES.includes(raw.brandRole) ? { brandRole: raw.brandRole } : {}),
     ...sanitizeStates(raw),
+    ...sanitizeDrag(raw),
   };
   if (raw.type === 'text') {
     const el: TextElement = {

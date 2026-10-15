@@ -20,6 +20,9 @@
  * - triggers: jump to slide/scene/previous slide, show/hide layer, adjust variable,
  *   play media, exit/complete course, disable/enable the player's Next and Prev
  *   buttons (with variable conditions)
+ * - drag and drop: "when dropped on" / "dragged over" triggers, freeform
+ *   drag-and-drop questions (items, their correct targets, snap and
+ *   return-to-start settings; scoring not yet) and the drag states
  * - entrance/exit fade and fly animations
  *
  * See tools/storyline-fidelity for measuring how close an import gets.
@@ -31,6 +34,7 @@ import type {
 } from '@/types/course';
 import type { ProjectLoadPayload } from '@/lib/project';
 import { md5Hex } from './md5';
+import { inferDragRoles } from '@/lib/dragDrop';
 
 // ---------- report ----------
 
@@ -171,6 +175,18 @@ interface Ctx {
   placeholders: Map<string, El>;
   /** Titles of slides containing question ("…Intr") objects. */
   questionSlides: Set<string>;
+  /** Freeform drag-and-drop questions on the slide being converted (applied once its objects exist). */
+  dragQuestions: DragQuestion[];
+}
+
+/** A freeform drag-and-drop question: which object belongs on which target, and how drops behave. */
+interface DragQuestion {
+  pairs: { item: string; target: string }[];
+  returnIfMissed: boolean;
+  snap: 'center' | 'tile' | 'free';
+  onlyOne: boolean;
+  /** "Delay item drop states until the interaction is submitted". */
+  holdResult: boolean;
 }
 
 // ---------- colours, text ----------
@@ -360,7 +376,7 @@ function animations(el: El): Pick<SlideElement, 'animationIn' | 'animationOut' |
 
 const EVENTS: Record<string, string> = {
   OnClick: 'onClick', OnMouseHover: 'onHover', OnStart: 'timelineStart', OnEnd: 'timelineEnd',
-  OnStateChange: 'stateChange', OnTimelineEvent: 'atTime',
+  OnStateChange: 'stateChange', OnTimelineEvent: 'atTime', OnDrop: 'onDrop', OnDragOver: 'onDragOver',
 };
 const ACTION_NAMES: Record<string, string> = {
   changeShapeState: 'Change state', submitInteraction: 'Submit interaction', Move: 'Move along motion path',
@@ -370,7 +386,6 @@ const ACTION_NAMES: Record<string, string> = {
   submitResults: 'Submit results', reviewResults: 'Review results', resetResults: 'Reset results',
 };
 const EVENT_NAMES: Record<string, string> = {
-  OnDrop: 'when dropped',
   OnNextButtonClick: 'when Next is clicked', OnEntersSlide: 'when slide begins', OnKeyPress: 'when a key is pressed',
   OnVarChange: 'when a variable changes', OnVariableValueChange: 'when a variable changes', OnHoverOut: 'when hover ends',
 };
@@ -398,6 +413,12 @@ function convertTrigger(t: El, ctx: Ctx, layerIds: Map<string, string>, ownLayer
     };
   } else if (event === 'atTime') {
     out.time = isoMs(attr(kid(d, 'other'), 'time'), 0) / 1000;
+  } else if (event === 'onDrop' || event === 'onDragOver') {
+    // "Dropped on" lists its targets in dropLst; "dragged over" in hoverLst.
+    const list = (name: string) => kids(kid(shape, name), 'g').map((g) => safeId(g.textContent)).filter(Boolean);
+    const ids = event === 'onDrop' ? list('dropLst') : list('hoverLst').length ? list('hoverLst') : list('dropLst');
+    if (!ids.length) return `${actName} ${event === 'onDrop' ? 'when dropped' : 'when dragged over'} (no drop targets)`;
+    out.dropTargets = ids;
   }
   if (act === 'changeShapeState') {
     // Without a target object, the trigger changes a player button (e.g. Next disabled until all are visited).
@@ -771,9 +792,67 @@ async function convertObjects(list: El | null, ctx: Ctx, cv: Convert): Promise<S
       continue;
     }
     if (/Intr$/.test(tag)) ctx.questionSlides.add(cv.slideTitle);
+    if (tag === 'dragDropIntr') {
+      ctx.dragQuestions.push(readDragQuestion(e));
+      rep('approximated', 'Freeform drag-and-drop questions (dragging and drop states work; scoring and feedback not yet)');
+      continue;
+    }
     rep('skipped', UNSUPPORTED[tag] ?? `Other objects (${tag})`);
   }
   return els;
+}
+
+/** Reads a freeform drag-and-drop question's pairs and drop settings. */
+function readDragQuestion(e: El): DragQuestion {
+  const dd = kid(e, 'dragDrop');
+  const pairs = kids(kid(e, 'choices'), 'intrFreeChoice')
+    .map((c) => ({ item: safeId(attr(c, 'shpG')), target: safeId(attr(c, 'matchShpG')) }))
+    .filter((p) => p.item && p.target && !/^0+(-0+)*$/.test(p.item));
+  const snapLoc = attr(dd, 'snapLoc');
+  return {
+    pairs,
+    returnIfMissed: attr(dd, 'returnStart') !== 'false',
+    snap: attr(dd, 'snapTarget') === 'false' ? 'free' : snapLoc === 'tile' ? 'tile' : snapLoc === 'cntr' || !snapLoc ? 'center' : 'free',
+    onlyOne: attr(dd, 'onlyOne') === 'true',
+    holdResult: attr(dd, 'delay') === 'true',
+  };
+}
+
+/**
+ * Gives the slide's objects their drag-and-drop roles: question items become
+ * draggable with their correct target, question targets become drop targets,
+ * and objects with drop triggers (and the targets they name) do too.
+ */
+function applyDragDrop(layers: SlideLayer[], questions: DragQuestion[]) {
+  const items = new Map<string, DragQuestion & { correct: string[] }>();
+  const targets = new Map<string, DragQuestion>();
+  for (const q of questions) {
+    for (const p of q.pairs) {
+      const it = items.get(p.item) ?? { ...q, correct: [] };
+      if (!it.correct.includes(p.target)) it.correct.push(p.target);
+      items.set(p.item, it);
+      targets.set(p.target, q);
+    }
+  }
+  for (const layer of layers) {
+    layer.elements = inferDragRoles(layer.elements.map((el) => {
+      const it = items.get(el.id), tg = targets.get(el.id);
+      if (!it && !tg) return el;
+      const out = { ...el };
+      if (it) {
+        out.drag = {
+          ...(it.returnIfMissed ? {} : { returnIfMissed: false }), correctTargets: it.correct, ...(it.holdResult ? { holdResult: true } : {}),
+        };
+      }
+      if (tg) out.dropTarget = { ...(tg.snap !== 'center' ? { snap: tg.snap } : {}), ...(tg.onlyOne ? { onlyOne: true } : {}) };
+      return out;
+    }));
+  }
+  // Targets named by triggers on one layer may sit on another.
+  const named = new Set(layers.flatMap((l) => l.elements.flatMap((el) => (el.triggers ?? []).flatMap((t) => t.dropTargets ?? []))));
+  for (const layer of layers) {
+    layer.elements = layer.elements.map((el) => (named.has(el.id) && !el.dropTarget ? { ...el, dropTarget: {} } : el));
+  }
 }
 
 /** The audio clips (sound objects) in a shape list, with their start times. */
@@ -871,7 +950,7 @@ export async function importStory(data: Blob | ArrayBuffer | Uint8Array, onProgr
     slideIdByG.set(attr(r.el!, 'g')!, safeId(r.webId));
     if (!firstSlideOfScene.has(r.sceneG)) firstSlideOfScene.set(r.sceneG, safeId(r.webId));
   }
-  const ctx: Ctx = { zip, media, dataUris: new Map(), vars, slideIdByG, firstSlideOfScene, report, questionSlides: new Set(), rawEnds: new Map(), placeholders: new Map() };
+  const ctx: Ctx = { zip, media, dataUris: new Map(), vars, slideIdByG, firstSlideOfScene, report, questionSlides: new Set(), dragQuestions: [], rawEnds: new Map(), placeholders: new Map() };
   const bankSlides = kids(q(story, 'quizMgr', 'bankLst'), 'scene').reduce((n, s) => n + kids(kid(s, 'sldIdLst')).length, 0);
   for (let i = 0; i < bankSlides; i++) report.add('skipped', 'Question bank slides', '');
 
@@ -948,6 +1027,7 @@ export async function importStory(data: Blob | ArrayBuffer | Uint8Array, onProgr
 
     // Without a master, the slide's own background goes at the bottom of the slide.
     const bg = masterId ? null : await backgroundObject(s, ctx, scheme, W, H, `${id}-bg`);
+    ctx.dragQuestions = [];
     const baseEls = [...(bg ? [bg] : []), ...(await convertObjects(kid(s, 'shapeLst'), ctx, cv('')))];
     const layers: SlideLayer[] = [{ id: `${id}-base`, name: 'Base Layer', visible: true, locked: false, elements: baseEls }];
     for (const l of layerEls) {
@@ -983,6 +1063,7 @@ export async function importStory(data: Blob | ArrayBuffer | Uint8Array, onProgr
       baseEls[0].triggers.push(res);
       report.counts.triggers++;
     }
+    applyDragDrop(layers, ctx.dragQuestions);
     // Audio on the base layer, at its start time on the slide's timeline.
     const audio = await readAudio(kid(s, 'shapeLst'), ctx);
     if (kid(s, 'questionLst') || ctx.questionSlides.has(title)) {

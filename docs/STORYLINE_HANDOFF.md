@@ -27,6 +27,7 @@ npx vitest run src/test/<file>   # targeted; full suite: npx vitest run
 | Importer (.story → course) | `src/lib/storyImport/index.ts`. The header comment lists the mapping. Test: `src/test/storyImport.test.ts` (a synthetic .story built in code; extend it for new mappings) |
 | Data model, allow-list | `src/types/course.ts`. **Every new field must also be added to `src/lib/sanitize.ts`, or it is dropped on load.** |
 | Renderers (keep in sync) | `Canvas.tsx` (editor and Preview), `SlidePanel.tsx` ThumbElement, `lib/publish/runtime/player.ts` (published player, plain JS in a template string: escape backslashes), `lib/publish/video.ts` |
+| Drag and drop | `src/lib/dragDrop.ts` (drop rules; the player has a JS copy), `DragDropSection.tsx` (Triggers tab), test `src/test/dragDrop.test.ts` (rules, import, published player) |
 | States | `src/lib/states.ts` (shared rules; the player has a JS copy), `StatesPanel.tsx`, test `src/test/states.test.ts` (it also shows how to boot the published player in a test) |
 | Store | `src/context/CourseContext.tsx` (reducer; use the layer helpers when editing elements) |
 | Checker | `tools/storyline-fidelity/` (README explains the scoring) |
@@ -44,6 +45,7 @@ Done:
 - Phase 1: importer
 - Timeline phase: audio timing and animations
 - Phase 2: object states, state triggers, Storyline-style state editing (PR #28)
+- Phase 2 drag and drop: draggable objects (`drag`: return-to-start, correct targets, hold result until submit) and drop targets (`dropTarget`: snap centre/tile/free, only one), "when dropped on / dragged over / dropped anywhere else" triggers (`dropTargets`), automatic Drag Over / Dropped / Drop Correct / Drop Incorrect states, in Preview and the published player. Imported from `OnDrop` triggers and freeform drag-and-drop questions (`dragDropIntr`: `choices/intrFreeChoice` pairs, `dragDrop` settings). Scoring and Submit wait for the quiz phase
 - Next/Prev button control: `setPlayerButton` (disable/enable Next or Prev for the rest of the slide) and `jumpToPrevious` actions, imported from Storyline and editable in the trigger panel. Logic in `src/lib/navButtons.ts` (the player has a JS copy), test `src/test/navButtons.test.ts`
 
 Scores (layout / timing):
@@ -54,9 +56,8 @@ Scores (layout / timing):
 | Course B | 86.4 | 86.8 |
 
 ## Remaining phases (in suggested order)
-1. **Drag and drop.** Storyline `OnDrop` triggers (`shape/dropLst`, `hoverLst`), "Drag Correct/Incorrect/Dropped" states, and freeform drag-and-drop questions (`dragDropIntr`). Chronicle needs draggable objects with drop targets and drop events. This is a big phase.
-2. **Freeform shapes, diagonal lines, arrows, imported vector graphics** (`freeForm`, `importedVector`, `shapePath`, `line` that isn't horizontal or vertical). Likely a new SVG-path shape element. This is the largest remaining visual gap: run the checker.
-3. **Text and style details:**
+1. **Freeform shapes, diagonal lines, arrows, imported vector graphics** (`freeForm`, `importedVector`, `shapePath`, `line` that isn't horizontal or vertical). Likely a new SVG-path shape element. This is the largest remaining visual gap: run the checker.
+2. **Text and style details:**
    - mixed formatting within one text box (bold or colour runs)
    - text showing variable values (`%VarName%`)
    - rotation
@@ -64,6 +65,6 @@ Scores (layout / timing):
    - rounding on only some corners
 
    Run the checker.
-4. **Quizzes:** question slides with scoring (freeform pick-one and pick-many, submit interaction, result slides, question banks).
-5. **Motion paths:** `linePath` objects and the "Move along motion path" action. Chronicle already has a bezier `motionPath`.
-6. **Import from published output only** (courses with no .story): read `html5/data/js/*.js` (`window.globalProvideData('slide', …)`).
+3. **Quizzes:** question slides with scoring (freeform pick-one, pick-many and drag-and-drop, submit interaction, result slides, question banks). Drag-and-drop items already know their correct targets (`drag.correctTargets`); on submit, show Drop Correct/Incorrect for items with `drag.holdResult`.
+4. **Motion paths:** `linePath` objects and the "Move along motion path" action. Chronicle already has a bezier `motionPath`.
+5. **Import from published output only** (courses with no .story): read `html5/data/js/*.js` (`window.globalProvideData('slide', …)`).
