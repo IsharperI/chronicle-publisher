@@ -54,10 +54,11 @@ export type ViewMode = 'main' | 'master';
 export interface Trigger {
   /** 'onClick' | 'onHover' | 'timelineStart' | 'timelineEnd' | 'atTime' | 'mediaStart' | 'mediaEnd' | 'mediaPause' | 'stateChange' */
   event: string;
-  /** 'jumpToSlide' | 'showElement' | 'hideElement' | 'changeState' | 'playMedia' | 'pauseMedia' | 'stopMedia' | 'restartCourse' | 'exitCourse' | 'completeCourse' | 'jumpToTime' | 'emphasizeElement' | 'openUrl' | 'adjustVariable' | 'pauseTimeline' | 'resumeTimeline' | 'lightboxSlide' | 'showLayer' | 'hideLayer' */
+  /** 'jumpToSlide' | 'showElement' | 'hideElement' | 'changeState' | 'playMedia' | 'pauseMedia' | 'stopMedia' | 'restartCourse' | 'exitCourse' | 'completeCourse' | 'jumpToTime' | 'emphasizeElement' | 'openUrl' | 'adjustVariable' | 'pauseTimeline' | 'resumeTimeline' | 'lightboxSlide' | 'showLayer' | 'hideLayer' | 'setPlayerButton' | 'jumpToPrevious'
+   * ('setPlayerButton': targetId 'next' | 'prev', state 'Disabled' | 'Normal'; see lib/navButtons.ts) */
   action: string;
   targetId: string;
-  /** For 'changeState' actions: the state to put the target element in. */
+  /** For 'changeState' actions: the state to put the target element in (for 'setPlayerButton', the button's state). */
   state?: string;
   /**
    * For 'stateChange' events: fires when the watched elements come to be in

@@ -29,6 +29,7 @@ import { themeVarRef, themeVarIndex, resolveColor } from '@/lib/themeVars';
 import { transcribeAudio } from '@/lib/transcribe';
 import { SHAPE_CATEGORIES } from '@/lib/shapes';
 import { NORMAL, stateNames, withState } from '@/lib/states';
+import { navButtonLabel, PLAYER_BUTTON_STATES } from '@/lib/navButtons';
 
 function NumField({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
   return (
@@ -1003,7 +1004,8 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
   const isElementAction = newAction === 'showElement' || newAction === 'hideElement';
   const isMediaAction = newAction === 'playMedia' || newAction === 'pauseMedia' || newAction === 'stopMedia';
   const isCourseAction = newAction === 'restartCourse' || newAction === 'exitCourse' || newAction === 'completeCourse';
-  const isTimelineAction = newAction === 'pauseTimeline' || newAction === 'resumeTimeline';
+  const isTimelineAction = newAction === 'pauseTimeline' || newAction === 'resumeTimeline' || newAction === 'jumpToPrevious';
+  const isPlayerButton = newAction === 'setPlayerButton';
   const isLayerAction = newAction === 'showLayer' || newAction === 'hideLayer';
   const isJumpToTime = newAction === 'jumpToTime';
   const isEmphasize = newAction === 'emphasizeElement';
@@ -1095,7 +1097,9 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
     if (isMediaEvent && !newMediaId) return;
     if (isStateEvent && !newState && statesOf(watchId).length < 2) return;
     if (isChangeState && (!newTarget || !newState)) return;
-    if (isAdjustVariable) {
+    if (isPlayerButton) {
+      if (!newTarget || !newState) return;
+    } else if (isAdjustVariable) {
       if (!newVarId || !newVarOp) return;
       if (opNeedsValue(newVarOp) && newVarValue === '' && selectedVar?.type !== 'text') return;
     } else if (isCourseAction || isJumpToTime || isOpenUrl || isTimelineAction) {
@@ -1127,7 +1131,7 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
     if (isStateEvent) {
       t.stateWatch = { ids: [watchId], state: newState || NORMAL, ...(newWatchNot ? { not: true } : {}) };
     }
-    if (isChangeState) {
+    if (isChangeState || isPlayerButton) {
       t.state = newState;
     }
     if (isEmphasize) {
@@ -1250,6 +1254,8 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
         else if (t.action === 'resumeTimeline') actionPhrase = 'Resume Timeline';
         else if (t.action === 'showLayer') actionPhrase = `Show Layer '${layerLabel(t.targetId)}'`;
         else if (t.action === 'hideLayer') actionPhrase = `Hide Layer '${layerLabel(t.targetId)}'`;
+        else if (t.action === 'jumpToPrevious') actionPhrase = 'Jump to previous slide';
+        else if (t.action === 'setPlayerButton') actionPhrase = navButtonLabel(t);
         else if (t.action === 'jumpToTime') actionPhrase = `Jump to ${typeof t.time === 'number' ? t.time : 0}s`;
         else if (t.action === 'emphasizeElement') actionPhrase = `Emphasize Element '${elementLabel(t.targetId)}' (${t.emphasis || 'pulse'})`;
         else if (t.action === 'openUrl') actionPhrase = `Open URL ${(t.url || '').slice(0, 40)}`;
@@ -1482,10 +1488,12 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
             </SelectContent>
           </Select>
         )}
-        <Select value={newAction} onValueChange={(v) => { setNewAction(v); setNewTarget(''); }}>
+        <Select value={newAction} onValueChange={(v) => { setNewAction(v); setNewTarget(''); setNewState(''); }}>
           <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="jumpToSlide">Jump to Slide</SelectItem>
+            <SelectItem value="jumpToPrevious">Jump to Previous Slide</SelectItem>
+            <SelectItem value="setPlayerButton">Change Player Button</SelectItem>
             <SelectItem value="showElement">Show Element</SelectItem>
             <SelectItem value="hideElement">Hide Element</SelectItem>
             <SelectItem value="changeState">Change State</SelectItem>
@@ -1542,6 +1550,25 @@ function TriggersSection({ element, onUpdate }: { element: SlideElement; onUpdat
               <SelectTrigger className="h-7 text-xs w-[100px] bg-white text-slate-800"><SelectValue placeholder="to state" /></SelectTrigger>
               <SelectContent>
                 {newTarget && statesOf(newTarget).map((n) => <SelectItem key={n} value={n}>{n}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+        {isPlayerButton && (
+          <div className="flex items-center gap-1">
+            <Select value={newTarget} onValueChange={setNewTarget}>
+              <SelectTrigger className="h-7 text-xs flex-1 min-w-0 bg-white text-slate-800 rounded-md">
+                <SelectValue placeholder="Select button…" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="next">Next button</SelectItem>
+                <SelectItem value="prev">Prev button</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={newState} onValueChange={setNewState}>
+              <SelectTrigger className="h-7 text-xs w-[100px] bg-white text-slate-800"><SelectValue placeholder="to state" /></SelectTrigger>
+              <SelectContent>
+                {PLAYER_BUTTON_STATES.map((n) => <SelectItem key={n} value={n}>{n}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>

@@ -351,7 +351,13 @@ function isElementVisible(el: SlideElement, playheadTime: number, slideDur?: num
   return playheadTime >= el.startTime && playheadTime < el.startTime + el.duration;
 }
 
-export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
+export function Canvas({ onPreviewNext, onPreviewPrev, onPlayerButton }: {
+  onPreviewNext?: () => void;
+  /** 'jumpToPrevious' triggers: go back like the Prev button. */
+  onPreviewPrev?: () => void;
+  /** 'setPlayerButton' triggers: disable/enable the player's Next or Prev button. */
+  onPlayerButton?: (t: Pick<Trigger, 'action' | 'targetId' | 'state'>) => void;
+} = {}) {
   const { state, dispatch } = useCourse();
   const containerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0.5);
@@ -390,6 +396,10 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
   // Stabilize onPreviewNext via ref so it doesn't re-trigger the preview play effect on every render.
   const onPreviewNextRef = useRef(onPreviewNext);
   useEffect(() => { onPreviewNextRef.current = onPreviewNext; }, [onPreviewNext]);
+  const onPreviewPrevRef = useRef(onPreviewPrev);
+  onPreviewPrevRef.current = onPreviewPrev;
+  const onPlayerButtonRef = useRef(onPlayerButton);
+  onPlayerButtonRef.current = onPlayerButton;
   useEffect(() => { isPlayingRef.current = state.isPlaying; }, [state.isPlaying]);
   useEffect(() => { setLightboxSlideId(null); setLayerRuntimeVis({}); layerShownAtRef.current.clear(); }, [state.activeSlideIndex]);
 
@@ -483,6 +493,11 @@ export function Canvas({ onPreviewNext }: { onPreviewNext?: () => void } = {}) {
         dispatch({ type: 'SET_PLAYING', playing: false });
         dispatch({ type: 'SET_ACTIVE_SLIDE', index: idx });
       }
+    } else if (t.action === 'jumpToPrevious') {
+      if (onPreviewPrevRef.current) onPreviewPrevRef.current();
+      else dispatch({ type: 'PREVIEW_BACK' });
+    } else if (t.action === 'setPlayerButton') {
+      onPlayerButtonRef.current?.(t);
     } else if (t.action === 'hideElement') {
       applyStates({ [t.targetId]: 'Hidden' }, depth);
     } else if (t.action === 'showElement') {

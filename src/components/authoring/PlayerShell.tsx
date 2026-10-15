@@ -10,7 +10,8 @@ import { Canvas } from './Canvas';
 import { ChevronLeft, ChevronRight, Play, Pause, Captions, CaptionsOff, Menu, FileText, Check, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { themeVarStyle } from '@/lib/themeVars';
-import type { PlayerSettings } from '@/types/course';
+import type { PlayerSettings, Trigger } from '@/types/course';
+import { applyNavButtonTrigger, NAV_BUTTONS_ON, type NavButtonsOff } from '@/lib/navButtons';
 
 type SidebarTab = 'menu' | 'notes';
 
@@ -42,6 +43,17 @@ export function PlayerShell({ playerSettings, interactive = true }: PlayerShellP
   const transitionColor = state.courseSettings.transition?.color ?? '#000000';
   const [stagePhase, setStagePhase] = useState<'idle' | 'exit' | 'enter-from' | 'enter-to'>('idle');
   const [navLocked, setNavLocked] = useState(false);
+  // Next/Prev turned off by 'setPlayerButton' triggers; only for the visit to the slide that did it.
+  const visitRef = useRef({ index: -1, visit: 0 });
+  if (visitRef.current.index !== state.activeSlideIndex) {
+    visitRef.current = { index: state.activeSlideIndex, visit: visitRef.current.visit + 1 };
+  }
+  const [buttonsOff, setButtonsOff] = useState<NavButtonsOff & { visit: number }>({ ...NAV_BUTTONS_ON, visit: 0 });
+  const onPlayerButton = useCallback((t: Pick<Trigger, 'action' | 'targetId' | 'state'>) => {
+    const visit = visitRef.current.visit;
+    setButtonsOff((prev) => applyNavButtonTrigger(prev.visit === visit ? prev : { ...NAV_BUTTONS_ON, visit }, t));
+  }, []);
+  const off: NavButtonsOff = buttonsOff.visit === visitRef.current.visit ? buttonsOff : NAV_BUTTONS_ON;
   const timersRef = useRef<{ swap: number | null; finish: number | null; raf1: number | null; raf2: number | null }>({
     swap: null,
     finish: null,
@@ -279,6 +291,7 @@ export function PlayerShell({ playerSettings, interactive = true }: PlayerShellP
   const isLast = nextIndex < 0 || locked;
   const goNext = () => { if (!locked) navigateToIndex(nextIndex); };
   const isFirst = backIndex < 0;
+  const goBack = () => navigateToIndex(backIndex, true);
 
   const btnStyle: React.CSSProperties = {
     backgroundColor: ps.buttonColor,
@@ -322,6 +335,8 @@ export function PlayerShell({ playerSettings, interactive = true }: PlayerShellP
             transitionColor={transitionColor}
             phase={stagePhase}
             onPreviewNext={goNext}
+            onPreviewPrev={goBack}
+            onPlayerButton={onPlayerButton}
           />
         </div>
         {ps.sidebarPosition === 'right' && sidebar}
@@ -347,8 +362,8 @@ export function PlayerShell({ playerSettings, interactive = true }: PlayerShellP
       <footer className="h-14 shrink-0 flex items-center justify-center gap-2 px-5 border-t border-white/10 bg-black/40 backdrop-blur-sm">
         <button
           type="button"
-          onClick={() => navigateToIndex(backIndex, true)}
-          disabled={isFirst || navLocked}
+          onClick={goBack}
+          disabled={isFirst || navLocked || off.prev}
           className="text-white text-xs font-medium px-4 py-2 disabled:opacity-40"
           style={btnStyle}
         >
@@ -371,7 +386,7 @@ export function PlayerShell({ playerSettings, interactive = true }: PlayerShellP
         <button
           type="button"
           onClick={goNext}
-          disabled={isLast || navLocked}
+          disabled={isLast || navLocked || off.next}
           title={locked ? 'Complete every section to continue' : undefined}
           className="text-white text-xs font-medium px-4 py-2 disabled:opacity-40"
           style={btnStyle}
@@ -411,9 +426,11 @@ interface SlideStageProps {
   transitionColor: string;
   phase: 'idle' | 'exit' | 'enter-from' | 'enter-to';
   onPreviewNext: () => void;
+  onPreviewPrev: () => void;
+  onPlayerButton: (t: Pick<Trigger, 'action' | 'targetId' | 'state'>) => void;
 }
 
-function SlideStage({ transitionType, transitionDuration, transitionColor, phase, onPreviewNext }: SlideStageProps) {
+function SlideStage({ transitionType, transitionDuration, transitionColor, phase, onPreviewNext, onPreviewPrev, onPlayerButton }: SlideStageProps) {
   const { state } = useCourse();
   const { width: canvasW, height: canvasH } = state.courseSettings.canvasDimensions;
   const halfMs = Math.max(50, (transitionDuration * 1000) / 2);
@@ -486,7 +503,7 @@ function SlideStage({ transitionType, transitionDuration, transitionColor, phase
         }}
       >
         <div style={{ width: '100%', height: '100%', display: 'flex' }}>
-          <Canvas onPreviewNext={onPreviewNext} />
+          <Canvas onPreviewNext={onPreviewNext} onPreviewPrev={onPreviewPrev} onPlayerButton={onPlayerButton} />
         </div>
       </div>
     </div>

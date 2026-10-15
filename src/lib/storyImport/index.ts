@@ -17,8 +17,9 @@
  * - object states (Hover, Selected, Visited, Disabled, Hidden, custom) with
  *   their looks, initial states, button sets, "change state" triggers,
  *   "when state changes" triggers and state conditions
- * - triggers: jump to slide/scene, show/hide layer, adjust variable, play media,
- *   exit/complete course (with variable conditions)
+ * - triggers: jump to slide/scene/previous slide, show/hide layer, adjust variable,
+ *   play media, exit/complete course, disable/enable the player's Next and Prev
+ *   buttons (with variable conditions)
  * - entrance/exit fade and fly animations
  *
  * See tools/storyline-fidelity for measuring how close an import gets.
@@ -399,13 +400,19 @@ function convertTrigger(t: El, ctx: Ctx, layerIds: Map<string, string>, ownLayer
     out.time = isoMs(attr(kid(d, 'other'), 'time'), 0) / 1000;
   }
   if (act === 'changeShapeState') {
-    // Without a target object, the trigger changes the player's Next button (e.g. disabled until all are visited).
-    if (!attr(shape, 'setStateG')) return `Change state of the player's Next button`;
-    out.action = 'changeState';
-    out.targetId = safeId(attr(shape, 'setStateG'));
-    out.state = attr(shape, 'setStateName') || 'Normal';
+    // Without a target object, the trigger changes a player button (e.g. Next disabled until all are visited).
+    if (!attr(shape, 'setStateG')) {
+      out.action = 'setPlayerButton';
+      out.targetId = sub === 'prev' ? 'prev' : 'next';
+      out.state = /^(disabled|hidden)$/i.test(attr(shape, 'setStateName') ?? '') ? 'Disabled' : 'Normal';
+    } else {
+      out.action = 'changeState';
+      out.targetId = safeId(attr(shape, 'setStateG'));
+      out.state = attr(shape, 'setStateName') || 'Normal';
+    }
+  } else if (act === 'jumpToSlide' && sub === 'prev') {
+    out.action = 'jumpToPrevious';
   } else if (act === 'jumpToSlide') {
-    if (sub === 'prev') return 'Jump to previous slide';
     out.action = 'jumpToSlide';
     out.targetId = sub === 'next' ? nextSlideId : ctx.slideIdByG.get(attr(kid(d, 'slide'), 'jumpG') ?? '') ?? '';
   } else if (act === 'jumpToScene') {
